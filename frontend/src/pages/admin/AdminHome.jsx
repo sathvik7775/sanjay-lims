@@ -70,7 +70,7 @@ import AdminEditResult from '../report/AdminEditResult'
 import Notification from '../../components/Notification'
 import PrintSettings from '../report/PrintSettings'
 import AdminPrintSetting from '../report/AdminPrintSetting'
-import AddTestManually from '../lab/AddTestmanually'
+import AddTestManually from '../lab/AddTestManually'
 
 
 const AdminHome = () => {
