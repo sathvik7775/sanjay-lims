@@ -19,7 +19,7 @@ import ReportTemplates from './report/ReportTemplates'
 import Signatures from './report/Signatures'
 import Bills from './report/Bills'
 import NewCase from './NewCase'
-import AddTestManually from './lab/AddTestmanually'
+
 import Singlepara from './lab/Singlepara'
 import Multiplepara from './lab/Multiplepara'
 import Nestedpara from './lab/Nestedpara'
@@ -38,6 +38,7 @@ import EnterResults from './report/EnterResults'
 import ViewReport from './report/ViewReport'
 import EditResult from './report/EditResult'
 import PrintSettings from './report/PrintSettings'
+import AddTestManually from './lab/AddTestmanually'
 
 const MainHome = () => {
     const { branchId } = useParams()
