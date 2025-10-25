@@ -1,0 +1,218 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap');
+
+@import "tailwindcss";
+
+* {
+  font-family: "Inter", sans-serif;
+  font-optical-sizing: auto;
+  font-style: normal;
+}
+
+
+
+@theme {
+  --color-primary: #2563eb;   
+  --color-secondary: #374151; 
+  --color-primary-dark: #1D4ED8; 
+        
+}
+
+.roboto-first {
+  font-family: "Inter", sans-serif;
+  font-optical-sizing: auto;
+  font-weight: 300;
+  font-style: normal;
+  
+}
+
+.roboto-second {
+  font-family: "Inter", sans-serif;
+  font-optical-sizing: auto;
+  font-weight: 800;
+  font-style: normal;
+  
+}
+.roboto-third {
+  font-family: "Inter", sans-serif;
+  font-optical-sizing: auto;
+  font-weight: 500;
+  font-style: normal;
+  
+}
+
+/* Targeting a specific div */
+/* Hide the scrollbar but keep the scrolling functionality */
+::-webkit-scrollbar {
+  display: none;
+}
+
+/* You can still scroll content without a visible scrollbar */
+.scrollable-container {
+  overflow: hidden;  /* Hide scrollbar */
+  overflow-y: scroll; /* Allow scrolling */
+}
+
+.select__control {
+  border-color: #d1d5db !important;
+  box-shadow: none !important;
+}
+
+.select__control--is-focused {
+  border-color: #3b82f6 !important; /* Tailwind blue-500 */
+  box-shadow: 0 0 0 1px #3b82f6 !important;
+}
+
+.select__multi-value {
+  background-color: #e0f2fe !important; /* light blue tag */
+  color: #0369a1 !important;
+}
+
+.select__multi-value__label {
+  color: #0369a1 !important;
+}
+
+
+/* ===== Page & Table ===== */
+@page {
+  margin: 18mm 12mm;
+}
+
+body {
+  font-family: "Inter", sans-serif;
+  font-size: 17px;
+  color: #000;
+}
+
+table.report {
+  width: 100%;
+  border-collapse: collapse;
+  page-break-inside: auto;
+}
+
+thead {
+  display: table-header-group;
+}
+
+tfoot {
+  display: table-footer-group;
+}
+
+td {
+  padding: 7px 10px;
+  text-align: left;
+}
+
+th {
+  background-color: #ffffff;
+}
+
+/* ===== Letterhead ===== */
+.letterhead {
+  text-align: center;
+  padding: 8px 0;
+}
+.letterhead img {
+  height: 40px;
+  object-fit: contain;
+}
+
+/* ===== Patient Info ===== */
+.patient-info {
+  margin-top: 6px;
+  font-size: 12px;
+  border-top: 1px solid #ffffff;
+  padding-top: 4px;
+}
+.patient-info p {
+  margin: 2px 0;
+}
+
+/* ===== Signatures ===== */
+.signature {
+  margin-top: 20px;
+  text-align: right;
+}
+
+/* ===== Footer Notes ===== */
+.footer-notes {
+  font-size: 11px;
+  margin-top: 10px;
+  line-height: 1.2;
+}
+.footer-notes ul {
+  padding-left: 18px;
+}
+.footer-notes li {
+  margin-bottom: 3px;
+}
+
+/* ===== Footer fixed at bottom ===== */
+tfoot td {
+  position: relative;
+}
+tfoot .footer-content {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+}
+
+/* ===== Images in Footer ===== */
+.footer-icons img {
+  height: 28px;
+  width: 28px;
+  object-fit: contain;
+}
+
+/* ===== Watermark ===== */
+.watermark {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  opacity: 0.1;
+  z-index: 0;
+  pointer-events: none;
+}
+.watermark img {
+  width: 400px;
+  object-fit: contain;
+}
+
+/* ===== Ensure content above watermark ===== */
+.page-content {
+  position: relative;
+  z-index: 1;
+}
+
+/* ===== Print Enhancements ===== */
+@media print {
+  body {
+    -webkit-print-color-adjust: exact;
+  }
+  .no-print {
+    display: none;
+  }
+  table.report {
+    page-break-inside: auto;
+  }
+
+  /* repeat watermark + footer on all pages */
+  .watermark {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+  }
+
+  tfoot {
+    display: table-footer-group;
+  }
+}
+
+
+@media print {
+  .pageNumber::after {
+    content: counter(page);
+  }
+}
