@@ -38,7 +38,7 @@ import EnterResults from './report/EnterResults'
 import ViewReport from './report/ViewReport'
 import EditResult from './report/EditResult'
 import PrintSettings from './report/PrintSettings'
-import AddTestManually from './lab/AddTestmanually'
+import AddTestManually from './lab/AddTestManually'
 
 const MainHome = () => {
     const { branchId } = useParams()
