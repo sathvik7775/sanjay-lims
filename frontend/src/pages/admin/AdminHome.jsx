@@ -20,7 +20,7 @@ import ReportTemplates from '../report/ReportTemplates'
 import Signatures from '../report/Signatures'
 import Bills from '../report/Bills'
 import NewCase from '../NewCase'
-import AddTestManually from '../lab/AddTestmanually'
+
 import Singlepara from '../lab/Singlepara'
 import Multiplepara from '../lab/Multiplepara'
 import Nestedpara from '../lab/Nestedpara'
@@ -43,8 +43,7 @@ import AdminTransactions from './admin cases/AdminTransactions'
 import AdminDotors from './admin cases/AdminDotors'
 import AdminAgents from './admin cases/AdminAgents'
 import AdminDashBoard from './AdminDashBoard'
-import AdminNewCategory from './lab master/AdminNewCategory'
-import AdminCategories from './lab master/AdminCatagories'
+
 import NewCategory from '../lab/NewCatagory'
 import TestCategories from '../lab/TestCatagories'
 import EditCategory from '../lab/EditCategory'
@@ -71,6 +70,7 @@ import AdminEditResult from '../report/AdminEditResult'
 import Notification from '../../components/Notification'
 import PrintSettings from '../report/PrintSettings'
 import AdminPrintSetting from '../report/AdminPrintSetting'
+import AddTestManually from '../lab/AddTestmanually'
 
 
 const AdminHome = () => {
