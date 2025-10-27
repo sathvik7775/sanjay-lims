@@ -15,7 +15,7 @@ const Sidebar = ({branchId}) => {
 
     return (
         <div>
-            <div className='w-[14%] hidden bg-[#F9FAFB] min-h-screen  fixed border-r border-gray-300 px-2 py-3 md:flex flex-col items-start '>
+            <div className='w-[14%] hidden bg-[#F9FAFB] min-h-screen  fixed border-r border-gray-300 px-2 py-3 md:flex flex-col items-start print:hidden'>
                 <button onClick={()=> {navigate(`/${branchId}/new-case`)
                     scrollTo(0, 0)
                 }} className='px-10 py-2 cursor-pointer flex items-center gap-2 text-white roboto-third bg-primary rounded-3xl hover:bg-primary-dark transition '><span className='text-xl -mt-1'>+</span><span

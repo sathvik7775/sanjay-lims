@@ -85,6 +85,7 @@ const AdminSidebar = () => {
 
   return (
     <>
+    <div className="print:hidden">
       {/* ✅ Mobile Menu Button */}
       <div className="fixed top-4 left-4 z-50 md:hidden">
         <img
@@ -199,6 +200,7 @@ const AdminSidebar = () => {
             <MenuItem icon="/signature.png" text="Signatures" to="/admin/signatures" />
           </Section>
         </div>
+      </div>
       </div>
     </>
   );
