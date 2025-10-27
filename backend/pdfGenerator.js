@@ -1,5 +1,6 @@
 // pdfGenerator.js
 import puppeteer from "puppeteer";
+
 import fs from "fs";
 import path from "path";
 import { generateBarcodeBase64 } from "./utils/barcode.js";
@@ -37,7 +38,7 @@ export const generatePDF = async (reportData, patient, letterhead, signatures = 
   const barcodeBase64 = await generateBarcodeBase64(patient.regNo);
 
   // Logo
-  const logoURL = letterhead.logo ? letterhead.logo : 'http://localhost:5173/sanjay.png';
+  const logoURL = letterhead.logo ? letterhead.logo : 'https://sanjay-lims.vercel.app/sanjay.png';
 
   // Signatures
   const signatureHTML = signatures.map(sig => {
@@ -282,14 +283,14 @@ const renderCategorySection = (category, design, spacing = 1, fontSize = 12, fon
                 <!-- Delivery & WhatsApp -->
                 <div style="display:flex; justify-content:space-between; gap:16px; margin-top:8px; width:100%;">
                   <div style="display:flex; gap:4px; align-items:center;">
-                    <img src="http://localhost:5173/delivery-bike.png" style="width:28px; height:28px;" />
+                    <img src="https://sanjay-lims.vercel.app/delivery-bike.png" style="width:28px; height:28px;" />
                     <div style="display:flex; flex-direction:column; align-items:center;">
                       <p style="margin:0; font-weight:bold;">Home collection</p>
                       <p style="margin:0; font-weight:bold;">Available</p>
                     </div>
                   </div>
                   <div style="display:flex; gap:4px; align-items:center;">
-                    <img src="http://localhost:5173/whatsapp.png" style="width:28px; height:28px;" />
+                    <img src="https://sanjay-lims.vercel.app/whatsapp.png" style="width:28px; height:28px;" />
                     <div style="display:flex; flex-direction:column; align-items:center;">
                       <p style="margin:0; font-weight:bold;">Get Reports Via</p>
                       <p style="margin:0; font-weight:bold;">SMS / WhatsApp</p>
