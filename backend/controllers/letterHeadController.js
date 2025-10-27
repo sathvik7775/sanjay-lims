@@ -33,7 +33,7 @@ export const addLetterhead = async (req, res) => {
       footerNotes,
     });
 
-    await Letterhead.save();
+    await letterhead.save();
     return res.status(201).json({
       success: true,
       message: "Letterhead created successfully.",
