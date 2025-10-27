@@ -1,6 +1,6 @@
-// pdfGenerator.js
-import puppeteer from "puppeteer";
-
+// backend/pdfGenerator.js
+import puppeteer from "puppeteer-core";
+import chromium from "@sparticuz/chromium";
 import fs from "fs";
 import path from "path";
 import { generateBarcodeBase64 } from "./utils/barcode.js";
@@ -9,7 +9,7 @@ import { generateBarcodeBase64 } from "./utils/barcode.js";
  * Convert local image to base64
  */
 const imageToBase64 = (imgPath) => {
-  if (!fs.existsSync(imgPath)) return '';
+  if (!fs.existsSync(imgPath)) return "";
   const ext = path.extname(imgPath).substring(1);
   const file = fs.readFileSync(imgPath);
   return `data:image/${ext};base64,${file.toString("base64")}`;
@@ -18,10 +18,24 @@ const imageToBase64 = (imgPath) => {
 /**
  * Generate PDF for report
  */
-export const generatePDF = async (reportData, patient, letterhead, signatures = [], printSetting = {}) => {
+export const generatePDF = async (
+  reportData,
+  patient,
+  letterhead,
+  signatures = [],
+  printSetting = {}
+) => {
+  // ✅ Use Chromium binary path compatible with Render
+  const executablePath =
+    (await chromium.executablePath) || "/usr/bin/google-chrome-stable";
+
   const browser = await puppeteer.launch({
-    args: ["--no-sandbox", "--disable-setuid-sandbox"]
+    args: chromium.args,
+    defaultViewport: chromium.defaultViewport,
+    executablePath,
+    headless: chromium.headless,
   });
+
   const page = await browser.newPage();
 
   // Extract settings from backend PrintSetting
