@@ -323,7 +323,11 @@ const renderCategorySection = (category, design, spacing = 1, fontSize = 12, fon
     </html>
   `;
 
-  await page.setContent(html, { waitUntil:"networkidle0" });
+  await page.setContent(html, {
+  waitUntil: "domcontentloaded",
+  timeout: 0, // disables timeout completely
+});
+
   const pdfBufferRaw = await page.pdf({ format: "A4", printBackground: true });
 const pdfBuffer = Buffer.from(pdfBufferRaw); // ensure it's a Node Buffer
 await browser.close();
