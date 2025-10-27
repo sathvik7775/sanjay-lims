@@ -26,8 +26,9 @@ export const generatePDF = async (
   printSetting = {}
 ) => {
   // ✅ Use Chromium binary path compatible with Render
-  const executablePath =
-    (await chromium.executablePath) || "/usr/bin/google-chrome-stable";
+const executablePath =
+  (await chromium.executablePath()) || "/usr/bin/google-chrome-stable";
+
 
   const browser = await puppeteer.launch({
     args: chromium.args,
