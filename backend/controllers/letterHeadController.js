@@ -1,5 +1,4 @@
-
-import letterhead from "../models/letterhead.js";
+import Letterhead from "../models/Letterhead.js";
 
 
 
@@ -13,7 +12,7 @@ export const addLetterhead = async (req, res) => {
     const { branchId, name, subName, tagline, address, contact, email, website, logo, footerNotes } = req.body;
 
     // Check if already exists for branch
-    const existing = await letterhead.findOne({ branchId });
+    const existing = await Letterhead.findOne({ branchId });
     if (existing) {
       return res.status(400).json({
         success: false,
@@ -21,7 +20,7 @@ export const addLetterhead = async (req, res) => {
       });
     }
 
-    const letterhead = new letterhead({
+    const letterhead = new Letterhead({
       branchId,
       name,
       subName,
@@ -34,7 +33,7 @@ export const addLetterhead = async (req, res) => {
       footerNotes,
     });
 
-    await letterhead.save();
+    await Letterhead.save();
     return res.status(201).json({
       success: true,
       message: "Letterhead created successfully.",
@@ -53,7 +52,7 @@ export const addLetterhead = async (req, res) => {
  */
 export const getAllLetterheads = async (req, res) => {
   try {
-    const letterheads = await letterhead.find().populate("branchId", "name code location");
+    const letterheads = await Letterhead.find().populate("branchId", "name code location");
     res.status(200).json({ success: true, letterheads });
   } catch (err) {
     console.error("Error fetching letterheads:", err);
@@ -69,7 +68,7 @@ export const getAllLetterheads = async (req, res) => {
 export const getLetterheadByBranch = async (req, res) => {
   try {
     const { branchId } = req.params; // <-- use params instead of body
-    const letterhead = await letterhead.findOne({ branchId }).populate(
+    const letterhead = await Letterhead.findOne({ branchId }).populate(
       "branchId",
       "name code location"
     );
@@ -123,7 +122,7 @@ export const getLetterheadByBranch = async (req, res) => {
 export const deleteLetterhead = async (req, res) => {
   try {
     const { id } = req.params;
-    const deleted = await letterhead.findByIdAndDelete(id);
+    const deleted = await Letterhead.findByIdAndDelete(id);
 
     if (!deleted) {
       return res.status(404).json({ success: false, message: "Letterhead not found." });

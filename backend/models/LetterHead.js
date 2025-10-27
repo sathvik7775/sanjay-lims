@@ -5,52 +5,55 @@ const letterheadSchema = new mongoose.Schema(
     branchId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Branch",
-      required: true,
+      required: [true, "Branch ID is required"],
     },
     name: {
       type: String,
-      required: true,
+      required: [true, "Lab name is required"],
       trim: true,
     },
     subName: {
       type: String,
       trim: true,
+      default: "",
     },
     tagline: {
       type: String,
       trim: true,
+      default: "",
     },
     address: {
       type: String,
-      required: true,
+      required: [true, "Address is required"],
       trim: true,
     },
     contact: {
       type: String,
-      required: true,
+      required: [true, "Contact number is required"],
       trim: true,
     },
     email: {
       type: String,
-      required: true,
+      required: [true, "Email is required"],
       lowercase: true,
       trim: true,
     },
     website: {
       type: String,
       trim: true,
+      default: "",
     },
     logo: {
-      type: String, // file URL or base64
+      type: String, // File URL or base64
       default: "",
     },
     footerNotes: {
-      type: [String], // like disclaimers, dynamic list
+      type: [String],
       default: [
-        "All results should be co-related clinically",
-        "If results are alarming, contact the laboratory immediately",
-        "Not valid for medico-legal purposes",
-        "The test with an asterisk (*) is not accredited by NABL",
+        "All results should be correlated clinically.",
+        "If results are alarming, contact the laboratory immediately.",
+        "Not valid for medico-legal purposes.",
+        "Tests with an asterisk (*) are not accredited by NABL.",
       ],
     },
   },
