@@ -1,4 +1,5 @@
-import LetterHead from "../models/LetterHead.js";
+import Letterhead from "../models/Letterhead.js";
+
 
 
 
@@ -13,7 +14,7 @@ export const addLetterhead = async (req, res) => {
     const { branchId, name, subName, tagline, address, contact, email, website, logo, footerNotes } = req.body;
 
     // Check if already exists for branch
-    const existing = await LetterHead.findOne({ branchId });
+    const existing = await Letterhead.findOne({ branchId });
     if (existing) {
       return res.status(400).json({
         success: false,
