@@ -53,6 +53,9 @@ const ViewReport = () => {
         `${import.meta.env.VITE_API_URL}/api/report/letterhead/branch/${branchId}`
       );
       const letterheadData = lhRes.data?.data || null;
+      console.log(lhRes.data);
+      
+      
       setLetterhead(letterheadData);
 
       // 4️⃣ Fetch Signatures
