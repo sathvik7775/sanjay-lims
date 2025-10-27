@@ -21,7 +21,7 @@ export const addLetterhead = async (req, res) => {
       });
     }
 
-    const letterhead = new Letterhead({
+    const letterhead = new LetterHead({
       branchId,
       name,
       subName,
@@ -46,14 +46,10 @@ export const addLetterhead = async (req, res) => {
   }
 };
 
-/**
- * @desc Get all letterheads
- * @route GET /api/letterheads
- * @access Admin
- */
+
 export const getAllLetterheads = async (req, res) => {
   try {
-    const letterheads = await Letterhead.find().populate("branchId", "name code location");
+    const letterheads = await LetterHead.find().populate("branchId", "name code location");
     res.status(200).json({ success: true, letterheads });
   } catch (err) {
     console.error("Error fetching letterheads:", err);
@@ -69,7 +65,7 @@ export const getAllLetterheads = async (req, res) => {
 export const getLetterheadByBranch = async (req, res) => {
   try {
     const { branchId } = req.params; // <-- use params instead of body
-    const letterhead = await Letterhead.findOne({ branchId }).populate(
+    const letterhead = await LetterHead.findOne({ branchId }).populate(
       "branchId",
       "name code location"
     );
