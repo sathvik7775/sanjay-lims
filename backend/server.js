@@ -23,6 +23,7 @@ import doctorRouter from "./routes/doctorRoute.js";
 import agentRouter from "./routes/agentRoute.js";
 import printRouter from "./routes/printRoutes.js";
 import pdfRouter from "./routes/pdfRoute.js";
+import formulaRouter from "./routes/formulaRoutes.js";
 
 
 dotenv.config();
@@ -79,6 +80,7 @@ app.use("/api/doctors", doctorRouter);
 app.use("/api/agents", agentRouter);
 app.use("/api/print", printRouter);
 app.use("/api/pdf", pdfRouter);
+app.use("/api/formula", formulaRouter);
 
 
 

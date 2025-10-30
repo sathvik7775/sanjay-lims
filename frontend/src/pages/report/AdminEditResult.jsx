@@ -195,6 +195,7 @@ const TestRow = ({ item, results, references, handleChange, handleReferenceChang
                         type="text"
                         value={references[param.paramId] ?? ""}
                         onChange={(e) => handleReferenceChange(param.paramId, e.target.value)}
+                        disabled
                         className="w-full border border-gray-300 rounded px-2 py-1 focus:ring-1 focus:ring-blue-400 outline-none"
                       />
                     </td>

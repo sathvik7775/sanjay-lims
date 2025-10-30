@@ -5,7 +5,7 @@ import { LabContext } from "../context/LabContext";
 import axios from "axios";
 
 const NewCase = () => {
-  const { doctors, agents, dummyTests, dummyPanels, branchId, branchToken, successToast, errorToast, packages } =
+  const { doctors, agents, dummyTests, dummyPanels, branchId, branchToken, successToast, errorToast, packages, navigate } =
     useContext(LabContext);
 
   const [formData, setFormData] = useState({
@@ -156,8 +156,10 @@ const handleCreateCase = async () => {
     );
 
     if (response.data.success) {
+      const newCase = response.data.data;
       successToast("Case created successfully!");
-      console.log("New Case:", response.data.data);
+      
+      navigate(`/${branchId}/enter-result/${newCase._id}`)
     } else {
       errorToast(response.data.message || "Failed to create case");
     }

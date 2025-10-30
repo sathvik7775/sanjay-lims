@@ -282,23 +282,35 @@ const EnterResults = () => {
           }
 
           if (item.type === "PANEL") {
-            const panel = item.data;
-            const panelObj = { panelName: panel.name, isPanel: true, tests: [] };
-            for (let testItem of panel.tests || []) {
-  const testId = extractId(testItem);
-  const testObj = await fetchTestWithRefs(testId, reportData, branchToken);
-  if (testObj) panelObj.tests.push(...testObj); // <-- spread operator
+  const panel = item.data;
+  const panelObj = {
+    panelName: panel.name,
+    isPanel: true,
+    interpretation: panel.interpretation || "", // ✅ ADD THIS
+    tests: [],
+  };
+
+  for (let testItem of panel.tests || []) {
+    const testId = extractId(testItem);
+    const testObj = await fetchTestWithRefs(testId, reportData, branchToken);
+    if (testObj) panelObj.tests.push(...testObj);
+  }
+
+  traverseTests(panelObj.tests);
+  if (!categories["Panels"]) categories["Panels"] = [];
+  categories["Panels"].push(panelObj);
 }
 
 
-            traverseTests(panelObj.tests);
-            if (!categories["Panels"]) categories["Panels"] = [];
-            categories["Panels"].push(panelObj);
-          }
-
           if (item.type === "PACKAGE") {
             const pkg = item.data;
-            const packageObj = { packageName: pkg.name, isPackage: true, tests: [] };
+            const packageObj = {
+  packageName: pkg.name,
+  isPackage: true,
+  interpretation: pkg.interpretation || "", // ✅ ADD THIS
+  tests: [],
+};
+
             for (let testItem of pkg.tests || []) {
               const testId = extractId(testItem);
               const testObj = await fetchTestWithRefs(testId, reportData, branchToken);
@@ -332,6 +344,8 @@ const EnterResults = () => {
         setTestsByCategory(categories);
         setResults(initialResults);
         setReferences(initialReferences);
+        
+        
 
       } catch (err) {
         console.error(err);
@@ -507,6 +521,7 @@ const TestRow = ({ item, results, references, handleChange, handleReferenceChang
                       type="text"
                       value={references[param.paramId] || ""}
                       onChange={(e) => handleReferenceChange(param.paramId, e.target.value)}
+                      disabled
                       className="w-full border border-gray-300 rounded px-2 py-1 focus:ring-1 focus:ring-blue-400 outline-none"
                     />
                   </td>

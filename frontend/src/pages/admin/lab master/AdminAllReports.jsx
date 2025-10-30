@@ -284,8 +284,17 @@ const AdminAllReports = () => {
                     <span className={getStatusStyle(r.dynamicStatus)}>{r.dynamicStatus}</span>
                   </td>
                   <td className="p-3 flex flex-col gap-1">
-                    <button onClick={() => navigate(`/${branchId}/bill/${r._id}`)} className="text-blue-600 text-sm cursor-pointer">View bill</button>
-                    <button onClick={() => navigate(`/admin/enter-result/${r._id}`)} className="text-gray-600 text-sm cursor-pointer">Enter results</button>
+                    <button onClick={() => navigate(`/admin/bill/${r._id}`)} className="text-blue-600 text-sm cursor-pointer">View bill</button>
+                    <button
+    onClick={() =>
+      navigate(
+        `/admin/${r.dynamicStatus === "Signed off" ? "edit-result" : "enter-result"}/${r._id}`
+      )
+    }
+    className="text-gray-600 text-sm cursor-pointer"
+  >
+    {r.dynamicStatus === "Signed off" ? "Edit results" : "Enter results"}
+  </button>
                   </td>
                 </tr>
               ))

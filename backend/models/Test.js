@@ -80,6 +80,11 @@ const TestSchema = new mongoose.Schema(
     // 🧩 multi/nested parameters
     parameters: [ParameterSchema],
 
+    isFormula: {
+      type: Boolean,
+      default: false,
+    },
+
     branchId: { type: mongoose.Schema.Types.ObjectId, ref: "Branch" },
 
     status: {

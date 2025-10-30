@@ -287,7 +287,12 @@ const EnterResults = () => {
 
           if (item.type === "PANEL") {
             const panel = item.data;
-            const panelObj = { panelName: panel.name, isPanel: true, tests: [] };
+            const panelObj = {
+    panelName: panel.name,
+    isPanel: true,
+    interpretation: panel.interpretation || "", // ✅ ADD THIS
+    tests: [],
+  };
             for (let testItem of panel.tests || []) {
   const testId = extractId(testItem);
   const testObj = await fetchTestWithRefs(testId, reportData, adminToken);
@@ -302,7 +307,12 @@ const EnterResults = () => {
 
           if (item.type === "PACKAGE") {
             const pkg = item.data;
-            const packageObj = { packageName: pkg.name, isPackage: true, tests: [] };
+            const packageObj = {
+  packageName: pkg.name,
+  isPackage: true,
+  interpretation: pkg.interpretation || "", // ✅ ADD THIS
+  tests: [],
+}
             for (let testItem of pkg.tests || []) {
               const testId = extractId(testItem);
               const testObj = await fetchTestWithRefs(testId, reportData, adminToken);
@@ -511,6 +521,7 @@ const TestRow = ({ item, results, references, handleChange, handleReferenceChang
                       type="text"
                       value={references[param.paramId] || ""}
                       onChange={(e) => handleReferenceChange(param.paramId, e.target.value)}
+                      disabled
                       className="w-full border border-gray-300 rounded px-2 py-1 focus:ring-1 focus:ring-blue-400 outline-none"
                     />
                   </td>

@@ -7,7 +7,7 @@ import Loader from "../../components/Loader";
 import Barcode from "react-barcode";
 
 const ViewReport = () => {
-  const { branchToken, errorToast, navigate,  adminToken } = useContext(LabContext);
+  const { branchToken, errorToast, navigate, adminToken  } = useContext(LabContext);
   const { reportId } = useParams();
 
   const [loading, setLoading] = useState(true);
@@ -32,8 +32,6 @@ const ViewReport = () => {
 
       const branchId = reportRes.data?.data.branchId;
       setBranchId(branchId)
-      console.log(branchId);
-      
 
       if (!reportRes.data.success) {
         errorToast(reportRes.data.message || "Failed to fetch report case");
@@ -59,6 +57,9 @@ const ViewReport = () => {
         `${import.meta.env.VITE_API_URL}/api/report/letterhead/branch/${branchId}`
       );
       const letterheadData = lhRes.data?.data || null;
+      console.log(lhRes.data);
+      
+      
       setLetterhead(letterheadData);
 
       // 4️⃣ Fetch Signatures
@@ -104,15 +105,15 @@ useEffect(() => {
     }
   };
 
-  if (reportId && adminToken) {
+  if (reportId && branchId && adminToken) {
     fetchPDF();
   }
-}, [reportId, adminToken]);
+}, [reportId, branchId, adminToken]);
 
 const handleGeneratePDF = async () => {
   try {
     setLoading(true)
-    if (!report || !letterhead) {
+    if (!report || !letterhead || !signatures) {
       return errorToast("Missing report or letterhead data");
     }
 
@@ -122,7 +123,7 @@ const handleGeneratePDF = async () => {
       `${import.meta.env.VITE_API_URL}/api/pdf/add`,
       {
         reportId,
-        branchId: branchId,
+        branchId,
         reportData: report,
         patient: report.patient,
         letterhead: letterhead,
@@ -148,8 +149,6 @@ const handleGeneratePDF = async () => {
     setLoading(false)
   }
 };
-
-
 
 
 
@@ -379,6 +378,8 @@ const LetterheadTable = ({ lh, signatures, children, patient, report, printSetti
           )}
         </th>
       </tr>
+
+      
     </thead>
 
     <tbody>
@@ -446,71 +447,24 @@ const LetterheadTable = ({ lh, signatures, children, patient, report, printSetti
 );
 
 // ---------------- Category Section ----------------
+// ---------------- Category Section ----------------
 const CategorySection = ({ category, printSetting }) => {
-  const { capitalizeTests, categoryNewPage, useHLMarkers, useNABLFormat } = printSetting?.general || {};
-
-  // Determine if this category should start on a new page
-  const categoryStyle = categoryNewPage ? { pageBreakBefore: 'always' } : {};
+  const { capitalizeTests, categoryNewPage, useNABLFormat } = printSetting?.general || {};
+  const { fontSize } = printSetting?.design || {};
+  const categoryStyle = categoryNewPage ? { pageBreakBefore: "always" } : {};
 
   return (
-    <div style={categoryStyle} className="mb-4">
-      <div className={`text-center font-bold ${capitalizeTests ? 'uppercase' : ''} mb-2`}>
+    <div style={categoryStyle} className="mb-4 w-full">
+      <div
+        className={`text-center font-bold ${capitalizeTests ? "uppercase" : ""} mb-2`}
+      >
         {useNABLFormat ? `**${category.categoryName}**` : category.categoryName}
       </div>
 
-      {category.items?.map((item, idx) =>
-        item.isPanel || item.isPackage ? (
-          <PanelPage key={idx} item={item} printSetting={printSetting} />
-        ) : (
-          <TestRow key={idx} test={item} printSetting={printSetting} />
-        )
-      )}
-    </div>
-  );
-};
-
-
-// ---------------- Panel Page ----------------
-const PanelPage = ({ item, printSetting }) => (
-  <div className="mb-10">
-    <div className="text-center font-semibold text-gray-700 mb-1 bg-white py-1">{item.panelOrPackageName || item.testName}</div>
-    {item.tests?.map((test, idx) =>
-      test.isPanel || test.isPackage ? <PanelPage key={idx} item={test} printSetting={printSetting} /> : <TestRow key={idx} test={test} printSetting={printSetting}  />
-    )}
-  </div>
-);
-
-// ---------------- Test Row ----------------
-const TestRow = ({ test, printSetting }) => {
-  const params = test.params || [];
-  const groups = [...new Set(params.map((p) => (p.groupBy || "Ungrouped")))];
-
-  const { boldAbnormal, redAbnormal, fontSize } = printSetting?.design || {};
-  const useHLMarkers = printSetting?.general?.useHLMarkers;
-
-  // Helper to check if value is outside reference range
-  const isOutOfRange = (value, reference) => {
-    if (!value || !reference) return false;
-
-    const rangeMatch = reference.match(/([\d.]+)\s*-\s*([\d.]+)/);
-    if (!rangeMatch) return null;
-
-    const [_, min, max] = rangeMatch;
-    const numValue = parseFloat(value);
-    if (numValue < parseFloat(min)) return "low";
-    if (numValue > parseFloat(max)) return "high";
-    return false;
-  };
-
-  return (
-    <div className="mb-4" style={{ fontSize: `${fontSize || 12}px` }}>
-      {groups.length > 1 && (
-        <div className="text-center font-semibold text-gray-700 mb-1 text-lg bg-white py-1">
-          {test.testName}
-        </div>
-      )}
-
-      <table className="w-full border-collapse">
+      <table
+        className="w-full border-collapse table-fixed"
+        style={{ fontSize: `${fontSize || 12}px` }}
+      >
         <thead>
           <tr className="border-t border-b border-black">
             <th className="text-left py-1 px-2 w-[40%] text-black">TEST</th>
@@ -519,69 +473,158 @@ const TestRow = ({ test, printSetting }) => {
             <th className="text-left py-1 px-2 w-[20%] text-black">REFERENCE</th>
           </tr>
         </thead>
+
         <tbody>
-          {groups.map((group) => {
-            const groupParams = params.filter((p) => (p.groupBy || "Ungrouped") === group);
-
-            return (
-              <React.Fragment key={group}>
-                {group !== "Ungrouped" && (
-                  <tr>
-                    <td colSpan={4} className="py-1 px-2 font-semibold">
-                      {group}
-                    </td>
-                  </tr>
-                )}
-
-                {params.length > 1 && (
-                  <p className="font-semibold text-gray-700 mb-1 bg-white py-1">
-                    {test.testName}
-                  </p>
-                )}
-
-                {groupParams.map((p) => {
-                  const hl = useHLMarkers ? isOutOfRange(p.value, p.reference) : false;
-                  const outOfRange = hl !== false;
-                  const style = {
-                    color: outOfRange && redAbnormal ? "red" : "black",
-                    fontWeight: outOfRange && boldAbnormal ? "bold" : "normal",
-                  };
-
-                  // Determine HL marker
-                  let marker = "";
-                  if (hl === "high") marker = " ↑";
-                  if (hl === "low") marker = " ↓";
-
-                  return (
-                    <tr key={p.paramId}>
-                      <td className="py-[3px] px-5">{p.name}</td>
-                      <td className="py-[3px] px-5" style={style}>
-                        {p.value || "-"}
-                        {marker}
-                      </td>
-                      <td className="py-[3px] px-5">{p.unit || "-"}</td>
-                      <td className="py-[3px] px-5">{p.reference || "-"}</td>
-                    </tr>
-                  );
-                })}
-              </React.Fragment>
-            );
-          })}
+          {category.items?.map((item, idx) =>
+            item.isPanel || item.isPackage ? (
+              <PanelPage key={idx} item={item} printSetting={printSetting} />
+            ) : (
+              <TestRow key={idx} test={item} printSetting={printSetting} />
+            )
+          )}
         </tbody>
       </table>
-
-      {test.interpretation && (
-        <div className="mt-2 p-2 bg-white" style={{ fontSize: `${fontSize || 12}px` }}>
-          <strong>Interpretation:</strong>
-          <div
-            className="text-gray-700 text-sm mt-1 ml-4"
-            dangerouslySetInnerHTML={{ __html: test.interpretation }}
-          />
-        </div>
-      )}
     </div>
   );
 };
+
+// ---------------- Panel Page (Now uses same table layout) ----------------
+const PanelPage = ({ item, printSetting }) => {
+  const { fontSize } = printSetting?.design || {};
+
+  return (
+    <>
+      {/* Panel Header Row inside table */}
+      <tr className="w-full bg-gray-50">
+  <td
+    colSpan={4}
+    className="py-2 px-2 text-center font-semibold text-gray-800"
+    style={{
+      fontSize: `${fontSize || 12}px`,
+      textAlign: "center",
+      verticalAlign: "middle",
+      lineHeight: "1.5",
+    }}
+  >
+    <div
+      style={{
+        display: "flex",
+        justifyContent: "center",
+        alignItems: "center",
+        height: "100%",
+        width: "100%",
+      }}
+    >
+      {item.panelOrPackageName || item.testName}
+    </div>
+  </td>
+</tr>
+
+
+      {/* Render sub-tests inline (aligned to same columns) */}
+      {item.tests?.map((test, idx) =>
+        test.isPanel || test.isPackage ? (
+          <PanelPage key={idx} item={test} printSetting={printSetting} />
+        ) : (
+          <TestRow key={idx} test={test} printSetting={printSetting} />
+        )
+      )}
+
+      {/* Interpretation section (if exists) */}
+      {item.interpretation && (
+        <tr>
+          <td
+            colSpan={4}
+            className="p-2 text-gray-700"
+            style={{
+              fontSize: `${fontSize || 12}px`,
+              lineHeight: 1.4,
+            }}
+          >
+            <strong>Interpretation:</strong>
+            <div
+              className="mt-1 ml-2"
+              dangerouslySetInnerHTML={{ __html: item.interpretation }}
+            />
+          </td>
+        </tr>
+      )}
+    </>
+  );
+};
+
+
+// ---------------- Test Row (no change) ----------------
+const TestRow = ({ test, printSetting }) => {
+  const params = test.params || [];
+  const groups = [...new Set(params.map((p) => p.groupBy || "Ungrouped"))];
+
+  const { boldAbnormal, redAbnormal, fontSize } = printSetting?.design || {};
+  const useHLMarkers = printSetting?.general?.useHLMarkers;
+
+  const isOutOfRange = (value, reference) => {
+    if (!value || !reference) return false;
+    const rangeMatch = reference.match(/([\d.]+)\s*-\s*([\d.]+)/);
+    if (!rangeMatch) return null;
+    const [, min, max] = rangeMatch;
+    const numValue = parseFloat(value);
+    if (numValue < parseFloat(min)) return "low";
+    if (numValue > parseFloat(max)) return "high";
+    return false;
+  };
+
+  return (
+    <>
+      {groups.map((group) => {
+        const groupParams = params.filter((p) => (p.groupBy || "Ungrouped") === group);
+
+        return (
+          <React.Fragment key={group}>
+            {group  && (
+              <tr>
+                <td colSpan={4} className=" px-2 font-semibold ">
+                  {group}
+                </td>
+              </tr>
+            )}
+
+            {groupParams.map((p) => {
+              const hl = useHLMarkers ? isOutOfRange(p.value, p.reference) : false;
+              const outOfRange = hl !== false;
+              const style = {
+                color: outOfRange && redAbnormal ? "red" : "black",
+                fontWeight: outOfRange && boldAbnormal ? "bold" : "normal",
+              };
+              const marker = hl === "high" ? " ↑" : hl === "low" ? " ↓" : "";
+
+              return (
+                <tr key={p.paramId} className="">
+                  <td className=" px-2 text-left w-[40%] break-words">{p.name}</td>
+                  <td className=" px-2 text-left w-[20%]" style={style}>
+                    {p.value || "-"}
+                    {marker}
+                  </td>
+                  <td className=" px-2 text-left w-[20%]">{p.unit || "-"}</td>
+                  <td className=" px-2 text-left w-[20%]">{p.reference || "-"}</td>
+                </tr>
+              );
+            })}
+          </React.Fragment>
+        );
+      })}
+
+      {test.interpretation && (
+        <tr>
+          <td colSpan={4} className="p-2 text-gray-700">
+            <strong>Interpretation:</strong>{" "}
+            <span dangerouslySetInnerHTML={{ __html: test.interpretation }} />
+          </td>
+        </tr>
+      )}
+    </>
+  );
+};
+
 
 
 

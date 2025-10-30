@@ -212,20 +212,20 @@ const AllReports = () => {
   const paginatedReports = filteredReports.slice(startIndex, startIndex + pageSize);
 
   const getStatusStyle = (status) => {
-  const safeStatus = status || "Loading"; // default if status is undefined
-  switch (safeStatus) {
-    case "Signed off":
-      return "bg-green-100 text-green-700 border border-green-400 px-2 py-1 rounded-md text-xs font-medium whitespace-nowrap";
-    case "New":
-      return "bg-blue-100 text-blue-700 border border-blue-400 px-2 py-1 rounded-md text-xs font-medium whitespace-nowrap";
-    case "In progress":
-      return "bg-red-100 text-red-700 border border-red-400 px-2 py-1 rounded-md text-xs font-medium whitespace-nowrap";
-    case "Loading":
-      return "bg-gray-100 text-gray-500 border border-gray-300 px-2 py-1 rounded-md text-xs font-medium whitespace-nowrap";
-    default:
-      return "px-2 py-1 text-xs whitespace-nowrap";
-  }
-};
+    const safeStatus = status || "Loading"; // default if status is undefined
+    switch (safeStatus) {
+      case "Signed off":
+        return "bg-green-100 text-green-700 border border-green-400 px-2 py-1 rounded-md text-xs font-medium whitespace-nowrap";
+      case "New":
+        return "bg-blue-100 text-blue-700 border border-blue-400 px-2 py-1 rounded-md text-xs font-medium whitespace-nowrap";
+      case "In progress":
+        return "bg-red-100 text-red-700 border border-red-400 px-2 py-1 rounded-md text-xs font-medium whitespace-nowrap";
+      case "Loading":
+        return "bg-gray-100 text-gray-500 border border-gray-300 px-2 py-1 rounded-md text-xs font-medium whitespace-nowrap";
+      default:
+        return "px-2 py-1 text-xs whitespace-nowrap";
+    }
+  };
 
 
   if (loading) return <Loader />;
@@ -305,7 +305,16 @@ const AllReports = () => {
                   </td>
                   <td className="p-3 flex flex-col gap-1">
                     <button onClick={() => navigate(`/${branchId}/bill/${r._id}`)} className="text-blue-600 text-sm cursor-pointer">View bill</button>
-                    <button onClick={() => navigate(`/${branchId}/enter-result/${r._id}`)} className="text-gray-600 text-sm cursor-pointer">Enter results</button>
+                    <button
+                      onClick={() =>
+                        navigate(
+                          `/${branchId}/${r.dynamicStatus === "Signed off" ? "edit-result" : "enter-result"}/${r._id}`
+                        )
+                      }
+                      className="text-gray-600 text-sm cursor-pointer"
+                    >
+                      {r.dynamicStatus === "Signed off" ? "Edit results" : "Enter results"}
+                    </button>
                   </td>
                 </tr>
               ))

@@ -6,7 +6,7 @@ import axios from "axios";
 import { LabContext } from "../../context/LabContext";
 
 const AdminNewCase = () => {
-  const { doctors, agents, dummyTests, dummyPanels, branchId, branchToken, successToast, errorToast, selectedBranch, adminToken } =
+  const { doctors, agents, dummyTests, dummyPanels, branchId, branchToken, successToast, errorToast, selectedBranch, adminToken, navigate } =
     useContext(LabContext);
 
   const [formData, setFormData] = useState({
@@ -143,9 +143,11 @@ const AdminNewCase = () => {
       const response = await axios.post(`${import.meta.env.VITE_API_URL}/api/cases/admin/add`, caseData, config);
 
       if (response.data.success) {
-        successToast("Case created successfully!");
-        console.log("New Case:", response.data.data);
-      } else {
+      const newCase = response.data.data;
+      successToast("Case created successfully!");
+      
+      navigate(`/admin/enter-result/${newCase._id}`)
+    } else {
         errorToast(response.data.message || "Failed to create case");
       }
     } catch (error) {
