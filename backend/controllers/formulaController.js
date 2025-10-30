@@ -6,28 +6,57 @@ import Test from "../models/Test.js";
  */
 export const createFormula = async (req, res) => {
   try {
-    const { testId, testName, shortName, formulaString, dependencies, remarks, branchId } = req.body;
+    const { testId, testName, shortName, expression, dependencies, remarks, branchId } = req.body;
 
-    // Validate that the test exists
+    // ✅ 1. Validate that the test exists
     const test = await Test.findById(testId);
     if (!test) {
       return res.status(404).json({ success: false, message: "Test not found" });
     }
 
-    // Create formula
+    // ✅ 2. Format dependencies properly
+    let formattedDependencies = [];
+    if (Array.isArray(dependencies)) {
+      formattedDependencies = await Promise.all(
+        dependencies.map(async (depId) => {
+          // Each dependency might be just an ID or a full object
+          if (typeof depId === "string") {
+            const depTest = await Test.findById(depId).select("name shortName");
+            if (depTest) {
+              return {
+                testId: depTest._id,
+                testName: depTest.name,
+                shortName: depTest.shortName,
+              };
+            }
+            return null;
+          } else if (depId?.testId) {
+            // Already object-like
+            return depId;
+          }
+          return null;
+        })
+      );
+
+      // Remove nulls (in case a testId was invalid)
+      formattedDependencies = formattedDependencies.filter(Boolean);
+    }
+
+    // ✅ 3. Create new formula
     const newFormula = await Formula.create({
       testId,
       testName: testName || test.name,
       shortName: shortName || test.shortName,
-      formulaString,
-      dependencies,
+      formulaString: expression,
+      dependencies: formattedDependencies,
       remarks,
       branchId,
     });
 
-    // Update test -> mark as formula type
+    // ✅ 4. Mark test as formula-based
     await Test.findByIdAndUpdate(testId, { isFormula: true });
 
+    // ✅ 5. Response
     res.status(201).json({
       success: true,
       message: "Formula created successfully",
@@ -38,6 +67,7 @@ export const createFormula = async (req, res) => {
     res.status(500).json({ success: false, message: "Server error", error: error.message });
   }
 };
+
 
 /**
  * 📄 Get all formulas

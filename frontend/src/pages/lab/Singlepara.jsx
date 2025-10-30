@@ -6,21 +6,23 @@ import Loader from '../../components/Loader';
 
 const Singlepara = () => {
 
-  const {errorToast, successToast, branchId, adminToken, branchToken, categories} = useContext(LabContext)
+  const { errorToast, successToast, branchId, adminToken, branchToken, categories } = useContext(LabContext)
   const [loading, setLoading] = useState(false)
   const [formData, setFormData] = useState({
     name: "",
-    shortName: '',
-    category: '',
-    unit: '',
-    inputType: 'Single Line',
-    defaultResult: '',
+    shortName: "",
+    category: "",
+    unit: "",
+    inputType: "Single Line",
+    defaultResult: "",
     isOptional: false,
-    price: '',
-    method: '',
-    instrument: '',
-    interpretation: '',
+    price: "",
+    method: "",
+    instrument: "",
+    interpretation: "",
+    isFormula: false, // This field was added
   });
+
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -30,90 +32,91 @@ const Singlepara = () => {
     }));
   };
 
- const handleSubmit = async (e) => {
-  e.preventDefault();
+  const handleSubmit = async (e) => {
+    e.preventDefault();
 
-  if (!formData.name?.trim()) {
-  errorToast?.("Please enter a test name");
-  return;
-}
-
-
+    if (!formData.name?.trim()) {
+      errorToast?.("Please enter a test name");
+      return;
+    }
 
 
-  if (!adminToken && !branchToken) {
-    errorToast?.("Unauthorized! Please log in.");
-    return;
-  }
 
-  try {
-    setLoading(true);
 
-    let url = "";
-    let headers = {};
-    
-    // Map frontend inputType to backend 'type'
-    const testType = "single"; // Single parameter test
+    if (!adminToken && !branchToken) {
+      errorToast?.("Unauthorized! Please log in.");
+      return;
+    }
 
-    const payload = {
-      name: formData.name,
-      shortName: formData.shortName,
-      type: testType,            // ✅ backend enum: "single"
-      category: formData.category,
-      unit: formData.unit,
-      price: Number(formData.price),
-      method: formData.method,
-      inputType: formData.inputType, 
-      instrument: formData.instrument,
-       isOptional: formData.isOptional,
-      interpretation: formData.interpretation,
-      
-    };
+    try {
+      setLoading(true);
 
-    if (adminToken) {
-      url = `${import.meta.env.VITE_API_URL}/api/test/database/admin/add`;
-      headers = { Authorization: `Bearer ${adminToken}` };
-    } else if (branchToken) {
-      if (!branchId) {
-        errorToast?.("Branch ID missing! Cannot create request.");
-        setLoading(false);
-        return;
+      let url = "";
+      let headers = {};
+
+      // Map frontend inputType to backend 'type'
+      const testType = "single"; // Single parameter test
+
+      const payload = {
+        name: formData.name,
+        shortName: formData.shortName,
+        type: "single", // Single parameter test
+        category: formData.category,
+        unit: formData.unit,
+        price: Number(formData.price),
+        method: formData.method,
+        inputType: formData.inputType,
+        instrument: formData.instrument,
+        isOptional: formData.isOptional,
+        interpretation: formData.interpretation,
+        isFormula: formData.isFormula, // Add this line
+      };
+
+
+      if (adminToken) {
+        url = `${import.meta.env.VITE_API_URL}/api/test/database/admin/add`;
+        headers = { Authorization: `Bearer ${adminToken}` };
+      } else if (branchToken) {
+        if (!branchId) {
+          errorToast?.("Branch ID missing! Cannot create request.");
+          setLoading(false);
+          return;
+        }
+        url = `${import.meta.env.VITE_API_URL}/api/test/database/add`;
+        headers = { Authorization: `Bearer ${branchToken}` };
+        payload.branchId = branchId;
       }
-      url = `${import.meta.env.VITE_API_URL}/api/test/database/add`;
-      headers = { Authorization: `Bearer ${branchToken}` };
-      payload.branchId = branchId;
+
+      const res = await axios.post(url, payload, { headers });
+
+      if (res.data.success) {
+        successToast?.(adminToken ? "Test added globally!" : "Test request sent for approval!");
+        setFormData({
+          name: "",
+          shortName: "",
+          category: "",
+          unit: "",
+          inputType: "Single Line",
+          defaultResult: "",
+          isOptional: false,
+          price: "",
+          method: "",
+          instrument: "",
+          interpretation: "",
+        });
+      } else {
+        errorToast?.(res.data.message || "Something went wrong");
+      }
+    } catch (err) {
+      console.error("Error adding test:", err);
+      errorToast?.("Failed to save test");
+    } finally {
+      setLoading(false);
     }
-
-    const res = await axios.post(url, payload, { headers });
-
-    if (res.data.success) {
-      successToast?.(adminToken ? "Test added globally!" : "Test request sent for approval!");
-      setFormData({
-        name: "",
-        shortName: "",
-        category: "",
-        unit: "",
-        inputType: "Single Line",
-        defaultResult: "",
-        isOptional: false,
-        price: "",
-        method: "",
-        instrument: "",
-        interpretation: "",
-      });
-    } else {
-      errorToast?.(res.data.message || "Something went wrong");
-    }
-  } catch (err) {
-    console.error("Error adding test:", err);
-    errorToast?.("Failed to save test");
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
 
-if (loading) return <Loader/>
+  if (loading) return <Loader />
 
   return (
     <div className="w-full p-8 bg-white rounded-lg shadow-lg mt-2">
@@ -150,84 +153,84 @@ if (loading) return <Loader/>
           {/* Category, Unit, Input Type */}
           <div className="grid grid-cols-3 gap-4">
             <div>
-  <label className="block text-sm mb-1">Category</label>
-  <input
-    list="categories"
-    name="category"
-    value={formData.category}
-    onChange={handleChange}
-    className="w-full border border-gray-300 rounded-lg px-3 py-2"
-    placeholder="Select category..."
-  />
-  <datalist id="categories">
-    {categories.map((cat) => (
-      <option key={cat._id} value={cat.name} />
-    ))}
-  </datalist>
-</div>
+              <label className="block text-sm mb-1">Category</label>
+              <input
+                list="categories"
+                name="category"
+                value={formData.category}
+                onChange={handleChange}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2"
+                placeholder="Select category..."
+              />
+              <datalist id="categories">
+                {categories.map((cat) => (
+                  <option key={cat._id} value={cat.name} />
+                ))}
+              </datalist>
+            </div>
 
-           <div>
-            <label className="block text-sm mb-1">Unit</label>
-            <input
-              list="units"
-              name="unit"
-              value={formData.unit}
-              onChange={handleChange}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2"
-              placeholder="Select unit..."
-            />
-            <datalist id="units">
-              <option value="%" />
-              <option value="AU/mL" />
-              <option value="cumm" />
-              <option value="fL" />
-              <option value="FL" />
-              <option value="g" />
-              <option value="g/dl" />
-              <option value="gm%" />
-              <option value="/HPF" />
-              <option value="index/mL" />
-              <option value="IU/L" />
-              <option value="µIU/mL" />
-              <option value="IU/mL" />
-              <option value="lakhs/cumm" />
-              <option value="mcg/mg" />
-              <option value="mcL" />
-              <option value="mEq/L" />
-              <option value="mg%" />
-              <option value="mg/dl" />
-              <option value="mg/DL" />
-              <option value="mg/L" />
-              <option value="mg/mL" />
-              <option value="Mill/cml." />
-              <option value="million/cumm" />
-              <option value="min" />
-              <option value="mIU/mL" />
-              <option value="ml" />
-              <option value="mm for 1st hour" />
-              <option value="mmHg" />
-              <option value="mmol/l" />
-              <option value="mmol/L" />
-              <option value="ng/dl" />
-              <option value="ng/I" />
-              <option value="ng/mL" />
-              <option value="nmol/L" />
-              <option value="Pg" />
-              <option value="pg/d" />
-              <option value="pg/ml" />
-              <option value="pg/mL" />
-              <option value="pmol/L" />
-              <option value="seconds" />
-              <option value="Thousand/cumm" />
-              <option value="U/I" />
-              <option value="U/mL" />
-              <option value="x10^9/L" />
-              <option value="μg/24 hrs" />
-              <option value="μg/dl" />
-              <option value="μg FEU/mL" />
-              <option value="μg/mL" />
-            </datalist>
-          </div>
+            <div>
+              <label className="block text-sm mb-1">Unit</label>
+              <input
+                list="units"
+                name="unit"
+                value={formData.unit}
+                onChange={handleChange}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2"
+                placeholder="Select unit..."
+              />
+              <datalist id="units">
+                <option value="%" />
+                <option value="AU/mL" />
+                <option value="cumm" />
+                <option value="fL" />
+                <option value="FL" />
+                <option value="g" />
+                <option value="g/dl" />
+                <option value="gm%" />
+                <option value="/HPF" />
+                <option value="index/mL" />
+                <option value="IU/L" />
+                <option value="µIU/mL" />
+                <option value="IU/mL" />
+                <option value="lakhs/cumm" />
+                <option value="mcg/mg" />
+                <option value="mcL" />
+                <option value="mEq/L" />
+                <option value="mg%" />
+                <option value="mg/dl" />
+                <option value="mg/DL" />
+                <option value="mg/L" />
+                <option value="mg/mL" />
+                <option value="Mill/cml." />
+                <option value="million/cumm" />
+                <option value="min" />
+                <option value="mIU/mL" />
+                <option value="ml" />
+                <option value="mm for 1st hour" />
+                <option value="mmHg" />
+                <option value="mmol/l" />
+                <option value="mmol/L" />
+                <option value="ng/dl" />
+                <option value="ng/I" />
+                <option value="ng/mL" />
+                <option value="nmol/L" />
+                <option value="Pg" />
+                <option value="pg/d" />
+                <option value="pg/ml" />
+                <option value="pg/mL" />
+                <option value="pmol/L" />
+                <option value="seconds" />
+                <option value="Thousand/cumm" />
+                <option value="U/I" />
+                <option value="U/mL" />
+                <option value="x10^9/L" />
+                <option value="μg/24 hrs" />
+                <option value="μg/dl" />
+                <option value="μg FEU/mL" />
+                <option value="μg/mL" />
+              </datalist>
+            </div>
             <div className="col-span-1">
               <label htmlFor="inputType" className="block text-sm font-semibold">Input Type</label>
               <select
@@ -268,6 +271,17 @@ if (loading) return <Loader/>
                 className="ml-2"
               />
             </div>
+
+            <div className="flex items-center">
+              <label className="text-sm font-semibold">Is Formula Test?</label>
+              <input
+                type="checkbox"
+                name="isFormula"
+                checked={formData.isFormula}
+                onChange={handleChange}
+                className="ml-2"
+              />
+            </div>
             <div className="col-span-1">
               <label htmlFor="price" className="block text-sm font-semibold">Price</label>
               <input
@@ -280,6 +294,9 @@ if (loading) return <Loader/>
               />
             </div>
           </div>
+
+
+
 
           {/* Method, Instrument */}
           <div className="grid grid-cols-2 gap-4">
@@ -308,31 +325,31 @@ if (loading) return <Loader/>
           </div>
 
           {/* Interpretation */}
-           <div className="mt-4">
-  <label className="block text-sm font-medium mb-1">Interpretation</label>
+          <div className="mt-4">
+            <label className="block text-sm font-medium mb-1">Interpretation</label>
 
-  <Editor
-  apiKey="0vfv6vlb9kccql8v3on0qtobc8m7irv267colygcsartuoxa"
-  value={formData.interpretation}
-  init={{
-    height: 250,
-    menubar: false,
-    plugins: [
-      "advlist", "autolink", "lists", "link", "image", "charmap", "preview", "anchor",
-      "searchreplace", "visualblocks", "code", "fullscreen",
-      "insertdatetime", "media", "table", "help", "wordcount"
-    ],
-    toolbar:
-      "undo redo | bold italic underline | alignleft aligncenter alignright alignjustify | bullist numlist | link image | code",
-    content_style: "body { font-family:Helvetica,Arial,sans-serif; font-size:14px; }",
-    branding: false,
-  }}
-  onEditorChange={(content) =>
-    setFormData((prev) => ({ ...prev, interpretation: content }))
-  }
-/>
+            <Editor
+              apiKey="0vfv6vlb9kccql8v3on0qtobc8m7irv267colygcsartuoxa"
+              value={formData.interpretation}
+              init={{
+                height: 250,
+                menubar: false,
+                plugins: [
+                  "advlist", "autolink", "lists", "link", "image", "charmap", "preview", "anchor",
+                  "searchreplace", "visualblocks", "code", "fullscreen",
+                  "insertdatetime", "media", "table", "help", "wordcount"
+                ],
+                toolbar:
+                  "undo redo | bold italic underline | alignleft aligncenter alignright alignjustify | bullist numlist | link image | code",
+                content_style: "body { font-family:Helvetica,Arial,sans-serif; font-size:14px; }",
+                branding: false,
+              }}
+              onEditorChange={(content) =>
+                setFormData((prev) => ({ ...prev, interpretation: content }))
+              }
+            />
 
-</div>
+          </div>
 
 
           {/* Save Button */}

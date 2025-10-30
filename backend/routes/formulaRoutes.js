@@ -6,6 +6,7 @@ import {
   updateFormula,
   deleteFormula,
 } from "../controllers/formulaController.js";
+import { verifyAdminToken } from "../middlewares/adminAuth.js";
 
 // ✅ Use formulaRouter instead of router
 const formulaRouter = express.Router();
@@ -14,7 +15,7 @@ const formulaRouter = express.Router();
  * @route   POST /api/formula
  * @desc    Create a new formula for a test
  */
-formulaRouter.post("/", createFormula);
+formulaRouter.post("/add", verifyAdminToken, createFormula);
 
 /**
  * @route   GET /api/formula
@@ -32,12 +33,12 @@ formulaRouter.get("/:testId", getFormulaByTestId);
  * @route   PUT /api/formula/:id
  * @desc    Update an existing formula
  */
-formulaRouter.put("/:id", updateFormula);
+formulaRouter.put("/:id", verifyAdminToken, updateFormula);
 
 /**
  * @route   DELETE /api/formula/:id
  * @desc    Delete formula
  */
-formulaRouter.delete("/:id", deleteFormula);
+formulaRouter.delete("/:id", verifyAdminToken, deleteFormula);
 
 export default formulaRouter;

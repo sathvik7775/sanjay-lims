@@ -25,6 +25,7 @@ const EditMultiplepara = () => {
         instrument: "",
         interpretation: "",
         parameters: [],
+        isFormula: false,  // Add the isFormula field
     });
 
     // Fetch existing test
@@ -75,12 +76,13 @@ const EditMultiplepara = () => {
 
     // General form change handler
     const handleChange = (e) => {
-        const { name, value, type, checked } = e.target;
-        setFormData((prev) => ({
-            ...prev,
-            [name]: type === "checkbox" ? checked : value,
-        }));
-    };
+  const { name, value, type, checked } = e.target;
+  setFormData((prev) => ({
+    ...prev,
+    [name]: type === "checkbox" ? checked : value,  // Handle checkbox value correctly
+  }));
+};
+
 
     // Parameter-specific change
     const handleParameterChange = (e, index) => {
@@ -140,6 +142,7 @@ const EditMultiplepara = () => {
                     defaultResult: p.defaultResult,
                     isOptional: p.isOptional,
                 })),
+                isFormula: formData.isFormula,
             };
 
             const res = await axios.put(
@@ -199,22 +202,22 @@ const EditMultiplepara = () => {
                     </div>
 
                     <div className="grid grid-cols-2 gap-4">
-                       <div>
-  <label className="block text-sm mb-1">Category</label>
-  <input
-    list="categories"
-    name="category"
-    value={formData.category}
-    onChange={handleChange}
-    className="w-full border border-gray-300 rounded-lg px-3 py-2"
-    placeholder="Select category..."
-  />
-  <datalist id="categories">
-    {categories.map((cat) => (
-      <option key={cat._id} value={cat.name} />
-    ))}
-  </datalist>
-</div>
+                        <div>
+                            <label className="block text-sm mb-1">Category</label>
+                            <input
+                                list="categories"
+                                name="category"
+                                value={formData.category}
+                                onChange={handleChange}
+                                className="w-full border border-gray-300 rounded-lg px-3 py-2"
+                                placeholder="Select category..."
+                            />
+                            <datalist id="categories">
+                                {categories.map((cat) => (
+                                    <option key={cat._id} value={cat.name} />
+                                ))}
+                            </datalist>
+                        </div>
 
                         <div>
                             <label htmlFor="price" className="block text-sm font-semibold">Price</label>
@@ -362,6 +365,18 @@ const EditMultiplepara = () => {
                                 />
                                 <label className="text-sm">Optional</label>
                             </div>
+
+                            <div className="flex items-center mt-4">
+                                <input
+                                    type="checkbox"
+                                    name="isFormula"
+                                    checked={formData.isFormula}  // Bind to the formData state
+                                    onChange={handleChange}  // Handle checkbox change
+                                    className="mr-2"
+                                />
+                                <label className="text-sm">Is this a formula test?</label>
+                            </div>
+
                         </div>
                     ))}
                     <button

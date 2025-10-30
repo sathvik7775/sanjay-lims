@@ -15,7 +15,7 @@ const EditSinglepara = () => {
   const [loading, setLoading] = useState(false);
 
   console.log(id);
-  
+
 
   const [formData, setFormData] = useState({
     name: "",
@@ -29,7 +29,9 @@ const EditSinglepara = () => {
     method: "",
     instrument: "",
     interpretation: "",
+    isFormula: false, // Added field for formula checkbox
   });
+
 
   // ✅ Fetch existing test data
   useEffect(() => {
@@ -40,9 +42,6 @@ const EditSinglepara = () => {
           `${import.meta.env.VITE_API_URL}/api/test/database/admin/test/${id}`,
           { headers: { Authorization: `Bearer ${adminToken}` } }
         );
-
-        console.log(res.data);
-        
 
         if (res.data.success) {
           const test = res.data.data;
@@ -58,6 +57,7 @@ const EditSinglepara = () => {
             method: test.method || "",
             instrument: test.instrument || "",
             interpretation: test.interpretation || "",
+            isFormula: test.isFormula || false,  // Ensure isFormula is fetched
           });
         } else {
           errorToast?.("Failed to load test details");
@@ -73,6 +73,7 @@ const EditSinglepara = () => {
     if (id) fetchTest();
   }, [id]);
 
+
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
     setFormData((prevState) => ({
@@ -83,53 +84,50 @@ const EditSinglepara = () => {
 
   // ✅ Submit updated test data
   const handleSubmit = async (e) => {
-    e.preventDefault();
+  e.preventDefault();
 
-    if (!formData.name?.trim()) {
-      errorToast?.("Please enter a test name");
-      return;
+  if (!formData.name?.trim()) {
+    errorToast?.("Please enter a test name");
+    return;
+  }
+
+  try {
+    setLoading(true);
+
+    const payload = {
+      name: formData.name,
+      shortName: formData.shortName,
+      unit: formData.unit,
+      type: "single", // single parameter
+      category: formData.category,
+      price: Number(formData.price),
+      method: formData.method,
+      instrument: formData.instrument,
+      interpretation: formData.interpretation,
+      parameters: [], // single param — can be left empty
+      isFormula: formData.isFormula, // Include isFormula in the payload
+    };
+
+    const res = await axios.put(
+      `${import.meta.env.VITE_API_URL}/api/test/database/admin/edit/${id}`,
+      payload,
+      { headers: { Authorization: `Bearer ${adminToken}` } }
+    );
+
+    if (res.data.success) {
+      successToast?.("Test updated successfully!");
+      navigate("/admin/test-database"); // ✅ redirect after saving
+    } else {
+      errorToast?.(res.data.message || "Update failed");
     }
+  } catch (err) {
+    console.error("Error updating test:", err);
+    errorToast?.("Failed to update test");
+  } finally {
+    setLoading(false);
+  }
+};
 
-    // if (!formData.unit?.trim()) {
-    //   errorToast?.("Please enter a value");
-    //   return;
-    // }
-
-    try {
-      setLoading(true);
-
-      const payload = {
-        name: formData.name,
-        shortName: formData.shortName,
-        unit: formData.unit,
-        type: "single", // single parameter
-        category: formData.category,
-        price: Number(formData.price),
-        method: formData.method,
-        instrument: formData.instrument,
-        interpretation: formData.interpretation,
-        parameters: [], // single param — can be left empty
-      };
-
-      const res = await axios.put(
-        `${import.meta.env.VITE_API_URL}/api/test/database/admin/edit/${id}`,
-        payload,
-        { headers: { Authorization: `Bearer ${adminToken}` } }
-      );
-
-      if (res.data.success) {
-        successToast?.("Test updated successfully!");
-        navigate("/admin/test-database"); // ✅ redirect after saving
-      } else {
-        errorToast?.(res.data.message || "Update failed");
-      }
-    } catch (err) {
-      console.error("Error updating test:", err);
-      errorToast?.("Failed to update test");
-    } finally {
-      setLoading(false);
-    }
-  };
 
   if (loading) return <Loader />;
 
@@ -173,22 +171,22 @@ const EditSinglepara = () => {
 
           {/* Category, Unit, Input Type */}
           <div className="grid grid-cols-3 gap-4">
-           <div>
-  <label className="block text-sm mb-1">Category</label>
-  <input
-    list="categories"
-    name="category"
-    value={formData.category}
-    onChange={handleChange}
-    className="w-full border border-gray-300 rounded-lg px-3 py-2"
-    placeholder="Select category..."
-  />
-  <datalist id="categories">
-    {categories.map((cat) => (
-      <option key={cat._id} value={cat.name} />
-    ))}
-  </datalist>
-</div>
+            <div>
+              <label className="block text-sm mb-1">Category</label>
+              <input
+                list="categories"
+                name="category"
+                value={formData.category}
+                onChange={handleChange}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2"
+                placeholder="Select category..."
+              />
+              <datalist id="categories">
+                {categories.map((cat) => (
+                  <option key={cat._id} value={cat.name} />
+                ))}
+              </datalist>
+            </div>
 
             <div>
               <label className="block text-sm mb-1">Unit</label>
@@ -202,54 +200,54 @@ const EditSinglepara = () => {
               />
               <datalist id="units">
                 <option value="%" />
-              <option value="AU/mL" />
-              <option value="cumm" />
-              <option value="fL" />
-              <option value="FL" />
-              <option value="g" />
-              <option value="g/dl" />
-              <option value="gm%" />
-              <option value="/HPF" />
-              <option value="index/mL" />
-              <option value="IU/L" />
-              <option value="µIU/mL" />
-              <option value="IU/mL" />
-              <option value="lakhs/cumm" />
-              <option value="mcg/mg" />
-              <option value="mcL" />
-              <option value="mEq/L" />
-              <option value="mg%" />
-              <option value="mg/dl" />
-              <option value="mg/DL" />
-              <option value="mg/L" />
-              <option value="mg/mL" />
-              <option value="Mill/cml." />
-              <option value="million/cumm" />
-              <option value="min" />
-              <option value="mIU/mL" />
-              <option value="ml" />
-              <option value="mm for 1st hour" />
-              <option value="mmHg" />
-              <option value="mmol/l" />
-              <option value="mmol/L" />
-              <option value="ng/dl" />
-              <option value="ng/I" />
-              <option value="ng/mL" />
-              <option value="nmol/L" />
-              <option value="Pg" />
-              <option value="pg/d" />
-              <option value="pg/ml" />
-              <option value="pg/mL" />
-              <option value="pmol/L" />
-              <option value="seconds" />
-              <option value="Thousand/cumm" />
-              <option value="U/I" />
-              <option value="U/mL" />
-              <option value="x10^9/L" />
-              <option value="μg/24 hrs" />
-              <option value="μg/dl" />
-              <option value="μg FEU/mL" />
-              <option value="μg/mL" />
+                <option value="AU/mL" />
+                <option value="cumm" />
+                <option value="fL" />
+                <option value="FL" />
+                <option value="g" />
+                <option value="g/dl" />
+                <option value="gm%" />
+                <option value="/HPF" />
+                <option value="index/mL" />
+                <option value="IU/L" />
+                <option value="µIU/mL" />
+                <option value="IU/mL" />
+                <option value="lakhs/cumm" />
+                <option value="mcg/mg" />
+                <option value="mcL" />
+                <option value="mEq/L" />
+                <option value="mg%" />
+                <option value="mg/dl" />
+                <option value="mg/DL" />
+                <option value="mg/L" />
+                <option value="mg/mL" />
+                <option value="Mill/cml." />
+                <option value="million/cumm" />
+                <option value="min" />
+                <option value="mIU/mL" />
+                <option value="ml" />
+                <option value="mm for 1st hour" />
+                <option value="mmHg" />
+                <option value="mmol/l" />
+                <option value="mmol/L" />
+                <option value="ng/dl" />
+                <option value="ng/I" />
+                <option value="ng/mL" />
+                <option value="nmol/L" />
+                <option value="Pg" />
+                <option value="pg/d" />
+                <option value="pg/ml" />
+                <option value="pg/mL" />
+                <option value="pmol/L" />
+                <option value="seconds" />
+                <option value="Thousand/cumm" />
+                <option value="U/I" />
+                <option value="U/mL" />
+                <option value="x10^9/L" />
+                <option value="μg/24 hrs" />
+                <option value="μg/dl" />
+                <option value="μg FEU/mL" />
+                <option value="μg/mL" />
               </datalist>
             </div>
             <div>
@@ -298,6 +296,17 @@ const EditSinglepara = () => {
                 className="ml-2"
               />
             </div>
+            <div className="flex items-center">
+              <label className="text-sm font-semibold">Is Formula Test?</label>
+              <input
+                type="checkbox"
+                name="isFormula"
+                checked={formData.isFormula}
+                onChange={handleChange}
+                className="ml-2"
+              />
+            </div>
+
           </div>
 
           {/* Method & Instrument */}

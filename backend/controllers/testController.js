@@ -58,7 +58,7 @@ export const addTest = async (req, res) => {
   console.log(req.branchId);
   
   try {
-    const { name, type, category, price, method, instrument, interpretation, parameters, shortName, unit, defaultResult } = req.body;
+    const { name, type, category, price, method, instrument, interpretation, parameters, shortName, unit, defaultResult, isFormula } = req.body;
     const userType = req.userType; // "admin" or "branch"
     const branchId = req.branchId || null;
 
@@ -84,6 +84,7 @@ export const addTest = async (req, res) => {
         parameters,
         status: "Active",
         createdBy: "admin",
+        isFormula: isFormula || false,
       });
       await newTest.save();
       return res.status(201).json({ success: true, message: "Test added globally", data: newTest });
@@ -107,6 +108,7 @@ export const addTest = async (req, res) => {
         parameters,
         branchId,
         status: "Pending",
+        isFormula: isFormula || false,
       });
       await newRequest.save();
       return res.status(201).json({ success: true, message: "Test request sent", data: newRequest });
@@ -149,6 +151,7 @@ export const handleTestRequest = async (req, res) => {
         parameters: request.parameters,
         status: "Active",
         createdBy: "admin",
+        isFormula: request.isFormula || false,
       });
       await newTest.save();
     }
@@ -183,7 +186,7 @@ export const deleteTest = async (req, res) => {
 export const editTest = async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, type, category, price, method, instrument, interpretation, parameters, shortName, unit, defaultResult } = req.body;
+    const { name, type, category, price, method, instrument, interpretation, parameters, shortName, unit, defaultResult, isFormula } = req.body;
 
     if (!name || !type) {
       return res.status(400).json({ success: false, message: "Test name and type are required" });
@@ -209,6 +212,7 @@ export const editTest = async (req, res) => {
     test.instrument = instrument;
     test.interpretation = interpretation;
     test.parameters = parameters;
+    test.isFormula = isFormula || false;
     await test.save();
 
     return res.status(200).json({ success: true, message: "Test updated successfully", data: test });

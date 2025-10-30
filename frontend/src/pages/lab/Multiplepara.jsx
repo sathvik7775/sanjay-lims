@@ -8,30 +8,38 @@ const Multiplepara = () => {
   const { errorToast, successToast, branchId, adminToken, branchToken, categories } = useContext(LabContext);
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
-    name: '',
-    shortName: '',
-    category: '',
-    price: '',
-    method: '',
-    instrument: '',
-    interpretation: '',
-    parameters: [
-      { id: 1, name: '', unit: '', inputType: 'Single Line', defaultResult: '', isOptional: false },
-      { id: 2, name: '', unit: '', inputType: 'Single Line', defaultResult: '', isOptional: false },
-    ],
-  });
+  name: '',
+  shortName: '',
+  category: '',
+  price: '',
+  method: '',
+  instrument: '',
+  interpretation: '',
+  isFormula: false,  // Ensure this is set here
+  parameters: [
+    { id: 1, name: '', unit: '', inputType: 'Single Line', defaultResult: '', isOptional: false },
+    { id: 2, name: '', unit: '', inputType: 'Single Line', defaultResult: '', isOptional: false },
+  ],
+});
+
 
   const handleInputChange = (e, index) => {
-    const { name, value, type, checked } = e.target;
-    const updatedParameters = [...formData.parameters];
-    updatedParameters[index][name] = type === 'checkbox' ? checked : value;
-    setFormData({ ...formData, parameters: updatedParameters });
-  };
+  const { name, value, type, checked } = e.target;
+  const updatedParameters = [...formData.parameters];
+  // Update the specific parameter at the given index
+  updatedParameters[index][name] = type === 'checkbox' ? checked : value;
+  setFormData({ ...formData, parameters: updatedParameters });
+};
+
 
   const handleTestDetailsChange = (e) => {
-    const { name, value } = e.target;
-    setFormData({ ...formData, [name]: value });
-  };
+  const { name, value, type, checked } = e.target;
+  setFormData({
+    ...formData,
+    [name]: type === 'checkbox' ? checked : value,
+  });
+};
+
 
   const handleAddParameter = () => {
     const newParameter = { id: formData.parameters.length + 1, name: '', unit: '', inputType: 'Single Line', defaultResult: '', isOptional: false };
@@ -44,88 +52,85 @@ const Multiplepara = () => {
   };
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
+  e.preventDefault();
 
-    if (!formData.name?.trim()) {
-  errorToast?.("Please enter a test name");
-  return;
-}
+  if (!formData.name?.trim()) {
+    errorToast?.("Please enter a test name");
+    return;
+  }
 
+  try {
+    setLoading(true);
 
+    let url = "";
+    let headers = {};
 
+    const payload = {
+      name: formData.name,
+      shortName: formData.shortName,
+      type: "multi", // multi-parameter test
+      category: formData.category,
+      price: Number(formData.price),
+      method: formData.method,
+      instrument: formData.instrument,
+      interpretation: formData.interpretation,
+      parameters: formData.parameters.map((param) => ({
+        order: param.order,
+        name: param.name || param.shortName || formData.name,
+        shortName: param.shortName,
+        unit: param.unit,
+        inputType: param.inputType,
+        defaultResult: param.defaultResult,
+        isOptional: param.isOptional,
+      })),
+      isFormula: formData.isFormula,  // Ensure isFormula is added here
+    };
 
-    if (!adminToken && !branchToken) {
-      errorToast?.("Unauthorized! Please log in.");
-      return;
+    // Determine URL and headers
+    if (adminToken) {
+      url = `${import.meta.env.VITE_API_URL}/api/test/database/admin/add`;
+      headers = { Authorization: `Bearer ${adminToken}` };
+    } else if (branchToken) {
+      if (!branchId) {
+        errorToast?.("Branch ID missing! Cannot create request.");
+        setLoading(false);
+        return;
+      }
+      url = `${import.meta.env.VITE_API_URL}/api/test/database/add`;
+      headers = { Authorization: `Bearer ${branchToken}` };
+      payload.branchId = branchId;
     }
 
-    try {
-      setLoading(true);
+    // Send request
+    const res = await axios.post(url, payload, { headers });
 
-      let url = "";
-      let headers = {};
-
-      const payload = {
-        name: formData.name,
-        shortName: formData.shortName,
-        type: "multi", // ✅ Multi-parameter test
-        category: formData.category,
-        price: Number(formData.price),
-        method: formData.method,
-        instrument: formData.instrument,
-        interpretation: formData.interpretation,
-        parameters: formData.parameters.map((param) => ({
-          order: param.order,
-          name: param.name || param.shortName || formData.name, // Required by schema
-          shortName: param.shortName,
-          unit: param.unit,
-          inputType: param.inputType,
-          defaultResult: param.defaultResult,
-          isOptional: param.isOptional,
-        })),
-      };
-
-      if (adminToken) {
-        url = `${import.meta.env.VITE_API_URL}/api/test/database/admin/add`;
-        headers = { Authorization: `Bearer ${adminToken}` };
-      } else if (branchToken) {
-        if (!branchId) {
-          errorToast?.("Branch ID missing! Cannot create request.");
-          setLoading(false);
-          return;
-        }
-        url = `${import.meta.env.VITE_API_URL}/api/test/database/add`;
-        headers = { Authorization: `Bearer ${branchToken}` };
-        payload.branchId = branchId;
-      }
-
-      const res = await axios.post(url, payload, { headers });
-
-      if (res.data.success) {
-        successToast?.(adminToken ? "Test added globally!" : "Test request sent for approval!");
-        setFormData({
-          name: '',
-          shortName: '',
-          category: '',
-          price: '',
-          method: '',
-          instrument: '',
-          interpretation: '',
-          parameters: [
-            { id: 1, name: '', unit: '', inputType: 'Single Line', defaultResult: '', isOptional: false },
-            { id: 2, name: '', unit: '', inputType: 'Single Line', defaultResult: '', isOptional: false },
-          ],
-        });
-      } else {
-        errorToast?.(res.data.message || "Something went wrong");
-      }
-    } catch (err) {
-      console.error("Error adding test:", err);
-      errorToast?.("Failed to save test");
-    } finally {
-      setLoading(false);
+    if (res.data.success) {
+      successToast?.(adminToken ? "Test added globally!" : "Test request sent for approval!");
+      setFormData({
+        name: '',
+        shortName: '',
+        category: '',
+        price: '',
+        method: '',
+        instrument: '',
+        interpretation: '',
+        parameters: [
+          { id: 1, name: '', unit: '', inputType: 'Single Line', defaultResult: '', isOptional: false },
+          { id: 2, name: '', unit: '', inputType: 'Single Line', defaultResult: '', isOptional: false },
+        ],
+        isFormula: false,  // Reset the isFormula checkbox after submission
+      });
+    } else {
+      errorToast?.(res.data.message || "Something went wrong");
     }
-  };
+  } catch (err) {
+    console.error("Error adding test:", err);
+    errorToast?.("Failed to save test");
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   if (loading) return <Loader />;
 
@@ -369,6 +374,19 @@ const Multiplepara = () => {
             />
           </div>
         </div>
+
+        <div className="flex items-center">
+  <input
+    type="checkbox"
+    name="isFormula"
+    checked={formData.isFormula} // Bind this with the formData state
+    onChange={handleTestDetailsChange} // This function will toggle the state correctly
+    className="mr-2"
+  />
+  <label htmlFor="isFormula" className="text-sm">Is Formula Test?</label>
+</div>
+
+
 
         {/* Interpretation */}
          <div className="mt-4">

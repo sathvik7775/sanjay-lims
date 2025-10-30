@@ -20,7 +20,8 @@ const Nestedpara = () => {
       { id: 1, order: 1, name: '', unit: '', inputType: 'Single Line', groupBy: '', defaultResult: '', isOptional: false },
       { id: 2, order: 2, name: '', unit: '', inputType: 'Single Line', groupBy: '', defaultResult: '', isOptional: false },
     ],
-  });
+    isFormula: false, // Add isFormula to the state
+});
 
   const handleInputChange = (e, index) => {
     const { name, value, type, checked } = e.target;
@@ -28,6 +29,15 @@ const Nestedpara = () => {
     updatedParameters[index][name] = type === 'checkbox' ? checked : value;
     setFormData({ ...formData, parameters: updatedParameters });
   };
+
+  const handleChange = (e) => {
+  const { name, value, type, checked } = e.target;
+  setFormData((prev) => ({
+    ...prev,
+    [name]: type === 'checkbox' ? checked : value,  // Handles checkbox value
+  }));
+};
+
 
   const handleTestDetailsChange = (e) => {
     const { name, value } = e.target;
@@ -84,6 +94,7 @@ const Nestedpara = () => {
           defaultResult: param.defaultResult,
           isOptional: param.isOptional,
         })),
+        isFormula: formData.isFormula, 
       };
 
       if (adminToken) {
@@ -117,6 +128,8 @@ const Nestedpara = () => {
             { id: 1, order: 1, name: '', unit: '', inputType: 'Single Line', groupBy: '', defaultResult: '', isOptional: false },
             { id: 2, order: 2, name: '', unit: '', inputType: 'Single Line', groupBy: '', defaultResult: '', isOptional: false },
           ],
+        isFormula: false,
+
         });
       } else {
         errorToast?.(res.data.message || "Something went wrong");
@@ -382,6 +395,18 @@ const Nestedpara = () => {
             />
           </div>
         </div>
+
+        <div className="flex items-center mt-4">
+  <input
+    type="checkbox"
+    name="isFormula"
+    checked={formData.isFormula}  // Bind to the formData state
+    onChange={handleChange}  // Handle checkbox change
+    className="mr-2"
+  />
+  <label className="text-sm">Is this a formula test?</label>
+</div>
+
 
         {/* Interpretation */}
         <div className="mt-4">

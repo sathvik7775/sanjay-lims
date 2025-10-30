@@ -11,96 +11,91 @@ const Documentpara = () => {
   const [loading, setLoading] = useState(false);
 
   const [formData, setFormData] = useState({
-    name: "",
-    shortName: "",
-    category: "",
-    price: "",
-    defaultResult: "",
-    displayInReport: true,
-  });
+  name: "",
+  shortName: "",
+  category: "",
+  price: "",
+  defaultResult: "",
+  displayInReport: true,
+  isFormula: false,  // Add isFormula here
+});
+
 
   // Handle input change
   const handleInputChange = (e) => {
-    const { name, value, type, checked } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: type === "checkbox" ? checked : value,
-    }));
-  };
+  const { name, value, type, checked } = e.target;
+  setFormData((prev) => ({
+    ...prev,
+    [name]: type === "checkbox" ? checked : value,  // Handles the checkbox correctly
+  }));
+};
 
   // Submit
   const handleSubmit = async (e) => {
-    e.preventDefault();
+  e.preventDefault();
+  if (!formData.name?.trim()) {
+    errorToast?.("Please enter a test name");
+    return;
+  }
 
-    if (!formData.name?.trim()) {
-  errorToast?.("Please enter a test name");
-  return;
-}
+  try {
+    setLoading(true);
 
+    const payload = {
+      name: formData.name,
+      shortName: formData.shortName,
+      type: "document",
+      category: formData.category,
+      price: Number(formData.price),
+      defaultResult: formData.defaultResult,
+      displayInReport: formData.displayInReport,
+      isFormula: formData.isFormula,  // Add isFormula to the payload
+    };
 
+    let url = "";
+    let headers = {};
 
-
-    if (!adminToken && !branchToken) {
-      errorToast?.("Unauthorized! Please log in.");
-      return;
+    if (adminToken) {
+      url = `${import.meta.env.VITE_API_URL}/api/test/database/admin/add`;
+      headers = { Authorization: `Bearer ${adminToken}` };
+    } else if (branchToken) {
+      if (!branchId) {
+        errorToast?.("Branch ID missing! Cannot create request.");
+        setLoading(false);
+        return;
+      }
+      url = `${import.meta.env.VITE_API_URL}/api/test/database/add`;
+      headers = { Authorization: `Bearer ${branchToken}` };
+      payload.branchId = branchId;
     }
 
-    try {
-      setLoading(true);
+    const res = await axios.post(url, payload, { headers });
 
-      const payload = {
-        name: formData.name,
-        shortName: formData.shortName,
-        type: "document",
-        category: formData.category,
-        price: Number(formData.price),
-        defaultResult: formData.defaultResult,
-        displayInReport: formData.displayInReport,
-      };
+    if (res.data.success) {
+      successToast?.(
+        adminToken ? "Document test added globally!" : "Test request sent for approval!"
+      );
 
-      let url = "";
-      let headers = {};
-
-      if (adminToken) {
-        url = `${import.meta.env.VITE_API_URL}/api/test/database/admin/add`;
-        headers = { Authorization: `Bearer ${adminToken}` };
-      } else if (branchToken) {
-        if (!branchId) {
-          errorToast?.("Branch ID missing! Cannot create request.");
-          setLoading(false);
-          return;
-        }
-        url = `${import.meta.env.VITE_API_URL}/api/test/database/add`;
-        headers = { Authorization: `Bearer ${branchToken}` };
-        payload.branchId = branchId;
-      }
-
-      const res = await axios.post(url, payload, { headers });
-
-      if (res.data.success) {
-        successToast?.(
-          adminToken ? "Document test added globally!" : "Test request sent for approval!"
-        );
-
-        // Reset form
-        setFormData({
-          name: "",
-          shortName: "",
-          category: "",
-          price: "",
-          defaultResult: "",
-          displayInReport: true,
-        });
-      } else {
-        errorToast?.(res.data.message || "Something went wrong");
-      }
-    } catch (err) {
-      console.error("Error adding document test:", err);
-      errorToast?.("Failed to save document test");
-    } finally {
-      setLoading(false);
+      // Reset form
+      setFormData({
+        name: "",
+        shortName: "",
+        category: "",
+        price: "",
+        defaultResult: "",
+        displayInReport: true,
+        isFormula: false,  // Reset isFormula when the form is reset
+      });
+    } else {
+      errorToast?.(res.data.message || "Something went wrong");
     }
-  };
+  } catch (err) {
+    console.error("Error adding document test:", err);
+    errorToast?.("Failed to save document test");
+  } finally {
+    setLoading(false);
+  }
+};
 
   if (loading) return <Loader />;
 
@@ -198,6 +193,21 @@ const Documentpara = () => {
               Display test name in report
             </label>
           </div>
+
+          <div className="flex items-center mb-3">
+  <input
+    type="checkbox"
+    id="isFormula"
+    name="isFormula"
+    checked={formData.isFormula}  // Bind the checkbox to formData
+    onChange={handleInputChange}  // Handle change on toggle
+    className="mr-2"
+  />
+  <label htmlFor="isFormula" className="text-sm text-gray-600">
+    Is this a formula test?
+  </label>
+</div>
+
 
           <label className="block text-sm font-medium mb-2">
             Default Result / Interpretation

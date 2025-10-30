@@ -14,13 +14,15 @@ const EditDocumentpara = () => {
   const [loading, setLoading] = useState(false);
 
   const [formData, setFormData] = useState({
-    name: "",
-    shortName: "",
-    category: "",
-    price: "",
-    defaultResult: "",
-    displayInReport: true,
-  });
+  name: "",
+  shortName: "",
+  category: "",
+  price: "",
+  defaultResult: "",
+  displayInReport: true,
+  isFormula: false,  // Add isFormula here
+});
+
 
   // Fetch existing test data
   useEffect(() => {
@@ -70,72 +72,69 @@ const EditDocumentpara = () => {
   }, [id, adminToken, branchToken]);
 
   const handleInputChange = (e) => {
-    const { name, value, type, checked } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: type === "checkbox" ? checked : value,
-    }));
-  };
+  const { name, value, type, checked } = e.target;
+  setFormData((prev) => ({
+    ...prev,
+    [name]: type === "checkbox" ? checked : value,  // This will correctly update the checkbox value
+  }));
+};
 
   // Submit updated test data
   const handleSubmit = async (e) => {
-    e.preventDefault();
+  e.preventDefault();
 
-    if (!formData.name?.trim()) {
-      errorToast?.("Please enter a test name");
-      return;
-    }
+  if (!formData.name?.trim()) {
+    errorToast?.("Please enter a test name");
+    return;
+  }
 
-    if (!adminToken && !branchToken) {
-      errorToast?.("Unauthorized! Please log in.");
-      return;
-    }
+  try {
+    setLoading(true);
 
-    try {
-      setLoading(true);
+    const payload = {
+      name: formData.name,
+      shortName: formData.shortName,
+      type: "document", // You can keep this as "document" or adjust based on your needs
+      category: formData.category,
+      price: Number(formData.price),
+      defaultResult: formData.defaultResult,
+      displayInReport: formData.displayInReport,
+      isFormula: formData.isFormula,  // Include isFormula here
+    };
 
-      const payload = {
-        name: formData.name,
-        shortName: formData.shortName,
-        type: "document",
-        category: formData.category,
-        price: Number(formData.price),
-        defaultResult: formData.defaultResult,
-        displayInReport: formData.displayInReport,
-      };
+    let url = "";
+    let headers = {};
 
-      let url = "";
-      let headers = {};
-
-      if (adminToken) {
-        url = `${import.meta.env.VITE_API_URL}/api/test/database/admin/edit/${id}`;
-        headers = { Authorization: `Bearer ${adminToken}` };
-      } else if (branchToken) {
-        if (!branchId) {
-          errorToast?.("Branch ID missing! Cannot update test.");
-          setLoading(false);
-          return;
-        }
-        url = `${import.meta.env.VITE_API_URL}/api/test/database/edit/${id}`;
-        headers = { Authorization: `Bearer ${branchToken}` };
-        payload.branchId = branchId;
+    if (adminToken) {
+      url = `${import.meta.env.VITE_API_URL}/api/test/database/admin/edit/${id}`;
+      headers = { Authorization: `Bearer ${adminToken}` };
+    } else if (branchToken) {
+      if (!branchId) {
+        errorToast?.("Branch ID missing! Cannot update test.");
+        setLoading(false);
+        return;
       }
-
-      const res = await axios.put(url, payload, { headers });
-
-      if (res.data.success) {
-        successToast?.("Test updated successfully!");
-        navigate(adminToken ? "/admin/test-database" : "/branch/test-database");
-      } else {
-        errorToast?.(res.data.message || "Update failed");
-      }
-    } catch (err) {
-      console.error("Error updating test:", err);
-      errorToast?.("Failed to update test");
-    } finally {
-      setLoading(false);
+      url = `${import.meta.env.VITE_API_URL}/api/test/database/edit/${id}`;
+      headers = { Authorization: `Bearer ${branchToken}` };
+      payload.branchId = branchId;
     }
-  };
+
+    const res = await axios.put(url, payload, { headers });
+
+    if (res.data.success) {
+      successToast?.("Test updated successfully!");
+      navigate(adminToken ? "/admin/test-database" : "/branch/test-database");
+    } else {
+      errorToast?.(res.data.message || "Update failed");
+    }
+  } catch (err) {
+    console.error("Error updating test:", err);
+    errorToast?.("Failed to update test");
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   if (loading) return <Loader />;
 
@@ -233,6 +232,21 @@ const EditDocumentpara = () => {
               Display test name in report
             </label>
           </div>
+
+          <div className="flex items-center mb-3">
+  <input
+    type="checkbox"
+    id="isFormula"
+    name="isFormula"
+    checked={formData.isFormula}  // Bind it to formData
+    onChange={handleInputChange}  // Handle the toggle change
+    className="mr-2"
+  />
+  <label htmlFor="isFormula" className="text-sm text-gray-600">
+    Is this a formula test?
+  </label>
+</div>
+
 
           <label className="block text-sm font-medium mb-2">
             Default Result / Interpretation

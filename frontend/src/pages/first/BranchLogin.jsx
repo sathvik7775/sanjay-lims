@@ -21,7 +21,7 @@ const BranchLogin = () => {
     try {
       setLoading(true);
       const res = await axios.post(
-  "https://sanjay-lims.onrender.com/api/branchlogin/login",
+  "http://localhost:5000/api/branchlogin/login",
   {
     loginEmail: email,
     loginPassword: password,

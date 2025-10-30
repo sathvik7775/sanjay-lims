@@ -12,15 +12,16 @@ const EditNestedpara = () => {
   const [loading, setLoading] = useState(false);
 
   const [formData, setFormData] = useState({
-    name: '',
-    shortName: '',
-    category: '',
-    price: '',
-    method: '',
-    instrument: '',
-    interpretation: '',
-    parameters: [],
-  });
+  name: '',
+  shortName: '',
+  category: '',
+  price: '',
+  method: '',
+  instrument: '',
+  interpretation: '',
+  parameters: [],
+  isFormula: false,  // Add isFormula here
+});
 
   // Fetch existing test for edit
   useEffect(() => {
@@ -80,9 +81,13 @@ const EditNestedpara = () => {
 
   // General form change
   const handleTestDetailsChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
-  };
+  const { name, value, type, checked } = e.target;
+  setFormData(prev => ({
+    ...prev,
+    [name]: type === 'checkbox' ? checked : value,  // Handles the checkbox correctly
+  }));
+};
+
 
   // Parameter-specific change
   const handleInputChange = (e, index) => {
@@ -105,67 +110,66 @@ const EditNestedpara = () => {
 
   // Submit updated test
   const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!formData.name || typeof formData.name !== 'string' || !formData.name.trim()) {
-      errorToast?.("Please enter a test name");
-      return;
+  e.preventDefault();
+  if (!formData.name || typeof formData.name !== 'string' || !formData.name.trim()) {
+    errorToast?.("Please enter a test name");
+    return;
+  }
+
+  try {
+    setLoading(true);
+    const payload = {
+      name: formData.name,
+      shortName: formData.shortName,
+      type: "nested",  // Set the type as "nested"
+      category: formData.category,
+      price: Number(formData.price),
+      method: formData.method,
+      instrument: formData.instrument,
+      interpretation: formData.interpretation,
+      parameters: formData.parameters.map(param => ({
+        name: param.name ? param.name : formData.name || "",
+        shortName: param.shortName,
+        unit: param.unit,
+        inputType: param.inputType,
+        groupBy: param.groupBy,
+        defaultResult: param.defaultResult,
+        isOptional: param.isOptional,
+      })),
+      isFormula: formData.isFormula,  // Add isFormula to the payload
+    };
+
+    let url = '';
+    let headers = {};
+    if (adminToken) {
+      url = `${import.meta.env.VITE_API_URL}/api/test/database/admin/edit/${id}`;
+      headers = { Authorization: `Bearer ${adminToken}` };
+    } else if (branchToken) {
+      if (!branchId) {
+        errorToast?.("Branch ID missing! Cannot update test.");
+        setLoading(false);
+        return;
+      }
+      url = `${import.meta.env.VITE_API_URL}/api/test/database/edit/${id}`;
+      headers = { Authorization: `Bearer ${branchToken}` };
+      payload.branchId = branchId;
     }
 
+    const res = await axios.put(url, payload, { headers });
 
-
-    try {
-      setLoading(true);
-      const payload = {
-        name: formData.name,
-        shortName: formData.shortName,
-        type: "nested",
-        category: formData.category,
-        price: Number(formData.price),
-        method: formData.method,
-        instrument: formData.instrument,
-        interpretation: formData.interpretation,
-        parameters: formData.parameters.map(param => ({
-          name: param.name ? param.name : formData.name || "",
-          shortName: param.shortName,
-          unit: param.unit,
-          inputType: param.inputType,
-          groupBy: param.groupBy,
-          defaultResult: param.defaultResult,
-          isOptional: param.isOptional,
-        })),
-      };
-
-      let url = '';
-      let headers = {};
-      if (adminToken) {
-        url = `${import.meta.env.VITE_API_URL}/api/test/database/admin/edit/${id}`;
-        headers = { Authorization: `Bearer ${adminToken}` };
-      } else if (branchToken) {
-        if (!branchId) {
-          errorToast?.("Branch ID missing! Cannot update test.");
-          setLoading(false);
-          return;
-        }
-        url = `${import.meta.env.VITE_API_URL}/api/test/database/edit/${id}`;
-        headers = { Authorization: `Bearer ${branchToken}` };
-        payload.branchId = branchId;
-      }
-
-      const res = await axios.put(url, payload, { headers });
-
-      if (res.data.success) {
-        successToast?.("Test updated successfully!");
-        navigate(adminToken ? "/admin/test-database" : "/branch/test-database");
-      } else {
-        errorToast?.(res.data.message || "Failed to update test");
-      }
-    } catch (err) {
-      console.error("Error updating test:", err);
-      errorToast?.("Failed to update test");
-    } finally {
-      setLoading(false);
+    if (res.data.success) {
+      successToast?.("Test updated successfully!");
+      navigate(adminToken ? "/admin/test-database" : "/branch/test-database");
+    } else {
+      errorToast?.(res.data.message || "Failed to update test");
     }
-  };
+  } catch (err) {
+    console.error("Error updating test:", err);
+    errorToast?.("Failed to update test");
+  } finally {
+    setLoading(false);
+  }
+};
 
   if (loading) return <Loader />;
 
@@ -310,6 +314,8 @@ const EditNestedpara = () => {
                 <input type="checkbox" name="isOptional" checked={param.isOptional} onChange={(e) => handleInputChange(e, index)} className="mr-2" />
                 <label className="text-sm">Optional</label>
               </div>
+              
+
             </div>
           ))}
           <button type="button" onClick={handleAddParameter} className="bg-blue-500 text-white p-2 rounded-md hover:bg-blue-600">+ Add more parameters</button>
@@ -326,6 +332,17 @@ const EditNestedpara = () => {
             <input type="text" name="instrument" value={formData.instrument} onChange={handleTestDetailsChange} className="w-full p-2 border border-gray-300 rounded-md" />
           </div>
         </div>
+
+        <div className="flex items-center mt-4">
+  <input
+    type="checkbox"
+    name="isFormula"
+    checked={formData.isFormula}  // Bind the state
+    onChange={handleTestDetailsChange}  // Handle change
+    className="mr-2"
+  />
+  <label className="text-sm">Is this a formula test?</label>
+</div>
 
         {/* Interpretation */}
         <div className="mt-4">

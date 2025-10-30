@@ -1,6 +1,8 @@
 
 
 
+
+
 import React, { useState, useEffect, useContext } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import axios from "axios";
@@ -34,7 +36,79 @@ const extractId = (item) => {
   return null;
 };
 
-// 🔹 Fetch test along with matched reference ranges
+// 🔹 Fetch formula for the test
+const fetchFormula = async (testId) => {
+  try {
+    const response = await axios.get(`${import.meta.env.VITE_API_URL}/api/formula/${testId}`);
+
+    // Log the full response to understand its structure
+    console.log("fetchFormula response:", response);
+
+    if (response.data && response.data.data) {
+      const { formulaString, dependencies } = response.data.data;
+      console.log("Formula String:", formulaString);
+      console.log("Dependencies:", dependencies);
+
+      // If dependencies is not present, return an empty array to avoid errors
+      if (!dependencies) {
+        console.warn("Dependencies not found for formula");
+        return { formulaString: '', dependencies: [] };
+      }
+
+      return { formulaString, dependencies };
+    } else {
+      console.warn("No formula data found.");
+      return { formulaString: '', dependencies: [] };
+    }
+  } catch (error) {
+    console.error("Error fetching formula:", error);
+    return { formulaString: '', dependencies: [] }; // Return default values if error occurs
+  }
+};
+
+
+const calculateFormulaResult = (formula, dependencies, results) => {
+  let calculatedResult = formula;
+
+  if (!Array.isArray(dependencies)) {
+    console.error("Invalid dependencies array:", dependencies);
+    return null;
+  }
+
+  console.log("Dependencies:", dependencies);
+
+  dependencies.forEach(dep => {
+    if (!dep || !dep.testId || !dep.testName) {
+      console.warn("Invalid dependency:", dep);
+      return;
+    }
+
+    // 🧠 FIX HERE — use dep.testId._id (since testId is an object)
+    const depId = dep.testId._id || dep.testId;
+    const depResult = results[depId];
+
+    if (depResult !== undefined && depResult !== null) {
+      calculatedResult = calculatedResult.replace(dep.testName, depResult);
+    } else {
+      console.warn(`Missing result for ${dep.testName}, replacing with 0`);
+      calculatedResult = calculatedResult.replace(dep.testName, "0");
+    }
+  });
+
+  try {
+    const result = new Function("return " + calculatedResult)();
+    return result;
+  } catch (error) {
+    console.error("Error calculating formula:", error);
+    return null;
+  }
+};
+
+
+
+
+
+
 // 🔹 Fetch test along with matched reference ranges
 const fetchTestWithRefs = async (testId, reportData, branchToken) => {
   try {
@@ -81,7 +155,6 @@ const fetchTestWithRefs = async (testId, reportData, branchToken) => {
           ];
 
       return baseParams.map((param) => {
-        // --- First try to match specific parameter ---
         let ref = refRanges.find((r) => {
           if (r.which === "Text") {
             return r.parameterName === param.name; // ignore age/sex for text
@@ -98,7 +171,6 @@ const fetchTestWithRefs = async (testId, reportData, branchToken) => {
           }
         });
 
-        // --- Fallback to generic single-parameter reference ---
         if (!ref) {
           ref = refRanges.find((r) => {
             if (r.which === "Text") return r.parameterName === null;
@@ -114,7 +186,6 @@ const fetchTestWithRefs = async (testId, reportData, branchToken) => {
           });
         }
 
-        // --- Determine reference value ---
         let referenceValue = "-";
         if (ref) {
           referenceValue =
@@ -140,7 +211,6 @@ const fetchTestWithRefs = async (testId, reportData, branchToken) => {
       });
     };
 
-    // --- Handle single test or child tests ---
     let allTests = [];
     if (test.tests?.length) {
       for (const child of test.tests) {
@@ -161,6 +231,7 @@ const fetchTestWithRefs = async (testId, reportData, branchToken) => {
             category: t.category || test.category || "Other",
             interpretation: t.interpretation || "",
             params,
+            isFormula: t.isFormula || false, // Add this for formula check
           });
         }
       }
@@ -172,8 +243,34 @@ const fetchTestWithRefs = async (testId, reportData, branchToken) => {
         category: test.category || "Other",
         interpretation: test.interpretation || "",
         params,
+        isFormula: test.isFormula || false, // Add this for formula check
       });
     }
+
+    for (let test of allTests) {
+  // Ensure you have the correct testId
+  const testId = test.params && test.params.length > 0 ? test.params[0].paramId : undefined;
+  
+  console.log("Test ID for formula:", testId); // Ensure this is not undefined
+  
+  // Check if testId exists and the test is a formula
+  if (test.isFormula && testId) {
+    // Fetch the formula string and dependencies for the test
+    const { formulaString, dependencies } = await fetchFormula(testId);
+
+    // Check if dependencies exist
+    if (dependencies && Array.isArray(dependencies) && dependencies.length > 0) {
+      // Calculate the result using the formula string and dependencies
+      const result = calculateFormulaResult(formulaString, dependencies, reportData.results);
+      test.calculatedResult = result;
+    } else {
+      console.warn("No dependencies found for test:", test);
+    }
+  } else if (!testId) {
+    console.warn("Test ID is missing for test:", test);
+  }
+}
+
 
     return allTests;
   } catch (err) {
@@ -181,7 +278,6 @@ const fetchTestWithRefs = async (testId, reportData, branchToken) => {
     return null;
   }
 };
-
 
 
 const EnterResults = () => {
@@ -282,40 +378,41 @@ const EnterResults = () => {
           }
 
           if (item.type === "PANEL") {
-  const panel = item.data;
-  const panelObj = {
-    panelName: panel.name,
-    isPanel: true,
-    interpretation: panel.interpretation || "", // ✅ ADD THIS
-    tests: [],
-  };
+            const panel = item.data;
+            const panelObj = {
+              panelName: panel.name,
+              isPanel: true,
+              interpretation: panel.interpretation || "", // ✅ ADD THIS
+              tests: [],
+            };
 
-  for (let testItem of panel.tests || []) {
-    const testId = extractId(testItem);
-    const testObj = await fetchTestWithRefs(testId, reportData, branchToken);
-    if (testObj) panelObj.tests.push(...testObj);
-  }
+            for (let testItem of panel.tests || []) {
+              const testId = extractId(testItem);
+              const testObj = await fetchTestWithRefs(testId, reportData, branchToken);
+              if (testObj) panelObj.tests.push(...testObj);
+            }
 
-  traverseTests(panelObj.tests);
-  if (!categories["Panels"]) categories["Panels"] = [];
-  categories["Panels"].push(panelObj);
-}
+            traverseTests(panelObj.tests);
+            if (!categories["Panels"]) categories["Panels"] = [];
+            categories["Panels"].push(panelObj);
+          }
 
 
           if (item.type === "PACKAGE") {
             const pkg = item.data;
             const packageObj = {
-  packageName: pkg.name,
-  isPackage: true,
-  interpretation: pkg.interpretation || "", // ✅ ADD THIS
-  tests: [],
-};
+              packageName: pkg.name,
+              isPackage: true,
+              interpretation: pkg.interpretation || "", // ✅ ADD THIS
+              tests: [],
+            };
 
             for (let testItem of pkg.tests || []) {
               const testId = extractId(testItem);
               const testObj = await fetchTestWithRefs(testId, reportData, branchToken);
               if (testObj) packageObj.tests.push(...testObj);
             }
+
             for (let panelItem of pkg.panels || []) {
               const panelId = extractId(panelItem);
               if (!panelId) continue;
@@ -344,9 +441,6 @@ const EnterResults = () => {
         setTestsByCategory(categories);
         setResults(initialResults);
         setReferences(initialReferences);
-        
-        
-
       } catch (err) {
         console.error(err);
         errorToast(err.response?.data?.message || "Server error");
@@ -358,12 +452,28 @@ const EnterResults = () => {
     fetchReport();
   }, [reportId]);
 
-  const handleChange = (paramId, value) =>
-    setResults((prev) => ({ ...prev, [paramId]: value }));
+  const handleChange = (paramId, value) => {
+  setResults((prevResults) => {
+    const updatedResults = { ...prevResults, [paramId]: value };
+
+    // If this param is part of a formula-based test, recalculate the formula
+    const test = testsByCategory[paramId]; // Find the test by paramId
+    if (test && test.isFormula) {
+      const { formulaString, dependencies } = test; // Get the formula for this test
+      const result = calculateFormulaResult(formulaString, dependencies, updatedResults);
+      // Update the result for this formula test
+      updatedResults[paramId] = result;
+    }
+
+    return updatedResults;
+  });
+};
+
 
   const handleReferenceChange = (paramId, value) =>
     setReferences((prev) => ({ ...prev, [paramId]: value }));
-const handleSubmit = async () => {
+
+  const handleSubmit = async () => {
     if (!report) {
       errorToast("Patient details not found");
       return;
@@ -483,7 +593,6 @@ const handleSubmit = async () => {
   );
 };
 
-// 🔹 Component to render simple test
 const TestRow = ({ item, results, references, handleChange, handleReferenceChange }) => {
   const params = Array.isArray(item.params) ? item.params : [];
   const groups = [...new Set(params.map((p) => p.groupBy || "Ungrouped"))];
@@ -511,7 +620,7 @@ const TestRow = ({ item, results, references, handleChange, handleReferenceChang
                     <input
                       type="text"
                       value={results[param.paramId] || ""}
-                      onChange={(e) => handleChange(param.paramId, e.target.value)}
+                      onChange={(e) => handleChange(param.paramId, e.target.value)} // Ensure to trigger change here
                       className="w-full border border-gray-300 rounded px-2 py-1 focus:ring-1 focus:ring-blue-400 outline-none"
                     />
                   </td>
@@ -540,11 +649,19 @@ const TestRow = ({ item, results, references, handleChange, handleReferenceChang
             </div>
           )}
 
+          {/* Display the calculated result */}
+          {item.isFormula && item.calculatedResult && (
+            <div className="mt-2 text-sm text-gray-600">
+              <strong>Calculated Result: </strong> {item.calculatedResult}
+            </div>
+          )}
         </div>
       ))}
     </div>
   );
 };
+
+
 
 // 🔹 Component to render panel or package with nested tests
 const PanelOrPackageRow = ({ item, results, references, handleChange, handleReferenceChange }) => (
@@ -588,5 +705,7 @@ const PanelOrPackageRow = ({ item, results, references, handleChange, handleRefe
 
   </div>
 );
+
 export default EnterResults;
+
 
