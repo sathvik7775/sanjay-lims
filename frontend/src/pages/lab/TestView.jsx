@@ -8,7 +8,7 @@ import { GripVertical, Edit3, Plus, Edit } from "lucide-react";
 
 const TestView = () => {
   const { id } = useParams();
-  const { adminToken, errorToast, successToast, navigate, branchToken } = useContext(LabContext);
+  const { adminToken, errorToast, successToast, navigate } = useContext(LabContext);
 
   const [loading, setLoading] = useState(true);
   const [test, setTest] = useState(null);
@@ -60,81 +60,100 @@ const TestView = () => {
   }, []);
 
   // 🧮 Fetch existing formula (if any)
- useEffect(() => {
-  const fetchFormula = async () => {
-    try {
-      const res = await axios.get(
-        `${import.meta.env.VITE_API_URL}/api/formula/${id}`,
-        { headers: { Authorization: `Bearer ${adminToken}` } }
-      );
+  useEffect(() => {
+    const fetchFormula = async () => {
+      try {
+        const res = await axios.get(
+          `${import.meta.env.VITE_API_URL}/api/formula/${id}`,
+          { headers: { Authorization: `Bearer ${adminToken}` } }
+        );
 
-      if (res.data.success && res.data.data) {
-        const formula = res.data.data;
-        setExistingFormula(formula);
+        if (res.data.success && res.data.data) {
+          const formula = res.data.data;
+          setExistingFormula(formula);
 
-        // ✅ Properly map nested dependencies
-        setFormulaData({
-  expression: formula.formulaString || "",
-  dependentTests:
-    formula.dependencies?.map((dep) => ({
-      value: dep.testName || dep.testId?.name || "Unnamed Test",
-      label: dep.testName || dep.testId?.name || "Unnamed Test",
-    })) || [],
-});
-
+          // ✅ Properly map nested dependencies to react-select format
+          setFormulaData({
+            expression: formula.formulaString || "",
+            dependentTests:
+              formula.dependencies?.map((dep) => ({
+                value: dep.testId?._id || dep.testId || "",
+                label:
+                  dep.testName ||
+                  dep.testId?.name ||
+                  dep.shortName ||
+                  "Unnamed Test",
+                testName: dep.testName || dep.testId?.name || "",
+                shortName: dep.shortName || "",
+              })) || [],
+          });
+        }
+      } catch (err) {
+        console.error("Error fetching formula:", err);
       }
-    } catch (err) {
-      console.error("Error fetching formula:", err);
-    }
-  };
+    };
 
-  if (test?.isFormula === true) fetchFormula();
-}, [test]);
-
+    if (test?.isFormula === true) fetchFormula();
+  }, [test]);
 
   // Convert to react-select format
   const testOptions = allTests.map((t) => ({
     value: t._id,
     label: `${t.name} (${t.shortName || "-"})`,
+    testName: t.name,
+    shortName: t.shortName || "",
   }));
 
   // 🧮 Save or Update Formula
   const handleSaveFormula = async () => {
-    if (!formulaData.expression)
-      return errorToast("Formula expression is required");
+  if (!formulaData.expression)
+    return errorToast("Formula expression is required");
 
-    const payload = {
-      testId: id,
-      testName: test.name,
-      formulaString: formulaData.expression,
-      dependencies: formulaData.dependentTests.map((t) => t.value),
-    };
+  // ✅ Construct proper dependency objects
+  const dependencies = formulaData.dependentTests.map((t) => ({
+    testId: t.value,
+    testName: t.testName || t.label,
+    shortName: t.shortName || "",
+  }));
 
-    try {
-      const url = existingFormula
-        ? `${import.meta.env.VITE_API_URL}/api/formula/update/${id}`
-        : `${import.meta.env.VITE_API_URL}/api/formula/add`;
-
-      const res = await axios.post(url, payload, {
-        headers: { Authorization: `Bearer ${adminToken}` },
-      });
-
-      if (res.data.success) {
-        successToast(
-          existingFormula
-            ? "Formula updated successfully"
-            : "Formula added successfully"
-        );
-        setShowFormulaModal(false);
-        setExistingFormula(res.data.data);
-      } else {
-        errorToast(res.data.message);
-      }
-    } catch (err) {
-      console.error("Error saving formula:", err);
-      errorToast("Failed to save formula");
-    }
+  // ✅ Prepare payload
+  const payload = {
+    testId: id, // this is the test for which formula belongs
+    testName: test.name,
+    formulaString: formulaData.expression,
+    dependencies,
   };
+
+  try {
+    // ✅ Use formula’s own _id for update, not test id
+    const url = existingFormula
+      ? `${import.meta.env.VITE_API_URL}/api/formula/update/${existingFormula._id}`
+      : `${import.meta.env.VITE_API_URL}/api/formula/add`;
+
+    const method = existingFormula ? "put" : "post";
+
+    const res = await axios[method](url, payload, {
+      headers: { Authorization: `Bearer ${adminToken}` },
+    });
+
+    if (res.data.success) {
+      successToast(
+        existingFormula
+          ? "Formula updated successfully"
+          : "Formula added successfully"
+      );
+
+      // ✅ Save returned updated formula for next time
+      setExistingFormula(res.data.data);
+      setShowFormulaModal(false);
+    } else {
+      errorToast(res.data.message || "Something went wrong");
+    }
+  } catch (err) {
+    console.error("❌ Error saving formula:", err);
+    errorToast("Failed to save formula");
+  }
+};
 
   const renderParameters = (parameters) => (
     <div className="overflow-x-auto mt-2">
@@ -185,19 +204,17 @@ const TestView = () => {
         <h1 className="text-2xl font-bold text-black">{test.name}</h1>
 
         {/* ➕ Add / ✏️ Edit Formula Button */}
-        {!branchToken && test.isFormula === true && (
-  <button
-    onClick={() => setShowFormulaModal(true)}
-    className="bg-blue-600 text-white px-4 py-2 rounded-md flex items-center gap-2 hover:bg-blue-700"
-  >
-    {existingFormula ? <Edit size={16} /> : <Plus size={16} />}
-    {existingFormula ? "Edit Formula" : "Add Formula"}
-  </button>
-)}
-
+        {test.isFormula && (
+          <button
+            onClick={() => setShowFormulaModal(true)}
+            className="bg-blue-600 text-white px-4 py-2 rounded-md flex items-center gap-2 hover:bg-blue-700"
+          >
+            {existingFormula ? <Edit size={16} /> : <Plus size={16} />}
+            {existingFormula ? "Edit Formula" : "Add Formula"}
+          </button>
+        )}
       </div>
 
-      {/* Single Test */}
       {test.type === "single" && (
         <div className="space-y-2">
           <p>
@@ -213,7 +230,6 @@ const TestView = () => {
         </div>
       )}
 
-      {/* Multi Test */}
       {test.type === "multi" && (
         <div className="mt-4">{renderParameters(test.parameters || [])}</div>
       )}
@@ -233,7 +249,6 @@ const TestView = () => {
               {existingFormula ? "Edit Formula" : "Add Formula"}
             </h2>
 
-            {/* Dependent Tests */}
             <div className="mb-4">
               <label className="block text-sm font-medium mb-1">
                 Dependent Tests
@@ -256,11 +271,13 @@ const TestView = () => {
               </p>
             </div>
 
-            {/* Formula Expression */}
             <div className="mb-4">
               <label className="block text-sm font-medium mb-1">
-  Formula Expression <span className="text-gray-500">(type names exactly as in dependencies)</span>
-</label>
+                Formula Expression{" "}
+                <span className="text-gray-500">
+                  (type names exactly as in dependencies)
+                </span>
+              </label>
 
               <input
                 type="text"
