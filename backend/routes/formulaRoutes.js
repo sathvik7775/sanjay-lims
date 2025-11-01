@@ -33,7 +33,7 @@ formulaRouter.get("/:testId", getFormulaByTestId);
  * @route   PUT /api/formula/:id
  * @desc    Update an existing formula
  */
-formulaRouter.put("/:id", verifyAdminToken, updateFormula);
+formulaRouter.put("/update/:id", verifyAdminToken, updateFormula);
 
 /**
  * @route   DELETE /api/formula/:id

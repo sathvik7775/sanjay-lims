@@ -36,6 +36,8 @@ const extractId = (item) => {
   return null;
 };
 
+
+
 // 🔹 Fetch formula for the test
 const fetchFormula = async (testId) => {
   try {
@@ -67,42 +69,50 @@ const fetchFormula = async (testId) => {
 };
 
 
+// 🔹 Formula calculation — fixed
 const calculateFormulaResult = (formula, dependencies, results) => {
-  let calculatedResult = formula;
-
-  if (!Array.isArray(dependencies)) {
-    console.error("Invalid dependencies array:", dependencies);
-    return null;
-  }
-
-  console.log("Dependencies:", dependencies);
-
-  dependencies.forEach(dep => {
-    if (!dep || !dep.testId || !dep.testName) {
-      console.warn("Invalid dependency:", dep);
-      return;
-    }
-
-    // 🧠 FIX HERE — use dep.testId._id (since testId is an object)
-    const depId = dep.testId._id || dep.testId;
-    const depResult = results[depId];
-
-    if (depResult !== undefined && depResult !== null) {
-      calculatedResult = calculatedResult.replace(dep.testName, depResult);
-    } else {
-      console.warn(`Missing result for ${dep.testName}, replacing with 0`);
-      calculatedResult = calculatedResult.replace(dep.testName, "0");
-    }
-  });
-
   try {
-    const result = new Function("return " + calculatedResult)();
+    let calculatedFormula = formula;
+
+    console.log("🔢 Raw Formula:", formula);
+    console.log("🧩 Dependencies:", dependencies);
+    console.log("📊 Current Results (by name):", results);
+
+    // Sort dependencies by name length (longest first)
+    // 👉 avoids partial replacements like "HDL" inside "HDL Cholesterol"
+    const sortedDeps = [...dependencies].sort(
+      (a, b) => b.testName.length - a.testName.length
+    );
+
+    sortedDeps.forEach((dep) => {
+      const depName = dep.testName?.trim();
+      const value = parseFloat(results[depName]);
+      const safeValue = isNaN(value) ? 0 : value;
+
+      console.log(`🔗 Replacing ${depName} with value: ${safeValue}`);
+
+      // Escape special regex characters in the test name
+      const safeDepName = depName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+      // Replace all occurrences (case-insensitive)
+      const regex = new RegExp(`\\b${safeDepName}\\b`, "gi");
+      calculatedFormula = calculatedFormula.replace(regex, safeValue);
+    });
+
+    console.log("🧮 Formula after replacement:", calculatedFormula);
+
+    // Evaluate safely
+    const result = Function(`"use strict"; return (${calculatedFormula});`)();
+
+    console.log("✅ Calculated result:", result);
     return result;
-  } catch (error) {
-    console.error("Error calculating formula:", error);
+  } catch (err) {
+    console.error("❌ Error evaluating formula:", err);
     return null;
   }
 };
+
+
 
 
 
@@ -140,19 +150,19 @@ const fetchTestWithRefs = async (testId, reportData, branchToken) => {
     const processTest = (t, refRanges, reportData) => {
       const baseParams = t.parameters?.length
         ? t.parameters.map((param) => ({
-            paramId: param._id || `${t._id}_${param.name}`,
-            name: param.name,
-            unit: param.unit || "",
-            groupBy: param.groupBy || " ",
-          }))
+          paramId: param._id || `${t._id}_${param.name}`,
+          name: param.name,
+          unit: param.unit || "",
+          groupBy: param.groupBy || " ",
+        }))
         : [
-            {
-              paramId: t._id,
-              name: t.name,
-              unit: t.unit || "",
-              groupBy: " ",
-            },
-          ];
+          {
+            paramId: t._id,
+            name: t.name,
+            unit: t.unit || "",
+            groupBy: " ",
+          },
+        ];
 
       return baseParams.map((param) => {
         let ref = refRanges.find((r) => {
@@ -192,12 +202,12 @@ const fetchTestWithRefs = async (testId, reportData, branchToken) => {
             ref.which === "Text"
               ? ref.textValue || ref.displayText || "-"
               : ref.lower != null && ref.upper != null
-              ? `${ref.lower} - ${ref.upper}`
-              : ref.lower != null
-              ? `> ${ref.lower}`
-              : ref.upper != null
-              ? `< ${ref.upper}`
-              : "-";
+                ? `${ref.lower} - ${ref.upper}`
+                : ref.lower != null
+                  ? `> ${ref.lower}`
+                  : ref.upper != null
+                    ? `< ${ref.upper}`
+                    : "-";
         }
 
         return {
@@ -247,29 +257,15 @@ const fetchTestWithRefs = async (testId, reportData, branchToken) => {
       });
     }
 
-    for (let test of allTests) {
-  // Ensure you have the correct testId
-  const testId = test.params && test.params.length > 0 ? test.params[0].paramId : undefined;
-  
-  console.log("Test ID for formula:", testId); // Ensure this is not undefined
-  
-  // Check if testId exists and the test is a formula
-  if (test.isFormula && testId) {
-    // Fetch the formula string and dependencies for the test
-    const { formulaString, dependencies } = await fetchFormula(testId);
-
-    // Check if dependencies exist
-    if (dependencies && Array.isArray(dependencies) && dependencies.length > 0) {
-      // Calculate the result using the formula string and dependencies
-      const result = calculateFormulaResult(formulaString, dependencies, reportData.results);
-      test.calculatedResult = result;
-    } else {
-      console.warn("No dependencies found for test:", test);
+    // ✅ Attach formula details if applicable
+    if (test.isFormula && test._id) {
+      console.log("🔍 Checking test:", test.name, "isFormula:", test.isFormula);
+      const { formulaString, dependencies } = await fetchFormula(test._id);
+      test.formulaString = formulaString;
+      test.dependencies = dependencies;
     }
-  } else if (!testId) {
-    console.warn("Test ID is missing for test:", test);
-  }
-}
+
+
 
 
     return allTests;
@@ -286,10 +282,17 @@ const EnterResults = () => {
   const navigate = useNavigate();
 
   const [loading, setLoading] = useState(true);
+
+
   const [report, setReport] = useState(null);
   const [testsByCategory, setTestsByCategory] = useState({});
   const [results, setResults] = useState({});
   const [references, setReferences] = useState({});
+
+
+
+
+
 
   useEffect(() => {
     const fetchReport = async () => {
@@ -331,7 +334,7 @@ const EnterResults = () => {
                 { headers: { Authorization: `Bearer ${branchToken}` } }
               );
               if (panelRes.data.success && panelRes.data.data) return { type: "PANEL", data: panelRes.data.data };
-            } catch {}
+            } catch { }
 
             // Try as PACKAGE
             try {
@@ -340,7 +343,7 @@ const EnterResults = () => {
                 { headers: { Authorization: `Bearer ${branchToken}` } }
               );
               if (pkgRes.data.success && pkgRes.data.data) return { type: "PACKAGE", data: pkgRes.data.data };
-            } catch {}
+            } catch { }
 
             return null;
           })
@@ -438,9 +441,52 @@ const EnterResults = () => {
           }
         }
 
+        // 🔹 Fetch and attach formula data after tests are loaded
+for (const category of Object.keys(categories)) {
+  for (const test of categories[category]) {
+    // 🧩 If the test itself is formula-based
+    if (test.isFormula) {
+      const formulaId = test.params?.[0]?.paramId || test._id;
+      if (formulaId) {
+        const { formulaString, dependencies } = await fetchFormula(formulaId);
+        test.formulaString = formulaString;
+        test.dependencies = dependencies;
+      }
+    }
+
+    // 🧩 If it has nested panels/packages, handle inner tests too
+    if (test.isPanel || test.isPackage) {
+      for (const innerTest of test.tests || []) {
+        if (innerTest.isFormula) {
+          const formulaId = innerTest.params?.[0]?.paramId || innerTest._id;
+          if (formulaId) {
+            const { formulaString, dependencies } = await fetchFormula(formulaId);
+            innerTest.formulaString = formulaString;
+            innerTest.dependencies = dependencies;
+          }
+        }
+      }
+    }
+  }
+}
+
+
         setTestsByCategory(categories);
         setResults(initialResults);
         setReferences(initialReferences);
+
+        // 🔹 Fetch and attach formula data after tests are loaded
+        for (const category of Object.keys(categories)) {
+          for (const test of categories[category]) {
+            if (test.isFormula && test.testName) {
+              const { formulaString, dependencies } = await fetchFormula(test.params?.[0]?.paramId || test._id);
+              test.formulaString = formulaString;
+              test.dependencies = dependencies;
+            }
+          }
+        }
+        setTestsByCategory({ ...categories });
+
       } catch (err) {
         console.error(err);
         errorToast(err.response?.data?.message || "Server error");
@@ -452,100 +498,253 @@ const EnterResults = () => {
     fetchReport();
   }, [reportId]);
 
-  const handleChange = (paramId, value) => {
-  setResults((prevResults) => {
-    const updatedResults = { ...prevResults, [paramId]: value };
 
-    // If this param is part of a formula-based test, recalculate the formula
-    const test = testsByCategory[paramId]; // Find the test by paramId
-    if (test && test.isFormula) {
-      const { formulaString, dependencies } = test; // Get the formula for this test
-      const result = calculateFormulaResult(formulaString, dependencies, updatedResults);
-      // Update the result for this formula test
-      updatedResults[paramId] = result;
+
+
+  const handleChange = async (testName, value) => {
+  console.log(`⚡ handleChange triggered for: ${testName} = ${value}`);
+
+  // ✅ Immediate UI update for smoother typing
+  setResults((prev) => ({ ...prev, [testName.trim()]: value }));
+
+  // ✅ Prepare updated results snapshot
+  const cleanName = testName.trim();
+  const updatedResults = { ...results, [cleanName]: value };
+
+  // ✅ Flatten all tests
+  const allTests =
+    testsByCategory?.Panels?.flatMap((p) => p.tests || []) || [];
+
+  console.log("🧩 Extracted all tests:", allTests.map((t) => t.testName));
+  console.log("📂 Tests by category:", testsByCategory);
+
+  for (const test of allTests) {
+    console.log("🧠 Checking test:", test.testName, "→ isFormula:", test.isFormula);
+    console.log("🧩 Full test object:", test);
+
+    if (!test.isFormula) continue;
+
+    // ✅ Fetch formula if missing
+    if (!test.formulaString || !Array.isArray(test.dependencies)) {
+      try {
+        const paramId = test.params?.[0]?.paramId;
+        if (paramId) {
+          console.log(`📡 Fetching formula for ${test.testName}...`);
+          const { formulaString, dependencies } = await fetchFormula(paramId);
+          test.formulaString = formulaString;
+          test.dependencies = dependencies;
+          console.log(`✅ Formula fetched for ${test.testName}:`, formulaString);
+        }
+      } catch (err) {
+        console.error(`❌ Failed to fetch formula for ${test.testName}:`, err);
+        continue;
+      }
     }
 
-    return updatedResults;
+    // ✅ Skip if still missing formula data
+    if (
+      !test.formulaString ||
+      !Array.isArray(test.dependencies) ||
+      test.dependencies.length === 0
+    ) {
+      console.log(`⚠️ Skipping ${test.testName}, missing formula/dependencies`);
+      continue;
+    }
+
+    console.log(
+      `🧪 Formula test detected: ${test.testName}`,
+      "\nFormula String:", test.formulaString,
+      "\nDependencies:", test.dependencies.map((d) => d.testName)
+    );
+
+    // ✅ Check if all dependencies have values
+    const allDepsPresent = test.dependencies.every((dep) => {
+      const depName = dep.testName?.trim();
+      const hasValue =
+        updatedResults[depName] !== undefined &&
+        updatedResults[depName] !== "";
+      if (!hasValue) console.log(`⚠️ Missing value for dependency: ${depName}`);
+      return hasValue;
+    });
+
+    // ✅ Calculate if dependencies are ready
+    if (allDepsPresent) {
+      console.log(`🧮 All dependencies present for: ${test.testName}`);
+      try {
+        const result = calculateFormulaResult(
+          test.formulaString,
+          test.dependencies,
+          updatedResults
+        );
+
+        if (result !== null && !isNaN(result)) {
+          const formulaName = test.testName.trim();
+          updatedResults[formulaName] = Number(result.toFixed(2));
+          console.log(`✅ Auto-calculated ${formulaName}: ${result}`);
+        } else {
+          console.log(`⚠️ Invalid numeric result for ${test.testName}`);
+        }
+      } catch (err) {
+        console.error(`❌ Error calculating formula for ${test.testName}:`, err);
+      }
+    }
+  }
+
+  // ✅ 🧹 Clean results — remove numeric or Mongo-like paramIds
+  const cleanedResults = {};
+  Object.keys(updatedResults).forEach((key) => {
+    // keep only test names (non-numeric)
+    // 🧹 Keep only keys that look like readable test names (not Mongo IDs)
+if (!/^[0-9a-f]{24}$/i.test(key)) {
+  cleanedResults[key] = updatedResults[key];
+}
+
   });
+
+  // ✅ Finally, update results state
+  setResults(cleanedResults);
+
+  console.log("🧾 Cleaned results:", cleanedResults);
 };
+
+
+
+
+
+
+
+
+
+
+  // 🧮 Auto-calculate formulas whenever results change
+  useEffect(() => {
+    if (!testsByCategory || Object.keys(results).length === 0) return;
+
+    const allTests = Object.values(testsByCategory).flat();
+
+    allTests.forEach((test) => {
+      if (test.isFormula && test.formulaString && test.dependencies?.length > 0) {
+        const allDepsFilled = test.dependencies.every((dep) => {
+          const depId = dep.testId?._id;
+          const value = results[depId];
+          return value !== undefined && value !== "";
+        });
+
+        if (allDepsFilled) {
+          const result = calculateFormulaResult(
+            test.formulaString,
+            test.dependencies,
+            results
+          );
+
+          const formulaParam = test.params?.[0]?.paramId;
+          if (formulaParam && result !== null) {
+            setResults((prev) => ({
+              ...prev,
+              [formulaParam]: result.toFixed(2),
+            }));
+          }
+        }
+      }
+    });
+  }, [results, testsByCategory]);
+
+
+
+
 
 
   const handleReferenceChange = (paramId, value) =>
     setReferences((prev) => ({ ...prev, [paramId]: value }));
 
-  const handleSubmit = async () => {
-    if (!report) {
-      errorToast("Patient details not found");
-      return;
-    }
+ const handleSubmit = async () => {
+  if (!report) {
+    errorToast("Patient details not found");
+    return;
+  }
 
-    try {
-      setLoading(true);
+  try {
+    setLoading(true);
 
-      const transformItem = (item) => {
-        if (item.isPanel || item.isPackage) {
-          return {
-            panelOrPackageName: item.panelName || item.packageName,
-            isPanel: item.isPanel || false,
-            isPackage: item.isPackage || false,
-            interpretation: item.interpretation || "",
-            tests: (item.tests || []).map(transformItem),
-          };
-        } else {
-          return {
-            testName: item.testName,
-            interpretation: item.interpretation || "",
-            category: item.category || "Other",
-            params: (item.params || []).map((p) => ({
+    const transformItem = (item) => {
+      if (item.isPanel || item.isPackage) {
+        return {
+          panelOrPackageName: item.panelName || item.packageName,
+          isPanel: item.isPanel || false,
+          isPackage: item.isPackage || false,
+          interpretation: item.interpretation || "",
+          tests: (item.tests || []).map(transformItem),
+        };
+      } else {
+        return {
+          testName: item.testName,
+          interpretation: item.interpretation || "",
+          category: item.category || "Other",
+          params: (item.params || []).map((p) => {
+            // Find the entered value using either test name or paramId
+            const valueFromName = results[p.name];
+            const valueFromId = results[p.paramId];
+
+            return {
               paramId: p.paramId,
               name: p.name,
               unit: p.unit,
               groupBy: p.groupBy || "Ungrouped",
-              value: results[p.paramId] || "",
+
+              // ✅ Only store the numeric/text value (no key name)
+              value: valueFromName || valueFromId || "",
+
               reference: references[p.paramId] || p.reference || "",
-            })),
-          };
-        }
-      };
-
-      const payload = {
-        reportId,
-        branchId,
-        patient: {
-          firstName: report.patient.firstName,
-          lastName: report.patient.lastName,
-          age: report.patient.age,
-          ageUnit: report.patient.ageUnit || "Years",
-          sex: report.patient.sex,
-          doctor: report.patient.doctor || "",
-          uhid: report.patient.uhid || "",
-          regNo: report.regNo || "",
-        },
-        categories: Object.entries(testsByCategory || {}).map(([categoryName, items = []]) => ({
-          categoryName,
-          items: items.map(transformItem),
-        })),
-      };
-
-      const res = await axios.post(
-        `${import.meta.env.VITE_API_URL}/api/results/add`,
-        payload,
-        { headers: { Authorization: `Bearer ${branchToken}` } }
-      );
-
-      if (res.data.success) {
-        successToast("Report Generated Successfully");
-        navigate(`/${branchId}/view-report/${reportId}`);
-      } else {
-        errorToast(res.data.message || "Failed to save results");
+            };
+          }),
+        };
       }
-    } catch (err) {
-      console.error(err);
-      errorToast(err.response?.data?.message || "Server error");
-    } finally {
-      setLoading(false);
+    };
+
+    const payload = {
+      reportId,
+      branchId,
+      patient: {
+        firstName: report.patient.firstName,
+        lastName: report.patient.lastName,
+        age: report.patient.age,
+        ageUnit: report.patient.ageUnit || "Years",
+        sex: report.patient.sex,
+        doctor: report.patient.doctor || "",
+        uhid: report.patient.uhid || "",
+        regNo: report.regNo || "",
+      },
+      categories: Object.entries(testsByCategory || {}).map(([categoryName, items = []]) => ({
+        categoryName,
+        items: items.map(transformItem),
+      })),
+    };
+
+    console.log("🧾 Final payload being sent:", payload);
+
+    const res = await axios.post(
+      `${import.meta.env.VITE_API_URL}/api/results/add`,
+      payload,
+      { headers: { Authorization: `Bearer ${branchToken}` } }
+    );
+
+    if (res.data.success) {
+      successToast("Report Generated Successfully");
+      navigate(`/${branchId}/view-report/${reportId}`);
+    } else {
+      errorToast(res.data.message || "Failed to save results");
     }
-  };
+  } catch (err) {
+    console.error("❌ Error saving report:", err);
+    errorToast(err.response?.data?.message || "Server error");
+  } finally {
+    setLoading(false);
+  }
+};
+
+
+
+
 
   if (loading) return <Loader />;
   if (!report) return <p className="p-6 text-gray-500">Report not found</p>;
@@ -599,10 +798,22 @@ const TestRow = ({ item, results, references, handleChange, handleReferenceChang
 
   return (
     <div className="mt-4 px-6">
-      {params.length > 1 && <div className="font-semibold text-gray-800 mb-2">✶ {item.testName}</div>}
+      {/* Test name + ƒ icon if test has formula */}
+      <div className="flex items-center gap-2 mb-2">
+        {params.length > 1 && (
+          <div className="font-semibold text-gray-800">
+            ✶ {item.testName}
+          </div>
+        )}
+
+        
+      </div>
+
+      {/* Parameter groups */}
       {groups.map((group) => (
         <div key={group} className="mb-4">
           {group && <div className="font-semibold text-gray-700 mb-1 ml-7">{group}</div>}
+
           <table className="w-full text-sm border-t border-gray-300">
             <thead>
               <tr className="bg-gray-100">
@@ -612,33 +823,61 @@ const TestRow = ({ item, results, references, handleChange, handleReferenceChang
                 <th className="text-left px-2 py-1 w-[20%]">Reference</th>
               </tr>
             </thead>
+
             <tbody>
-              {params.filter((p) => (p.groupBy || "Ungrouped") === group).map((param) => (
-                <tr key={param.paramId} className="border-t hover:bg-gray-50">
-                  <td className="px-4 py-2 text-gray-800">{param.name}</td>
-                  <td className="px-3 py-2">
-                    <input
-                      type="text"
-                      value={results[param.paramId] || ""}
-                      onChange={(e) => handleChange(param.paramId, e.target.value)} // Ensure to trigger change here
-                      className="w-full border border-gray-300 rounded px-2 py-1 focus:ring-1 focus:ring-blue-400 outline-none"
-                    />
-                  </td>
-                  <td className="px-3 py-2 text-gray-600">{param.unit}</td>
-                  <td className="px-3 py-2 text-gray-600">
-                    <input
-                      type="text"
-                      value={references[param.paramId] || ""}
-                      onChange={(e) => handleReferenceChange(param.paramId, e.target.value)}
-                      disabled
-                      className="w-full border border-gray-300 rounded px-2 py-1 focus:ring-1 focus:ring-blue-400 outline-none"
-                    />
-                  </td>
-                </tr>
-              ))}
+              {params
+                .filter((p) => (p.groupBy || "Ungrouped") === group)
+                .map((param) => (
+                  <tr key={param.paramId} className="border-t hover:bg-gray-50">
+                    <td className="px-4 py-2 text-gray-800">
+  <div className="flex items-center gap-2">
+    <span>{param.name}</span>
+
+    {/* 🔹 Formula icon beside param name — but comes from item */}
+    {item.isFormula && item.formulaString && (
+      <div className="relative group inline-flex items-center">
+        <span className="text-blue-600 font-bold cursor-pointer border border-blue-500 px-1 rounded text-xs flex items-center justify-center">
+          ƒ
+        </span>
+
+        {/* Tooltip from test-level formula */}
+        <div className="absolute hidden group-hover:block bg-gray-800 text-white text-xs rounded px-2 py-1 -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap z-10 shadow-lg">
+          Formula: {item.formulaString}
+          <div className="absolute bottom-[-5px] left-1/2 -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-l-transparent border-r-transparent border-t-gray-800"></div>
+        </div>
+      </div>
+    )}
+  </div>
+</td>
+
+
+                    {/* ✅ Value input untouched */}
+                    <td className="px-3 py-2">
+                      <input
+                        type="text"
+                        value={results[param.name] || ""}
+                        onChange={(e) => handleChange(param.name, e.target.value)}
+                        className="w-full border border-gray-300 rounded px-2 py-1 focus:ring-1 focus:ring-blue-400 outline-none"
+                      />
+                    </td>
+
+                    <td className="px-3 py-2 text-gray-600">{param.unit}</td>
+
+                    <td className="px-3 py-2 text-gray-600">
+                      <input
+                        type="text"
+                        value={references[param.paramId] || ""}
+                        onChange={(e) => handleReferenceChange(param.paramId, e.target.value)}
+                        disabled
+                        className="w-full border border-gray-300 rounded px-2 py-1 focus:ring-1 focus:ring-blue-400 outline-none"
+                      />
+                    </td>
+                  </tr>
+                ))}
             </tbody>
           </table>
 
+          {/* Interpretation Section */}
           {item.interpretation && (
             <div className="mt-3 mb-2 px-2">
               <div className="font-semibold text-gray-800 text-sm">Interpretation:</div>
@@ -649,10 +888,10 @@ const TestRow = ({ item, results, references, handleChange, handleReferenceChang
             </div>
           )}
 
-          {/* Display the calculated result */}
+          {/* Calculated Formula Result */}
           {item.isFormula && item.calculatedResult && (
             <div className="mt-2 text-sm text-gray-600">
-              <strong>Calculated Result: </strong> {item.calculatedResult}
+              <strong>Calculated Result:</strong> {item.calculatedResult}
             </div>
           )}
         </div>
@@ -663,11 +902,12 @@ const TestRow = ({ item, results, references, handleChange, handleReferenceChang
 
 
 
+
 // 🔹 Component to render panel or package with nested tests
 const PanelOrPackageRow = ({ item, results, references, handleChange, handleReferenceChange }) => (
   <div className="mt-6 px-6">
     <div className="text-center bg-gray-200 px-3 py-2 font-semibold text-gray-700 mb-1">
-       {item.panelName || item.packageName}
+      {item.panelName || item.packageName}
     </div>
 
     {Array.isArray(item.tests) &&

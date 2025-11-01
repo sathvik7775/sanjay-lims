@@ -4,11 +4,11 @@ import { useParams } from "react-router-dom";
 import Select from "react-select";
 import { LabContext } from "../../context/LabContext";
 import Loader from "../../components/Loader";
-import { GripVertical, Edit3, Plus } from "lucide-react";
+import { GripVertical, Edit3, Plus, Edit } from "lucide-react";
 
 const TestView = () => {
   const { id } = useParams();
-  const { adminToken, errorToast, successToast, navigate } = useContext(LabContext);
+  const { adminToken, errorToast, successToast, navigate, branchToken } = useContext(LabContext);
 
   const [loading, setLoading] = useState(true);
   const [test, setTest] = useState(null);
@@ -18,6 +18,7 @@ const TestView = () => {
     dependentTests: [],
     expression: "",
   });
+  const [existingFormula, setExistingFormula] = useState(null);
 
   // 🧩 Fetch single test details
   useEffect(() => {
@@ -58,32 +59,74 @@ const TestView = () => {
     fetchAllTests();
   }, []);
 
+  // 🧮 Fetch existing formula (if any)
+ useEffect(() => {
+  const fetchFormula = async () => {
+    try {
+      const res = await axios.get(
+        `${import.meta.env.VITE_API_URL}/api/formula/${id}`,
+        { headers: { Authorization: `Bearer ${adminToken}` } }
+      );
+
+      if (res.data.success && res.data.data) {
+        const formula = res.data.data;
+        setExistingFormula(formula);
+
+        // ✅ Properly map nested dependencies
+        setFormulaData({
+  expression: formula.formulaString || "",
+  dependentTests:
+    formula.dependencies?.map((dep) => ({
+      value: dep.testName || dep.testId?.name || "Unnamed Test",
+      label: dep.testName || dep.testId?.name || "Unnamed Test",
+    })) || [],
+});
+
+      }
+    } catch (err) {
+      console.error("Error fetching formula:", err);
+    }
+  };
+
+  if (test?.isFormula === true) fetchFormula();
+}, [test]);
+
+
   // Convert to react-select format
   const testOptions = allTests.map((t) => ({
     value: t._id,
     label: `${t.name} (${t.shortName || "-"})`,
   }));
 
-  // 🧮 Save formula
+  // 🧮 Save or Update Formula
   const handleSaveFormula = async () => {
-    if (!formulaData.expression) return errorToast("Formula expression is required");
+    if (!formulaData.expression)
+      return errorToast("Formula expression is required");
+
+    const payload = {
+      testId: id,
+      testName: test.name,
+      formulaString: formulaData.expression,
+      dependencies: formulaData.dependentTests.map((t) => t.value),
+    };
 
     try {
-      const res = await axios.post(
-        `${import.meta.env.VITE_API_URL}/api/formula/add`,
-        {
-          testId: id,
-          testName: test.name,
-          expression: formulaData.expression,
-          dependencies: formulaData.dependentTests.map((t) => t.value),
-        },
-        { headers: { Authorization: `Bearer ${adminToken}` } }
-      );
+      const url = existingFormula
+        ? `${import.meta.env.VITE_API_URL}/api/formula/update/${id}`
+        : `${import.meta.env.VITE_API_URL}/api/formula/add`;
+
+      const res = await axios.post(url, payload, {
+        headers: { Authorization: `Bearer ${adminToken}` },
+      });
 
       if (res.data.success) {
-        successToast("Formula added successfully");
+        successToast(
+          existingFormula
+            ? "Formula updated successfully"
+            : "Formula added successfully"
+        );
         setShowFormulaModal(false);
-        setFormulaData({ dependentTests: [], expression: "" });
+        setExistingFormula(res.data.data);
       } else {
         errorToast(res.data.message);
       }
@@ -113,7 +156,9 @@ const TestView = () => {
                 {idx + 1}.
               </td>
               <td className="px-3 py-2 border-b">{param.name}</td>
-              <td className="px-3 py-2 border-b">{param.isOptional ? "Yes" : "No"}</td>
+              <td className="px-3 py-2 border-b">
+                {param.isOptional ? "Yes" : "No"}
+              </td>
               <td className="px-3 py-2 border-b">{param.unit || "-"}</td>
               <td className="px-3 py-2 border-b">
                 <button
@@ -139,13 +184,17 @@ const TestView = () => {
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-bold text-black">{test.name}</h1>
 
-        {/* ➕ Add Formula Button */}
-        <button
-          onClick={() => setShowFormulaModal(true)}
-          className="bg-blue-600 text-white px-4 py-2 rounded-md flex items-center gap-2 hover:bg-blue-700"
-        >
-          <Plus size={16} /> Add Formula
-        </button>
+        {/* ➕ Add / ✏️ Edit Formula Button */}
+        {!branchToken && test.isFormula === true && (
+  <button
+    onClick={() => setShowFormulaModal(true)}
+    className="bg-blue-600 text-white px-4 py-2 rounded-md flex items-center gap-2 hover:bg-blue-700"
+  >
+    {existingFormula ? <Edit size={16} /> : <Plus size={16} />}
+    {existingFormula ? "Edit Formula" : "Add Formula"}
+  </button>
+)}
+
       </div>
 
       {/* Single Test */}
@@ -165,11 +214,13 @@ const TestView = () => {
       )}
 
       {/* Multi Test */}
-      {test.type === "multi" && <div className="mt-4">{renderParameters(test.parameters || [])}</div>}
+      {test.type === "multi" && (
+        <div className="mt-4">{renderParameters(test.parameters || [])}</div>
+      )}
 
       {/* ⚙️ Formula Modal */}
       {showFormulaModal && (
-        <div className="fixed inset-0 flex items-center justify-center bg-black/70 bg-opacity-50 z-50">
+        <div className="fixed inset-0 flex items-center justify-center bg-black/60 bg-opacity-50 z-50">
           <div className="bg-white rounded-lg shadow-lg w-[500px] p-6 relative">
             <button
               onClick={() => setShowFormulaModal(false)}
@@ -178,16 +229,25 @@ const TestView = () => {
               ✖
             </button>
 
-            <h2 className="text-lg font-semibold mb-4 text-center">Add Formula</h2>
+            <h2 className="text-lg font-semibold mb-4 text-center">
+              {existingFormula ? "Edit Formula" : "Add Formula"}
+            </h2>
 
             {/* Dependent Tests */}
             <div className="mb-4">
-              <label className="block text-sm font-medium mb-1">Dependent Tests</label>
+              <label className="block text-sm font-medium mb-1">
+                Dependent Tests
+              </label>
               <Select
                 isMulti
                 options={testOptions}
                 value={formulaData.dependentTests}
-                onChange={(selected) => setFormulaData((prev) => ({ ...prev, dependentTests: selected }))}
+                onChange={(selected) =>
+                  setFormulaData((prev) => ({
+                    ...prev,
+                    dependentTests: selected,
+                  }))
+                }
                 placeholder="Search and select dependent tests..."
                 classNamePrefix="react-select"
               />
@@ -198,14 +258,20 @@ const TestView = () => {
 
             {/* Formula Expression */}
             <div className="mb-4">
-              <label className="block text-sm font-medium mb-1">Formula Expression</label>
+              <label className="block text-sm font-medium mb-1">
+  Formula Expression <span className="text-gray-500">(type names exactly as in dependencies)</span>
+</label>
+
               <input
                 type="text"
                 className="w-full border border-gray-300 rounded-md p-2"
                 placeholder="Example: (HDL + LDL + VLDL)"
                 value={formulaData.expression}
                 onChange={(e) =>
-                  setFormulaData((prev) => ({ ...prev, expression: e.target.value }))
+                  setFormulaData((prev) => ({
+                    ...prev,
+                    expression: e.target.value,
+                  }))
                 }
               />
             </div>
