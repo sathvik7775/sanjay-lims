@@ -6,7 +6,7 @@ import Test from "../models/Test.js";
  */
 export const createFormula = async (req, res) => {
   try {
-    const { testId, testName, shortName, expression, dependencies, remarks, branchId } = req.body;
+    const { testId, testName, shortName, formulaString, dependencies, remarks, branchId } = req.body;
 
     // ✅ 1. Validate that the test exists
     const test = await Test.findById(testId);
@@ -47,7 +47,7 @@ export const createFormula = async (req, res) => {
       testId,
       testName: testName || test.name,
       shortName: shortName || test.shortName,
-      formulaString: expression,
+      formulaString: formulaString,
       dependencies: formattedDependencies,
       remarks,
       branchId,
