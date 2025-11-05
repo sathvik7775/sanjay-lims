@@ -106,7 +106,7 @@ const Sidebar = ({branchId}) => {
                             </Link>
                             <Link to={`/${branchId}/catagories`} className='flex gap-2 items-center cursor-pointer hover:bg-[#E5E7EB] px-3 rounded py-2'>
                                 <img src="/menu-2.png" className='w-5 h-5' alt="" />
-                                <p className='text-secondary roboto-third text-[15px] whitespace-nowrap'>Test catagories</p>
+                                <p className='text-secondary roboto-third text-[15px] whitespace-nowrap'>Test Departments</p>
                             </Link>
                             <Link to={`/${branchId}/database`} className='flex gap-2 items-center cursor-pointer hover:bg-[#E5E7EB] px-3 rounded py-2'>
                                 <img src="/server.png" className='w-5 h-5' alt="" />
@@ -260,7 +260,7 @@ const Sidebar = ({branchId}) => {
                             </Link>
                             <Link to={`/${branchId}/catagories`} onClick={()=> setvisible(false)} className='flex gap-2 items-center cursor-pointer hover:bg-[#E5E7EB] px-3 rounded py-2'>
                                 <img src="/menu-2.png" className='w-5 h-5' alt="" />
-                                <p className='text-secondary roboto-third text-[15px] whitespace-nowrap'>Test catagories</p>
+                                <p className='text-secondary roboto-third text-[15px] whitespace-nowrap'>Test Departments</p>
                             </Link>
                             <Link to={`/${branchId}/database`} onClick={()=> setvisible(false)} className='flex gap-2 items-center cursor-pointer hover:bg-[#E5E7EB] px-3 rounded py-2'>
                                 <img src="/server.png" className='w-5 h-5' alt="" />

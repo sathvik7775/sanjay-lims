@@ -175,7 +175,7 @@ const AdminSidebar = () => {
           
             <MenuItem icon="/list.png" text="All Reports" to="/admin/all-reports" />
             <MenuItem icon="/server.png" text="Test Database" to="/admin/test-database" />
-            <MenuItem icon="/menu-2.png" text="Test Categories" to="/admin/test-categories" />
+            <MenuItem icon="/menu-2.png" text="Test Departments" to="/admin/test-categories" />
             <MenuItem icon="/boxes.png" text="Test Panels" to="/admin/test-panels" />
             <MenuItem icon="/package-box.png" text="Test Packages" to="/admin/test-packages" />
             <MenuItem icon="/i.png" text="Interpretations" to="/admin/interpretations" />

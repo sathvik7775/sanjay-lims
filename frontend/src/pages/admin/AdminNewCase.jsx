@@ -38,38 +38,22 @@ const AdminNewCase = () => {
 
   const categories = [
     "LAB",
-    "HAEMATOLOGY",
-    "BIOCHEMISTRY",
-    "CLINICAL PATHOLOGY",
-    "SEROLOGY & IMMUNOLOGY",
+    "ECG",
+    "TMT",
+    "ECHO",
+    "X - RAY",
     "USG",
-    "CT SCAN",
-    "MRI",
+    
     "OUTSOURCE LAB",
+    "OTHER TESTS",
   ];
 
   const titleToGender = {
     "Mr.": "Male",
-    "Shri.": "Male",
-    "Master": "Male",
-    "Mohd.": "Male",
-    "Md.": "Male",
-    "Sk.": "Male",
-    "PROF": "Male",
-    "Mrs.": "Female",
-    "Smt.": "Female",
-    "Kumari": "Female",
-    "Miss.": "Female",
-    "Baby": "Female",
-    "Baby of": "Female",
-    "Wife of": "Female",
-    "Mother of": "Female",
     "Ms.": "Female",
-    "Miss./Mrs.": "Female",
-    "Selvi": "Female",
-    "Dr.": "Other",
-    "Child": "Other",
-    "Mx.": "Other",
+    "Mrs.": "Female",
+    "Dr.": "other",
+
   };
 
   const [activeCategories, setActiveCategories] = useState([]);
@@ -357,12 +341,15 @@ const AdminNewCase = () => {
               onChange={handleChange}
               className="w-40 border border-gray-300 rounded-lg px-3 py-2"
             >
+              <option value="">-</option>
               <option value="Main">Main</option>
+              <option value="Main">Home Visit</option>
+              <option value="Main">Center Visit</option>
             </select>
           </div>
 
           <div>
-            <label className="block text-sm mb-1">Sample collection agent</label>
+            <label className="block text-sm mb-1">Sample Collection Technician</label>
             <input
               list="agents"
               name="agent"
@@ -416,17 +403,23 @@ const AdminNewCase = () => {
         "Histopathology",
       ].includes(t.category)
     );
-  } else if (cat === "HAEMATOLOGY") {
-    filteredTests = dummyTests.filter((t) => t.category === "Haematology");
-  } else if (cat === "BIOCHEMISTRY") {
-    filteredTests = dummyTests.filter((t) => t.category === "Biochemistry");
-  } else if (cat === "CLINICAL PATHOLOGY") {
-    filteredTests = dummyTests.filter((t) => t.category === "Clinical Pathology");
-  } else if (cat === "SEROLOGY & IMMUNOLOGY") {
-    filteredTests = dummyTests.filter((t) => t.category === "Serology & Immunology");
-  } else {
-    filteredTests = dummyTests.filter((t) => t.category === cat);
-  }
+  } else if (cat === "ECG") {
+  filteredTests = dummyTests.filter((t) => t.category === "Ecg");
+} else if (cat === "TMT") {
+  filteredTests = dummyTests.filter((t) => t.category === "tmt");
+} else if (cat === "ECHO") {
+  filteredTests = dummyTests.filter((t) => t.category === "Echo");
+} else if (cat === "X - RAY") {
+  filteredTests = dummyTests.filter((t) => t.category === "X - ray");
+} else if (cat === "USG") {
+  filteredTests = dummyTests.filter((t) => t.category === "USG");
+} else if (cat === "OUTSOURCE LAB") {
+  filteredTests = dummyTests.filter((t) => t.category === "Outsource Lab");
+} else if (cat === "OTHER TESTS") {
+  filteredTests = dummyTests.filter((t) => t.category === "Other");
+} else {
+  filteredTests = dummyTests.filter((t) => t.category === cat);
+}
 
   // ✅ Combine both dummy tests and dummy panels together
   const combinedOptions = [
