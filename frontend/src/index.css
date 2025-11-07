@@ -72,29 +72,39 @@
 }
 
 
-/* ===== Page & Table ===== */
 @page {
-  margin: 18mm 12mm;
+  margin: 0mm;
 }
 
-body {
+/* ===== General ===== */
+html, body {
+  height: 100%;
   font-family: "Inter", sans-serif;
   font-size: 17px;
   color: #000;
+  position: relative;
+  -webkit-print-color-adjust: exact;
 }
 
+/* ===== Report Table ===== */
 table.report {
   width: 100%;
   border-collapse: collapse;
+  min-height: 100vh; /* ensures footer reaches bottom even for short pages */
+  position: relative;
   page-break-inside: auto;
 }
 
 thead {
-  display: table-header-group;
+  display: table-header-group; /* repeat on each page */
+}
+
+tbody {
+  display: table-row-group;
 }
 
 tfoot {
-  display: table-footer-group;
+  display: table-footer-group; /* ensures footer appears on every page */
 }
 
 td {
@@ -109,7 +119,7 @@ th {
 /* ===== Letterhead ===== */
 .letterhead {
   text-align: center;
-  padding: 8px 0;
+  padding: 0;
 }
 .letterhead img {
   height: 40px;
@@ -146,27 +156,33 @@ th {
   margin-bottom: 3px;
 }
 
-/* ===== Footer fixed at bottom ===== */
+/* ===== Properly fixed footer inside <tfoot> ===== */
 tfoot td {
+  vertical-align: bottom;
+  padding: 0;
+  border: none;
   position: relative;
+  height: 3cm; /* set footer height here */
 }
+
 tfoot .footer-content {
   position: absolute;
   bottom: 0;
   left: 0;
   width: 100%;
+  background: white;
+  text-align: center;
+  height: 100%;
 }
 
-/* ===== Images in Footer ===== */
-.footer-icons img {
-  height: 28px;
-  width: 28px;
+tfoot .footer-content img {
+  height: 100%;
   object-fit: contain;
 }
 
 /* ===== Watermark ===== */
 .watermark {
-  position: absolute;
+  position: fixed;
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
@@ -179,40 +195,55 @@ tfoot .footer-content {
   object-fit: contain;
 }
 
-/* ===== Ensure content above watermark ===== */
+/* ===== Page Content ===== */
 .page-content {
   position: relative;
   z-index: 1;
 }
 
-/* ===== Print Enhancements ===== */
+/* ===== Print Mode ===== */
 @media print {
   body {
-    -webkit-print-color-adjust: exact;
+    margin: 0;
   }
+
   .no-print {
     display: none;
   }
+
   table.report {
-    page-break-inside: auto;
+    min-height: 100vh;
+    position: relative;
   }
 
-  /* repeat watermark + footer on all pages */
-  .watermark {
-    position: fixed;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
+  thead {
+    display: table-header-group;
   }
 
   tfoot {
     display: table-footer-group;
   }
-}
 
+  /* ensure footer always sticks to bottom of each page */
+  tfoot td {
+    position: relative;
+    height: 3cm;
+  }
 
-@media print {
+  tfoot .footer-content {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+  }
+
+  /* optional: print page number */
   .pageNumber::after {
     content: counter(page);
+  }
+
+  /* ensure watermark visible on every page */
+  .watermark {
+    position: fixed;
   }
 }

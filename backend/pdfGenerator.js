@@ -195,20 +195,15 @@ const renderCategorySection = (category, design, spacing = 1, fontSize = 12, fon
             <tr>
               <th style="padding:${letterheadSettings.headerHeight || 4.5}mm; background:#fff; border-bottom:1px solid #d1d5db;">
                 <!-- Header -->
-                <div style="display:flex; justify-content:space-between; align-items:flex-start;">
-                  <div style="display:flex; gap:12px;">
-                    <img src="${logoURL}" style="height:80px; width:80px; object-fit:contain;" />
-                    <div style="margin-top:8px;">
-                      <h1 style="margin:0; font-size:24px; color:#008236;">${letterhead.name || "LIFE LINE LABORATORY"}</h1>
-                      <h2 style="margin:0; font-size:18px; color:#008236;">${letterhead.subName || "DIAGNOSTIC"}</h2>
-                      <p style="margin:0; font-size:12px; color:#1d4ed8;">${letterhead.tagline || "Test Results You Can Trust"}</p>
-                    </div>
-                  </div>
-                  <div style="text-align:right; font-size:10px; width:160px; color:#374151; margin-top:16px;">
-                    ${letterhead.address || "Main Road, Konandur"}
-                  </div>
-                </div>
-                <div style="margin-top:12px; padding:0 16px;"><div style="height:0.5px; background:#008236;"></div></div>
+                <div style="display:flex; justify-content:center; align-items:center; width:100%;">
+  <img 
+    src="${letterhead.headerImage || logoURL}" 
+    alt="Header" 
+    style="width:100%; max-height:120px; object-fit:contain;" 
+  />
+</div>
+
+                
 
 
                 <div style="display:flex; justify-content:space-between; align-items:flex-start; width:100%; border:1px solid #000; padding:6px;">
@@ -284,34 +279,14 @@ const renderCategorySection = (category, design, spacing = 1, fontSize = 12, fon
               <td style="padding:${letterheadSettings.signatureHeight || 3.4}mm; border-top:1px solid #d1d5db;">
                 <div style="display:flex; flex-wrap:wrap; justify-content:space-between;">${signatureHTML}</div>
                 <!-- Contact Info: 75/25 -->
-                <div style="display:flex; gap:4px; width:100%; margin-top:8px; font-size:10px;">
-                  <div style="flex:3; background:#16a34a; color:#fff; padding:4px; display:flex; gap:8px;">
-                    <p style="margin:0;">Phone: ${letterhead.contact || "0816-4069357"}</p>
-                    <p style="margin:0;">Mobile: +91 ${letterhead.contact || "9980121730"}</p>
-                    <p style="margin:0;">Website: ${letterhead.website || "www.sanjaylab.in"}</p>
-                  </div>
-                  <div style="flex:1; background:#2563eb; color:#fff; padding:4px; display:flex; align-items:center; justify-content:center;">
-                    <p style="margin:0;">Email: ${letterhead.email || "sanjay@gmail.com"}</p>
-                  </div>
-                </div>
+                <div style="display:flex; justify-content:center; align-items:center; width:100%; margin-top:8px;">
+  <img 
+    src="${letterhead.footerImage}" 
+    alt="Footer" 
+    style="width:100%; max-height:100px; object-fit:contain;" 
+  />
+</div>
 
-                <!-- Delivery & WhatsApp -->
-                <div style="display:flex; justify-content:space-between; gap:16px; margin-top:8px; width:100%;">
-                  <div style="display:flex; gap:4px; align-items:center;">
-                    <img src="https://sanjay-lims.vercel.app/delivery-bike.png" style="width:28px; height:28px;" />
-                    <div style="display:flex; flex-direction:column; align-items:center;">
-                      <p style="margin:0; font-weight:bold;">Home collection</p>
-                      <p style="margin:0; font-weight:bold;">Available</p>
-                    </div>
-                  </div>
-                  <div style="display:flex; gap:4px; align-items:center;">
-                    <img src="https://sanjay-lims.vercel.app/whatsapp.png" style="width:28px; height:28px;" />
-                    <div style="display:flex; flex-direction:column; align-items:center;">
-                      <p style="margin:0; font-weight:bold;">Get Reports Via</p>
-                      <p style="margin:0; font-weight:bold;">SMS / WhatsApp</p>
-                    </div>
-                  </div>
-                </div>
 
               </td>
             </tr>

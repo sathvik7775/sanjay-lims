@@ -50,8 +50,14 @@ const ViewReport = () => {
 
       // 3️⃣ Fetch Letterhead
       const lhRes = await axios.get(
-        `${import.meta.env.VITE_API_URL}/api/report/letterhead/branch/${branchId}`
-      );
+  `${import.meta.env.VITE_API_URL}/api/report/letterhead/branch/${branchId}`,
+  {
+    headers: {
+      Authorization: `Bearer ${branchToken}`,
+    },
+  }
+);
+
       const letterheadData = lhRes.data?.data || null;
       console.log(lhRes.data);
       
@@ -195,6 +201,8 @@ const handleGeneratePDF = async () => {
     }, 500);
   };
 
+  console.log(letterhead);
+  
   
 
 
@@ -315,31 +323,32 @@ const calculateTAT = (createdAt, updatedAt) => {
 };
 
 
+
+
+
 // ---------------- Letterhead Table ----------------
 const LetterheadTable = ({ lh, signatures, children, patient, report, printSetting }) => (
   <table className="report w-full min-h-[297mm] border-collapse">
     <thead>
       <tr>
-        <th className="p-4 bg-white border-b border-gray-300">
-          <div className="flex justify-between items-start"
-          style={{ minHeight: `${printSetting?.letterhead?.headerHeight || 4}rem` }}>
-            <div className="flex gap-3">
-              <img src={lh?.logo || "/sanjay.png"} alt="Logo" className="h-20 w-20 object-contain" />
-              <div className="flex flex-col items-start mt-2">
-                <h1 className="text-2xl font-extrabold text-green-700">{lh?.name || "LIFE LINE LABORATORY"}</h1>
-                <h2 className="text-xl font-bold text-green-700 -mt-1">{lh?.subName || "DIAGNOSTIC"}</h2>
-                <p className="text-sm text-blue-700 font-medium">{lh?.tagline || "Test Results You Can Trust"}</p>
-              </div>
-            </div>
-            <div className="text-right text-xs w-40 text-gray-700 whitespace-pre-line mt-4">
-              <p>{lh?.address || "Main Road, Konandur"}</p>
-            </div>
-          </div>
+        <th className=" bg-white border-b border-gray-300 -mt-2">
+          <div
+  className="flex justify-center items-center "
+  style={{ minHeight: `${printSetting?.letterhead?.headerHeight || 4}rem` }}
+>
+  {lh?.headerImage && (
+    <img
+      src={lh.headerImage}
+      alt="Header"
+      className="w-full object-contain"
+      style={{ height: `${lh?.headerHeight || 100}px` }}
+    />
+  )}
+</div>
 
-          <div className="px-4 mt-3"><div className="h-[0.5px] bg-[#008236]"></div></div>
 
           {patient && (
-            <div className="mt-6 border border-black p-2 bg-white text-[10px] flex justify-between items-center">
+            <div className="mt-6 border border-black p-2 m-3 bg-white text-[10px] flex justify-between items-center">
               <div className="flex flex-col">
                 <p className="font-semibold"
                 style={{ fontSize: `${printSetting?.design?.fontSize || 12}px` }}>Patient: {patient.firstName} {patient.lastName}</p>
@@ -384,7 +393,7 @@ const LetterheadTable = ({ lh, signatures, children, patient, report, printSetti
 
     <tfoot>
       <tr>
-        <td className="p-4 border-t border-gray-300">
+        <td className=" border-t border-gray-300">
           <div className="flex flex-wrap justify-between w-full"
            style={{ minHeight: `${printSetting?.letterhead?.signatureHeight || 3.4}rem` }}>
             {signatures.map((sig, idx) => (
@@ -397,45 +406,19 @@ const LetterheadTable = ({ lh, signatures, children, patient, report, printSetti
           </div>
 
           <div
-          style={{ minHeight: `${printSetting?.letterhead?.footerHeight || 3.3}rem` }}>
+  className="flex justify-center items-center "
+  style={{ minHeight: `${printSetting?.letterhead?.footerHeight || 3.3}rem` }}
+>
+  {lh?.footerImage && (
+    <img
+      src={lh.footerImage}
+      alt="Footer"
+      className="w-full object-contain"
+      style={{ height: `${lh?.footerHeight || 80}px` }}
+    />
+  )}
+</div>
 
-          <div className="flex w-full text-white text-xs items-center">
-            <div className="flex flex-1 items-center justify-center gap-6 py-1 px-4" style={{ backgroundColor: "#16a34a" }}>
-              <p className="flex items-center gap-1"><Phone className="w-4 h-4" />0816-4069357</p>
-              <p className="flex items-center gap-1"><Smartphone className="w-4 h-4" />+91 {lh?.contact || "9980121730"}</p>
-              <p className="flex items-center gap-1"><Globe className="w-4 h-4" />{lh?.website || "www.sanjaylab.in"}</p>
-            </div>
-            <div className="flex items-center justify-center py-1 px-4" style={{ backgroundColor: "#2563eb" }}>
-              <p className="flex items-center gap-1"><Mail className="w-4 h-4" />{lh?.email || "sanjay@gmail.com"}</p>
-            </div>
-          </div>
-
-          <div className="text-black px-6 py-2 text-xs flex w-full justify-between gap-3">
-
-            <div className="flex flex-row justify-between w-full gap-3 items-center sm:items-end">
-              <div className="flex items-center gap-2">
-                <img src="/delivery-bike.png" className="w-7 h-7" alt="" />
-                <div className="flex flex-col items-center">
-                  <p className="font-bold">Home collection</p>
-                  <p className="font-bold">Available</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <img src="/whatsapp.png" className="w-7 h-7" alt="" />
-                <div className="flex flex-col items-center">
-                  <p className="font-bold">Get Reports Via</p>
-                  <p className="font-bold">SMS / WhatsApp</p>
-                </div>
-              </div>
-            </div>
-          </div>
-          {/* Page Number */}
-        {printSetting?.showHide?.showPageNumber && (
-          <div className="text-right text-xs mt-1">
-            Page <span className="pageNumber"></span>
-          </div>
-        )}
-          </div>
         </td>
       </tr>
     </tfoot>

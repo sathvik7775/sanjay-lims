@@ -96,7 +96,7 @@ const Letterhead = () => {
               </h3>
 
               {/* Delete Button (admin only) */}
-              {!branchToken && (
+              {adminToken && (
                 <button
                   onClick={() => handleDelete(lh._id)}
                   className="absolute top-2 right-2 bg-red-600 text-white px-2 py-1 rounded hover:bg-red-700"

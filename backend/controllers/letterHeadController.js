@@ -1,133 +1,128 @@
 import LetterHead from "../models/LetterHead.js";
-
-
-
+import cloudinary from "../config/cloudinary.js";
 
 /**
  * @desc Add new letterhead
- * @route POST /api/letterheads
+ * @route POST /api/letterhead/admin/add
  * @access Admin
  */
 export const addLetterhead = async (req, res) => {
   try {
-    const { branchId, name, subName, tagline, address, contact, email, website, logo, footerNotes } = req.body;
+    // ✅ Check req.body existence safely
+    if (!req.body) {
+      return res.status(400).json({ success: false, message: "Request body missing." });
+    }
 
-    // Check if already exists for branch
-    const existing = await LetterHead.findOne({ branchId });
-    if (existing) {
+    const { branchId, headerHeight, footerHeight } = req.body;
+
+    if (!branchId) {
+      return res.status(400).json({ success: false, message: "Branch ID is required." });
+    }
+
+    // ✅ Check file upload presence
+    if (!req.files?.headerImage?.[0] || !req.files?.footerImage?.[0]) {
       return res.status(400).json({
         success: false,
-        message: "Letterhead already exists for this branch.",
+        message: "Header and Footer images are required.",
       });
     }
 
-    const letterhead = new LetterHead({
-      branchId,
-      name,
-      subName,
-      tagline,
-      address,
-      contact,
-      email,
-      website,
-      logo,
-      footerNotes,
+    // ✅ Upload to Cloudinary
+    const headerUpload = await cloudinary.uploader.upload(req.files.headerImage[0].path, {
+      folder: "letterheads",
+    });
+    const footerUpload = await cloudinary.uploader.upload(req.files.footerImage[0].path, {
+      folder: "letterheads",
     });
 
-    await letterhead.save();
+    // ✅ Save to MongoDB
+    const newLetterhead = new LetterHead({
+      branchId,
+      headerImage: headerUpload.secure_url,
+      headerHeight,
+      footerImage: footerUpload.secure_url,
+      footerHeight,
+    });
+
+    await newLetterhead.save();
+
     return res.status(201).json({
       success: true,
       message: "Letterhead created successfully.",
-      letterhead,
+      data: newLetterhead,
     });
   } catch (err) {
-    console.error("Error creating letterhead:", err);
-    res.status(500).json({ success: false, message: "Server error." });
+    console.error("❌ Error creating letterhead:", err);
+    return res.status(500).json({ success: false, message: "Server error." });
   }
 };
 
 
+/**
+ * @desc Get all letterheads
+ * @route GET /api/letterhead/admin/list
+ * @access Admin
+ */
 export const getAllLetterheads = async (req, res) => {
   try {
-    const letterheads = await LetterHead.find().populate("branchId", "name code location");
+    const letterheads = await LetterHead.find().populate(
+      "branchId",
+      "name code location"
+    );
     res.status(200).json({ success: true, letterheads });
   } catch (err) {
-    console.error("Error fetching letterheads:", err);
+    console.error("❌ Error fetching letterheads:", err);
     res.status(500).json({ success: false, message: "Server error." });
   }
 };
 
 /**
- * @desc Get letterhead by branch ID
- * @route GET /api/letterheads/:branchId
+ * @desc Get letterhead by branch
+ * @route GET /api/letterhead/branch/:branchId
  * @access Admin / Branch
  */
 export const getLetterheadByBranch = async (req, res) => {
   try {
-    const { branchId } = req.params; // <-- use params instead of body
+    const { branchId } = req.params;
     const letterhead = await LetterHead.findOne({ branchId }).populate(
       "branchId",
       "name code location"
     );
 
     if (!letterhead) {
-      return res.status(404).json({
-        success: false,
-        message: "Letterhead not found for this branch.",
-      });
+      return res
+        .status(404)
+        .json({ success: false, message: "Letterhead not found for this branch." });
     }
 
-    res.status(200).json({ success: true, data: letterhead }); // return in `data`
+    res.status(200).json({ success: true, data: letterhead });
   } catch (err) {
-    console.error("Error fetching letterhead:", err);
+    console.error("❌ Error fetching letterhead:", err);
     res.status(500).json({ success: false, message: "Server error." });
   }
 };
 
-
 /**
- * @desc Update letterhead by branch ID
- * @route PUT /api/letterheads/:branchId
- * @access Admin
- */
-// export const updateLetterhead = async (req, res) => {
-//   try {
-//     const { branchId } = req.params;
-
-//     const updated = await Letterhead.findOneAndUpdate(
-//       { branchId },
-//       { $set: req.body },
-//       { new: true, runValidators: true }
-//     );
-
-//     if (!updated) {
-//       return res.status(404).json({ success: false, message: "Letterhead not found for this branch." });
-//     }
-
-//     res.status(200).json({ success: true, message: "Letterhead updated successfully.", letterhead: updated });
-//   } catch (err) {
-//     console.error("Error updating letterhead:", err);
-//     res.status(500).json({ success: false, message: "Server error." });
-//   }
-// };
-
-/**
- * @desc Delete letterhead by ID
- * @route DELETE /api/letterheads/:id
+ * @desc Delete letterhead
+ * @route DELETE /api/letterhead/admin/delete/:id
  * @access Admin
  */
 export const deleteLetterhead = async (req, res) => {
   try {
     const { id } = req.params;
-    const deleted = await Letterhead.findByIdAndDelete(id);
+    const deleted = await LetterHead.findByIdAndDelete(id);
 
     if (!deleted) {
-      return res.status(404).json({ success: false, message: "Letterhead not found." });
+      return res
+        .status(404)
+        .json({ success: false, message: "Letterhead not found." });
     }
 
-    res.status(200).json({ success: true, message: "Letterhead deleted successfully." });
+    res
+      .status(200)
+      .json({ success: true, message: "Letterhead deleted successfully." });
   } catch (err) {
-    console.error("Error deleting letterhead:", err);
+    console.error("❌ Error deleting letterhead:", err);
     res.status(500).json({ success: false, message: "Server error." });
   }
 };
