@@ -52,6 +52,10 @@ const executablePath =
 
   const barcodeBase64 = await generateBarcodeBase64(patient.regNo);
 
+  // Handle header and footer images properly
+
+
+
   // Logo
   const logoURL = letterhead.logo ? letterhead.logo : 'https://sanjay-lims.vercel.app/sanjay.png';
 
@@ -175,6 +179,20 @@ const renderCategorySection = (category, design, spacing = 1, fontSize = 12, fon
   `;
 };
 
+const headerImageSrc = letterhead.headerImage
+  ? (letterhead.headerImage.startsWith("http")
+      ? letterhead.headerImage
+      : imageToBase64(letterhead.headerImage))
+  : logoURL;
+
+const footerImageSrc = letterhead.footerImage
+  ? (letterhead.footerImage.startsWith("http")
+      ? letterhead.footerImage
+      : imageToBase64(letterhead.footerImage))
+  : "";
+
+
+
 
   // HTML Content
   const html = `
@@ -197,7 +215,7 @@ const renderCategorySection = (category, design, spacing = 1, fontSize = 12, fon
                 <!-- Header -->
                 <div style="display:flex; justify-content:center; align-items:center; width:100%;">
   <img 
-    src="${letterhead.headerImage || logoURL}" 
+    src="${headerImageSrc}" 
     alt="Header" 
     style="width:100%; max-height:120px; object-fit:contain;" 
   />
@@ -281,7 +299,7 @@ const renderCategorySection = (category, design, spacing = 1, fontSize = 12, fon
                 <!-- Contact Info: 75/25 -->
                 <div style="display:flex; justify-content:center; align-items:center; width:100%; margin-top:8px;">
   <img 
-    src="${letterhead.footerImage}" 
+    src="${footerImageSrc}" 
     alt="Footer" 
     style="width:100%; max-height:100px; object-fit:contain;" 
   />
