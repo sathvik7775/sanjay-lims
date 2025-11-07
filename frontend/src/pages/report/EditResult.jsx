@@ -111,10 +111,7 @@ if (resultData && Array.isArray(resultData.categories)) {
 }
 
 
-      console.log("✅ collectedTests before set:", collectedTests);
-      console.log("✅ initialResults before set:", initialResults);
-      console.log("✅ initialReferences before set:", initialReferences);
-
+      
       setResults(initialResults);
       setReferences(initialReferences);
       setAllTests(collectedTests);
@@ -202,57 +199,82 @@ if (resultData && Array.isArray(resultData.categories)) {
   };
 
   /* ----------------------------- 🔹 Submit ----------------------------- */
-  const handleSubmit = async () => {
-    if (!report) return errorToast("Patient details missing");
+  const handleSubmit = async (status) => {
+  if (!report) return errorToast("Patient details missing");
 
-    try {
-      setLoading(true);
+  try {
+    setLoading(true);
 
-      const payload = {
-        reportId,
-        patient: { ...report.patient, regNo: report.regNo },
-        categories: (report.categories || []).map((cat) => ({
-          categoryName: cat.categoryName,
-          items: (cat.items || []).map((panel) => ({
-            panelOrPackageName: panel.panelOrPackageName,
-            isPanel: panel.isPanel || false,
-            isPackage: panel.isPackage || false,
-            interpretation: panel.interpretation || "",
-            tests: (panel.tests || []).map((test) => ({
-              testName: test.testName,
-              interpretation: test.interpretation || "",
-              category: test.category || cat.categoryName,
-              params: (test.params || []).map((p) => ({
-                paramId: p.paramId,
-                unit: p.unit,
-                groupBy: p.groupBy || "Ungrouped",
-                value: results[p.paramId] || "",
-                reference: references[p.paramId] || p.reference || "",
-              })),
-            })),
-          })),
-        })),
-      };
-
-      const res = await axios.put(
-        `${import.meta.env.VITE_API_URL}/api/results/update/${reportId}`,
-        payload,
-        { headers: { Authorization: `Bearer ${branchToken}` } }
-      );
-
-      if (res.data.success) {
-        successToast("Report updated successfully");
-        navigate(`/${branchId}/view-report/${reportId}`);
+    // 🔹 Transform structure
+    const transformItem = (item) => {
+      if (item.isPanel || item.isPackage) {
+        return {
+          panelOrPackageName: item.panelOrPackageName,
+          isPanel: item.isPanel || false,
+          isPackage: item.isPackage || false,
+          interpretation: item.interpretation || "",
+          tests: (item.tests || []).map(transformItem),
+        };
       } else {
-        errorToast(res.data.message || "Failed to update");
+        return {
+          testName: item.testName,
+          interpretation: item.interpretation || "",
+          category: item.category || "Other",
+          params: (item.params || []).map((p) => ({
+            paramId: p.paramId,
+            name: p.name,
+            unit: p.unit,
+            groupBy: p.groupBy || "Ungrouped",
+            value: results[p.paramId] || p.value || "", // ✅ fallback to existing value
+            reference: references[p.paramId] || p.reference || "",
+          })),
+        };
       }
-    } catch (err) {
-      console.error(err);
-      errorToast(err.response?.data?.message || "Server error");
-    } finally {
-      setLoading(false);
+    };
+
+    // 🔹 Build payload with nested structure
+    const payload = {
+      reportId,
+      status,
+      patient: {
+        firstName: report.patient.firstName,
+        lastName: report.patient.lastName,
+        age: report.patient.age,
+        ageUnit: report.patient.ageUnit || "Years",
+        sex: report.patient.sex,
+        doctor: report.patient.doctor || "",
+        uhid: report.patient.uhid || "",
+        regNo: report.regNo || "",
+      },
+      categories: (report.categories || []).map((cat) => ({
+  categoryName: cat.categoryName || cat.category || "General",
+  items: (cat.items || []).map(transformItem),
+})),
+
+    };
+
+    console.log("🧾 Update payload:", payload);
+
+    const res = await axios.put(
+      `${import.meta.env.VITE_API_URL}/api/results/update/${reportId}`,
+      payload,
+      { headers: { Authorization: `Bearer ${branchToken}` } }
+    );
+
+    if (res.data.success) {
+      successToast("Result updated successfully");
+      navigate(`/${branchId}/view-report/${reportId}`);
+    } else {
+      errorToast(res.data.message || "Failed to update");
     }
-  };
+  } catch (err) {
+    console.error("❌ Update error:", err);
+    errorToast(err.response?.data?.message || "Server error");
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   if (loading) return <Loader />;
   if (!report) return <p className="p-6 text-gray-500">Report not found</p>;
@@ -292,14 +314,28 @@ if (resultData && Array.isArray(resultData.categories)) {
 
       {/* 🔹 Conditionally show Save button */}
       {branchToken && (
-        <div className="text-center mt-6">
-          <button
-            onClick={handleSubmit}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-2 rounded-md shadow-sm transition"
-          >
-            Update Report
-          </button>
-        </div>
+        <div className=" mt-6 flex  gap-4">
+  <button
+    onClick={() => handleSubmit("In Progress")}
+    className="bg-gray-500 hover:bg-gray-600 text-white px-6 py-2 rounded-md shadow-sm transition"
+  >
+    Save Only
+  </button>
+
+  <button
+    onClick={() => handleSubmit("Signed Off")}
+    className="bg-primary-dark hover:bg-primary text-white px-6 py-2 rounded-md shadow-sm transition"
+  >
+    Sign Off
+  </button>
+
+  <button
+    onClick={() => handleSubmit("Final")}
+    className="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-md shadow-sm transition"
+  >
+    Final
+  </button>
+</div>
       )}
     </div>
   );

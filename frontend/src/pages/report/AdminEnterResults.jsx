@@ -653,7 +653,7 @@ if (!/^[0-9a-f]{24}$/i.test(key)) {
   const handleReferenceChange = (paramId, value) =>
     setReferences((prev) => ({ ...prev, [paramId]: value }));
 
- const handleSubmit = async () => {
+ const handleSubmit = async (status) => {
   if (!report) {
     errorToast("Patient details not found");
     return;
@@ -699,7 +699,7 @@ if (!/^[0-9a-f]{24}$/i.test(key)) {
 
     const payload = {
       reportId,
-      
+      status,
       patient: {
         firstName: report.patient.firstName,
         lastName: report.patient.lastName,
@@ -773,14 +773,28 @@ if (!/^[0-9a-f]{24}$/i.test(key)) {
         </div>
       ))}
 
-      <div className="text-center mt-6">
-        <button
-          onClick={handleSubmit}
-          className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-2 rounded-md shadow-sm transition"
-        >
-          Save & Generate Report
-        </button>
-      </div>
+      <div className=" mt-6 flex  gap-4">
+  <button
+    onClick={() => handleSubmit("In Progress")}
+    className="bg-gray-500 hover:bg-gray-600 text-white px-6 py-2 rounded-md shadow-sm transition"
+  >
+    Save Only
+  </button>
+
+  <button
+    onClick={() => handleSubmit("Signed Off")}
+    className="bg-primary-dark hover:bg-primary text-white px-6 py-2 rounded-md shadow-sm transition"
+  >
+    Sign Off
+  </button>
+
+  <button
+    onClick={() => handleSubmit("Final")}
+    className="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-md shadow-sm transition"
+  >
+    Final
+  </button>
+</div>
     </div>
   );
 };

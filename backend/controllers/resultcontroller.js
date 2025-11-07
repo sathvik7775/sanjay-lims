@@ -8,7 +8,7 @@ import Case from "../models/Case.js"; // or Report model depending on your proje
  */
 export const addResult = async (req, res) => {
   try {
-    const { reportId, categories, patient } = req.body;
+    const { reportId, categories, patient, status } = req.body;
     const branchId = req.user?.branchId || null;
 
     if (!reportId || !Array.isArray(categories) || !patient) {
@@ -30,7 +30,7 @@ export const addResult = async (req, res) => {
       patient,
       categories, // full nested structure: categories → tests/panels → params
       enteredBy: req.user?._id || null,
-      status: "Completed",
+      status: status,
     });
 
     await newResult.save();
@@ -74,18 +74,31 @@ export const getResultsByReport = async (req, res) => {
 export const updateResult = async (req, res) => {
   try {
     const { reportId } = req.params;
-    console.log("fgrgrgr", reportId);
-    
-    const { categories, patient } = req.body;
+    const { categories, patient, status } = req.body;
+
+    if (!reportId) {
+      return res.status(400).json({ success: false, message: "Missing reportId" });
+    }
+
+    // 🧹 Ensure each category has a valid name and items array
+    const cleanCategories = (categories || []).map((cat, i) => ({
+      categoryName: cat.categoryName || cat.category || `Category-${i + 1}`,
+      items: Array.isArray(cat.items) ? cat.items : [],
+    }));
 
     const updated = await Result.findOneAndUpdate(
       { reportId },
-      { categories, patient, status: "Completed" },
-      { new: true }
+      {
+        categories: cleanCategories,
+        patient: patient || {},
+        status: status || "In Progress",
+      },
+      { new: true, runValidators: true }
     );
 
-    if (!updated)
+    if (!updated) {
       return res.status(404).json({ success: false, message: "Result not found" });
+    }
 
     return res.status(200).json({
       success: true,
@@ -97,6 +110,8 @@ export const updateResult = async (req, res) => {
     res.status(500).json({ success: false, message: "Server error" });
   }
 };
+
+
 
 /**
  * @desc Delete result by reportId

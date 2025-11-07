@@ -51,7 +51,12 @@ const resultSchema = new mongoose.Schema(
     categories: [categorySchema],
 
     enteredBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
-    status: { type: String, enum: ["Pending", "Completed"], default: "Pending" },
+    status: {
+  type: String,
+  enum: ["Pending", "In Progress", "Final", "Signed Off"],
+  default: "Pending",
+},
+
   },
   { timestamps: true }
 );

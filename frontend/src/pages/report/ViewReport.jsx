@@ -252,6 +252,8 @@ const handleGeneratePDF = async () => {
         >
           Print Settings
         </button>
+
+        <p>status: {report.status}</p>
       </div>
 
       {/* Web-Friendly Report */}
