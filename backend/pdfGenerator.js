@@ -213,7 +213,7 @@ const footerImageSrc = letterhead.footerImage
       <head>
         <meta charset="UTF-8"/>
         <style>
-          @page { margin:18mm 12mm; }
+          @page { margin:0mm 0mm; }
           body { font-family:${fontFamily}; font-size:${fontSize}px; color:#000; line-height:${spacing}; }
           table { width:100%; border-collapse:collapse; }
           th, td { padding:3px 5px; }
