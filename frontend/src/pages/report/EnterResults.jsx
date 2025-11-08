@@ -873,7 +873,7 @@ const TestRow = ({ item, results, references, handleChange, handleReferenceChang
                         type="text"
                         value={results[param.name] || ""}
                         onChange={(e) => handleChange(param.name, e.target.value)}
-                        className="w-full border border-gray-300 rounded px-2 py-1 focus:ring-1 focus:ring-blue-400 outline-none"
+                        className={`w-full border ${item.isFormula ? 'border-amber-500' : 'border-gray-300'}  rounded px-2 py-1 focus:ring-1 focus:ring-blue-400 outline-none`}
                       />
                     </td>
 

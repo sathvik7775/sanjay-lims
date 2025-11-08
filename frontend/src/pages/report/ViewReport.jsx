@@ -253,12 +253,12 @@ const handleGeneratePDF = async () => {
           Print Settings
         </button>
 
-        <p>status: {report.status}</p>
+        
       </div>
 
       {/* Web-Friendly Report */}
       <div className="block print:hidden">
-        <WebReport report={report} printSetting={printSetting} />
+        <WebReport report={report} printSetting={printSetting} signatures={signatures} />
       </div>
 
       {/* Print Preview */}
@@ -286,7 +286,7 @@ const handleGeneratePDF = async () => {
 };
 
 // ---------------- Web-Friendly Report ----------------
-const WebReport = ({ report, printSetting }) => {
+const WebReport = ({ report, printSetting, signatures }) => {
   const { patient, categories } = report;
   return (
     <div className="bg-white p-4">
@@ -303,9 +303,44 @@ const WebReport = ({ report, printSetting }) => {
           </div>
         </div>
       )}
+
+      <div>
+        <p className="flex items-center gap-2">
+  <span className="font-semibold">Status:</span>
+  <span
+    className={`px-3 py-1 rounded-full text-sm font-medium border
+      ${report.status === "In Progress"
+        ? "bg-red-50 text-red-600 border-red-400"
+        : report.status === "Signed Off"
+        ? "bg-green-50 text-green-600 border-green-400"
+        : report.status === "Final"
+        ? "bg-blue-50 text-blue-600 border-blue-400"
+        : "bg-gray-100 text-gray-600 border-gray-300"
+      }`}
+  >
+    {report.status || "—"}
+  </span>
+</p>
+
+      </div>
       <div className="space-y-6">
         {categories?.map((category, idx) => <CategorySection key={idx} category={category} printSetting={printSetting} />)}
       </div>
+
+      {report.status === "Signed Off" && (
+          <div className="flex flex-wrap justify-between w-full"
+           style={{ minHeight: `${printSetting?.letterhead?.signatureHeight || 3.4}rem` }}>
+            {signatures.map((sig, idx) => (
+              <div key={idx} className="text-center mx-2 mb-3">
+                {sig.imageUrl && <img src={sig.imageUrl} alt={sig.name} className="w-32 h-16 object-contain mx-auto" />}
+                <p className="font-semibold text-xs mt-1">{sig.name}</p>
+                {sig.designation && <p className="text-[11px] text-gray-600">{sig.designation}</p>}
+              </div>
+            ))}
+          </div>
+      )}
+
+      
     </div>
   );
 };

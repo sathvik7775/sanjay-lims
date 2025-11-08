@@ -252,7 +252,7 @@ const handleGeneratePDF = async () => {
 
       {/* Web-Friendly Report */}
       <div className="block print:hidden">
-        <WebReport report={report} printSetting={printSetting} />
+        <WebReport report={report} printSetting={printSetting} signatures={signatures} />
       </div>
 
       {/* Print Preview */}
@@ -280,7 +280,7 @@ const handleGeneratePDF = async () => {
 };
 
 // ---------------- Web-Friendly Report ----------------
-const WebReport = ({ report, printSetting }) => {
+const WebReport = ({ report, printSetting, signatures }) => {
   const { patient, categories } = report;
   return (
     <div className="bg-white p-4">
@@ -300,6 +300,19 @@ const WebReport = ({ report, printSetting }) => {
       <div className="space-y-6">
         {categories?.map((category, idx) => <CategorySection key={idx} category={category} printSetting={printSetting} />)}
       </div>
+
+      {report.status === "Signed Off" && (
+          <div className="flex flex-wrap justify-between w-full"
+           style={{ minHeight: `${printSetting?.letterhead?.signatureHeight || 3.4}rem` }}>
+            {signatures.map((sig, idx) => (
+              <div key={idx} className="text-center mx-2 mb-3">
+                {sig.imageUrl && <img src={sig.imageUrl} alt={sig.name} className="w-32 h-16 object-contain mx-auto" />}
+                <p className="font-semibold text-xs mt-1">{sig.name}</p>
+                {sig.designation && <p className="text-[11px] text-gray-600">{sig.designation}</p>}
+              </div>
+            ))}
+          </div>
+      )}
     </div>
   );
 };

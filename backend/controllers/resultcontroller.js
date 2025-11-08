@@ -76,11 +76,9 @@ export const updateResult = async (req, res) => {
     const { reportId } = req.params;
     const { categories, patient, status } = req.body;
 
-    if (!reportId) {
+    if (!reportId)
       return res.status(400).json({ success: false, message: "Missing reportId" });
-    }
 
-    // 🧹 Ensure each category has a valid name and items array
     const cleanCategories = (categories || []).map((cat, i) => ({
       categoryName: cat.categoryName || cat.category || `Category-${i + 1}`,
       items: Array.isArray(cat.items) ? cat.items : [],
@@ -88,19 +86,14 @@ export const updateResult = async (req, res) => {
 
     const updated = await Result.findOneAndUpdate(
       { reportId },
-      {
-        categories: cleanCategories,
-        patient: patient || {},
-        status: status || "In Progress",
-      },
+      { categories: cleanCategories, patient, status: status || "In Progress" },
       { new: true, runValidators: true }
     );
 
-    if (!updated) {
+    if (!updated)
       return res.status(404).json({ success: false, message: "Result not found" });
-    }
 
-    return res.status(200).json({
+    res.status(200).json({
       success: true,
       message: "Results updated successfully",
       data: updated,
@@ -110,6 +103,7 @@ export const updateResult = async (req, res) => {
     res.status(500).json({ success: false, message: "Server error" });
   }
 };
+
 
 
 
