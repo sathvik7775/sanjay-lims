@@ -31,13 +31,26 @@ const executablePath =
 
 
   const browser = await puppeteer.launch({
-    args: chromium.args,
-    defaultViewport: chromium.defaultViewport,
-    executablePath,
-    headless: chromium.headless,
-  });
+  args: [...chromium.args, "--no-sandbox", "--disable-setuid-sandbox"],
+  defaultViewport: chromium.defaultViewport,
+  executablePath,
+  headless: chromium.headless,
+});
 
-  const page = await browser.newPage();
+const page = await browser.newPage();
+
+// ✅ Allow remote image/network loading (important for Cloudinary)
+await page.setRequestInterception(false);
+await page.setJavaScriptEnabled(true);
+await page.setCacheEnabled(true);
+
+// ✅ Optional: log failed image loads for debugging
+page.on("requestfailed", req => {
+  console.log("❌ Failed to load:", req.url());
+});
+
+
+  
 
   // Extract settings from backend PrintSetting
   const design = printSetting.design || {};
@@ -57,7 +70,7 @@ const executablePath =
 
 
   // Logo
-  const logoURL = letterhead.logo ? letterhead.logo : 'https://sanjay-lims.vercel.app/sanjay.png';
+ 
 
   // Signatures
   const signatureHTML = signatures.map(sig => {
@@ -317,9 +330,10 @@ const footerImageSrc = letterhead.footerImage
   `;
 
   await page.setContent(html, {
-  waitUntil: "domcontentloaded",
-  timeout: 0, // disables timeout completely
+  waitUntil: ["networkidle0", "domcontentloaded"], // Wait for images & resources
+  timeout: 60000, // 60 seconds
 });
+
 
   const pdfBufferRaw = await page.pdf({ format: "A4", printBackground: true });
 const pdfBuffer = Buffer.from(pdfBufferRaw); // ensure it's a Node Buffer

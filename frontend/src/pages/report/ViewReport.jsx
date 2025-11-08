@@ -112,6 +112,9 @@ useEffect(() => {
   }
 }, [reportId, branchId, branchToken]);
 
+
+
+
 const handleGeneratePDF = async () => {
   try {
     setLoading(true)
