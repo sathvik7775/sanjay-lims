@@ -7,9 +7,10 @@ import { io } from "../server.js";
  */
 export const createCase = async (req, res) => {
   try {
-    const { branchId, patient, tests, categories, payment } = req.body;
+    const { branchId, patient, tests, categories, payment, whatsappTriggers } = req.body;
 
-    if (!branchId) return res.status(400).json({ success: false, message: "Branch ID is required" });
+    if (!branchId)
+      return res.status(400).json({ success: false, message: "Branch ID is required" });
 
     // Ensure tests is a Map of arrays of IDs
     const formattedTests = {};
@@ -33,6 +34,13 @@ export const createCase = async (req, res) => {
       categories: categories || [],
       payment: { ...payment, balance },
       status,
+      whatsappTriggers: Array.isArray(whatsappTriggers)
+        ? whatsappTriggers.map((t) => ({
+            templateId: t.templateId,
+            enabled: t.enabled ?? false,
+            triggerType: t.triggerType ?? "custom",
+          }))
+        : [],
     });
 
     await newCase.save();
@@ -40,7 +48,7 @@ export const createCase = async (req, res) => {
     io.emit("new_case", {
       caseId: newCase._id,
       patientName: `${newCase.patient?.firstName || ""} ${newCase.patient?.lastName || ""}`,
-      branch: newCase.branchId, // optional
+      branch: newCase.branchId,
       message: "A new case has been created",
     });
 
@@ -59,7 +67,8 @@ export const updateCase = async (req, res) => {
     const { id } = req.params;
 
     const caseToUpdate = await Case.findById(id);
-    if (!caseToUpdate) return res.status(404).json({ success: false, message: "Case not found" });
+    if (!caseToUpdate)
+      return res.status(404).json({ success: false, message: "Case not found" });
 
     const updatedData = { ...req.body };
 
@@ -78,9 +87,20 @@ export const updateCase = async (req, res) => {
     if (updatedData.tests && typeof updatedData.tests === "object") {
       const formattedTests = {};
       Object.keys(updatedData.tests).forEach((cat) => {
-        formattedTests[cat] = Array.isArray(updatedData.tests[cat]) ? updatedData.tests[cat] : [];
+        formattedTests[cat] = Array.isArray(updatedData.tests[cat])
+          ? updatedData.tests[cat]
+          : [];
       });
       updatedData.tests = formattedTests;
+    }
+
+    // Handle WhatsApp triggers update
+    if (Array.isArray(updatedData.whatsappTriggers)) {
+      updatedData.whatsappTriggers = updatedData.whatsappTriggers.map((t) => ({
+        templateId: t.templateId,
+        enabled: t.enabled ?? false,
+        triggerType: t.triggerType ?? "custom",
+      }));
     }
 
     const updatedCase = await Case.findByIdAndUpdate(id, updatedData, { new: true });

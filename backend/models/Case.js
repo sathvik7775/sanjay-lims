@@ -3,6 +3,14 @@ import Counter from "./Counter.js"; // 👈 create this model (shown below)
 
 const { Schema, model } = mongoose;
 
+const WhatsappTriggerSchema = new Schema({
+  triggerType: { type: String, required: true },
+  enabled: { type: Boolean, default: false },
+  templateId: { type: mongoose.Schema.Types.ObjectId, ref: "WhatsappTemplate" },
+});
+
+
+
 // ✅ Payment Schema
 const PaymentSchema = new Schema({
   total: { type: Number, default: 0 },
@@ -55,6 +63,8 @@ const CaseSchema = new Schema({
     enum: ["due", "no due", "cancelled", "refund"],
     default: "due",
   },
+
+  whatsappTriggers: { type: [WhatsappTriggerSchema], default: [] },
   createdAt: { type: Date, default: Date.now },
 });
 

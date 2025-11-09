@@ -12,6 +12,36 @@ const EditAdminCase = () => {
   const { id } = useParams(); // case id from URL
   const navigate = useNavigate();
 
+   const [msgTemplates, setMsgTemplates] = useState([]); // fetched templates
+const [selectedTemplates, setSelectedTemplates] = useState([]); // array of selected template IDs
+
+
+useEffect(() => {
+  const fetchTemplates = async () => {
+    try {
+      const res = await axios.get(`${import.meta.env.VITE_API_URL}/api/whatsapp/get`, {
+        
+      });
+      console.log(res.data);
+      
+      if (res.data.success) setMsgTemplates(res.data.data);
+    } catch (err) {
+      console.error("Failed to fetch templates:", err);
+    }
+  };
+  fetchTemplates();
+}, []);
+
+
+
+
+
+const handleTemplateToggle = (id) => {
+  setSelectedTemplates((prev) =>
+    prev.includes(id) ? prev.filter((t) => t !== id) : [...prev, id]
+  );
+};
+
   const [formData, setFormData] = useState({
     mobile: "",
     title: "",
@@ -162,12 +192,20 @@ const EditAdminCase = () => {
   const handleUpdateCase = async () => {
     try {
       const caseData = {
-        branchId: selectedBranch,
-        patient: formData,
-        tests: selectedTests,
-        payment,
-        categories: activeCategories,
-      };
+  branchId: selectedBranch,
+  patient: formData,
+  tests: selectedTests,
+  payment,
+  categories: activeCategories,
+  whatsappTriggers: selectedTemplates.map((id) => {
+    const template = msgTemplates.find((t) => t._id === id);
+    return {
+      templateId: id,
+      enabled: false,
+      triggerType: template?.triggerType || "custom",
+    };
+  }),
+};
 
       const config = {
         headers: { Authorization: `Bearer ${adminToken}`, "Content-Type": "application/json" },
@@ -319,6 +357,22 @@ const EditAdminCase = () => {
           Online report requested
         </label>
       </div>
+
+      <div className="mb-4 mt-3">
+  <p className="font-medium mb-2">WhatsApp Templates</p>
+  <div className="flex  gap-3">
+    {msgTemplates.map((t) => (
+      <label key={t._id} className="flex items-center gap-2">
+        <input
+          type="checkbox"
+          checked={selectedTemplates.includes(t._id)}
+          onChange={() => handleTemplateToggle(t._id)}
+        />
+        {t.title} ({t.triggerType}),
+      </label>
+    ))}
+  </div>
+</div>
 
       {/* Optional fields */}
       <div className="flex flex-wrap gap-4 mb-6 mt-6">
