@@ -34,7 +34,7 @@ const Navbar = () => {
                             <img src="/menu-lims.png" className='w-9 cursor-pointer' alt="" />
                         </div>
                         <div className='flex gap-2 items-center'>
-                            <img src="/microscope-lims.png" className='w-9 h-9' alt="Logo" />
+                            <img src="/slhlogo-bg.png" className='w-15 ' alt="Logo" />
                             <div className='flex flex-col'>
                                 <p className='text-black roboto-second whitespace-nowrap'>{branchData?.name}</p>
                                 <p className='text-gray-600 -mt-1 text-sm'>{branchData?.place}</p>

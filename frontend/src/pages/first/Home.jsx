@@ -12,7 +12,7 @@ const Home = () => {
   <div className="w-full md:border-b px-12 flex justify-between items-center border-gray-400 bg-white md:bg-white/70 ">
     {/* Logo */}
     <div>
-      <img src="/sanjay.png" className="w-26 h-26 object-contain" alt="Company Logo" />
+      <img src="/slhlogo-bg.png" className="w-26 h-26 object-contain" alt="Company Logo" />
     </div>
 
     {/* Login buttons */}

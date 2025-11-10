@@ -53,10 +53,10 @@ const AdminNavbar = () => {
                     </div>
 
                     <div className='flex gap-2 items-center'>
-                        <img src="/microscope-lims.png" className='w-9 h-9' alt="Logo" />
-                        <div className='flex flex-col'>
-                            <p className='text-primary text-xl roboto-second whitespace-nowrap'>SDL</p>
-                            <p className='text-gray-600 -mt-1 text-sm'>LAB YOUR WAY</p>
+                        <img src="/slhlogo-bg.png" className='w-20' alt="Logo" />
+                        <div className='flex flex-col '>
+                            <p className='text-primary text-xl roboto-second whitespace-nowrap'>SLH</p>
+                            <p className='text-gray-600 -mt-1 text-sm whitespace-nowrap'>LAB YOUR WAY</p>
                         </div>
                     </div>
                 </div>
