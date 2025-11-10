@@ -21,7 +21,7 @@ const BranchLogin = () => {
     try {
       setLoading(true);
       const res = await axios.post(
-  "http://localhost:5000/api/branchlogin/login",
+  `${import.meta.env.VITE_API_URL}/api/branchlogin/login`,
   {
     loginEmail: email,
     loginPassword: password,
