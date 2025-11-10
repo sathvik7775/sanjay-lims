@@ -120,7 +120,7 @@ useEffect(() => {
     
           } catch (err) {
             console.error("Error fetching categories:", err);
-            errorToast?.("Failed to fetch categories");
+            
           }
         };
     
@@ -155,17 +155,15 @@ useEffect(() => {
 
         if (res.data.success && res.data.tests) {
           setDummyTests(res.data.tests.reverse());
-        } else {
-          errorToast?.(res.data.message || "Failed to fetch tests");
-        }
+        } 
       } catch (err) {
         console.error("Error fetching tests:", err);
-        errorToast?.("Error fetching tests");
+        
       } 
     };
 
     fetchTests();
-  }, [adminToken, branchId]);
+  }, [adminToken, branchToken]);
 
   
 
@@ -186,12 +184,10 @@ useEffect(() => {
 
         if (res.data.success) {
           setDummyPanels(res.data.panels || []);
-        } else {
-          errorToast(res.data.message || "Failed to load panels");
-        }
+        } 
       } catch (err) {
         console.error("Error fetching panels:", err);
-        errorToast("Error fetching panels");
+        
       } 
     };
 
@@ -215,12 +211,10 @@ useEffect(() => {
 
         if (res.data.success) {
           setPackages(res.data.packages.reverse() || []);
-        } else {
-          errorToast("Failed to fetch packages.");
-        }
+        } 
       } catch (err) {
         console.error("Error fetching packages:", err);
-        errorToast(err.response?.data?.message || "Failed to fetch packages.");
+        
       } 
     };
 
@@ -551,12 +545,10 @@ const fetchDoctors = async () => {
 
       if (res.data.success) {
         setDoctors(res.data.data.reverse() || []);
-      } else {
-        errorToast(res.data.message || "Failed to fetch doctors");
-      }
+      } 
     } catch (err) {
       console.error(err);
-      errorToast("Error fetching doctors");
+      
     } 
   }
 
@@ -579,15 +571,11 @@ const fetchDoctors = async () => {
 
       if (res.data.success) {
         setAgents(res.data.data.reverse());
-      } else {
-        errorToast(res.data.message || "Failed to fetch agents");
-      }
+      } 
     } catch (err) {
       console.error(err);
-      errorToast("Error fetching agents");
-    } finally {
       
-    }
+    } 
   };
 
   useEffect(() => {
