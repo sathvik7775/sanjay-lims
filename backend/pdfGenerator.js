@@ -213,10 +213,22 @@ const footerImageSrc = letterhead.footerImage
       <head>
         <meta charset="UTF-8"/>
         <style>
-          @page { margin:0mm 0mm; }
-          body { font-family:${fontFamily}; font-size:${fontSize}px; color:#000; line-height:${spacing}; }
-          table { width:100%; border-collapse:collapse; }
-          th, td { padding:3px 5px; }
+          @page { margin: 0; }
+body {
+  margin: 0;
+  padding: 0;
+  font-family: ${fontFamily};
+  font-size: ${fontSize}px;
+  color: #000;
+  line-height: ${spacing};
+}
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0;
+  padding: 0;
+}
+
         </style>
       </head>
       <body>
@@ -228,10 +240,11 @@ const footerImageSrc = letterhead.footerImage
                 <!-- Header -->
                 <div style="display:flex; justify-content:center; align-items:center; width:100%;">
   <img 
-    src="${headerImageSrc}" 
-    alt="Header" 
-    style="width:100%; max-height:120px; object-fit:contain;" 
-  />
+  src="${headerImageSrc}" 
+  alt="Header" 
+  style="width:100%; height:auto; object-fit:cover; margin:0; padding:0; display:block;" 
+/>
+
 </div>
 
                 
@@ -312,10 +325,11 @@ const footerImageSrc = letterhead.footerImage
                 <!-- Contact Info: 75/25 -->
                 <div style="display:flex; justify-content:center; align-items:center; width:100%; margin-top:8px;">
   <img 
-    src="${footerImageSrc}" 
-    alt="Footer" 
-    style="width:100%; max-height:100px; object-fit:contain;" 
-  />
+  src="${footerImageSrc}" 
+  alt="Footer" 
+  style="width:100%; height:auto; object-fit:cover; margin:0; padding:0; display:block;" 
+/>
+
 </div>
 
 

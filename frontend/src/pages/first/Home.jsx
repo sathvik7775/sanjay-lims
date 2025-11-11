@@ -28,7 +28,7 @@ const Home = () => {
 
   <div className='w-full h-full flex flex-col  justify-center md:px-72 px-3'>
     <div>
-    <h1 className=' text-gray-500 text-6xl roboto-second'>SDL's</h1>
+    <h1 className=' text-gray-500 text-6xl roboto-second'>SLH's</h1>
     <h1 className='text-white text-6xl roboto-second'>LAB MANAGEMENT</h1>
     <h1 className='text-white text-6xl roboto-second'>SOFTWARE</h1>
     </div>
