@@ -7,52 +7,68 @@ import { Link } from "react-router-dom";
 const Letterhead = () => {
   const { adminToken, branchToken, errorToast, successToast, branchId } = useContext(LabContext);
   const [letterheads, setLetterheads] = useState([]);
+  const [branches, setBranches] = useState([]);
+  const [loading, setLoading] = useState(false);
 
-  console.log(branchId);
-  
-  
-
-  // Fetch letterheads
-  const fetchLetterheads = async () => {
-  try {
-    let res;
-
-    if (adminToken) {
-      // Admin: fetch all letterheads
-      res = await axios.get(
-        `${import.meta.env.VITE_API_URL}/api/report/letterhead/admin/list`,
-        { headers: { Authorization: `Bearer ${adminToken}` } }
-      );
-      setLetterheads(res.data?.letterheads || []);
-      console.log("Admin letterheads:", res.data);
-    } else if (branchToken && branchId) {
-      // Branch user: fetch only its letterhead
-      res = await axios.get(
-        `${import.meta.env.VITE_API_URL}/api/report/letterhead/branch/${branchId}`,
-        { headers: { Authorization: `Bearer ${branchToken}` } }
-      );
-      setLetterheads(res.data?.data ? [res.data.data] : []);
-      console.log("Branch letterhead:", res.data);
-    } else {
-      console.warn("⚠️ No valid session found: neither branch nor admin detected.");
-      setLetterheads([]);
+  // ✅ Fetch Branches
+  const fetchBranches = async () => {
+    try {
+      setLoading(true);
+      const res = await axios.get(`${import.meta.env.VITE_API_URL}/api/admin/branch/list`, {
+        headers: { Authorization: `Bearer ${adminToken}` },
+      });
+      setBranches(res.data.branches || []);
+    } catch (err) {
+      errorToast("Failed to load branches");
+    } finally {
+      setLoading(false);
     }
+  };
 
-  } catch (err) {
-    console.error("❌ Error fetching letterheads:", err);
-    errorToast("Failed to fetch letterheads");
-  }
-};
+  // ✅ Fetch Letterheads
+  const fetchLetterheads = async () => {
+    try {
+      let res;
 
+      if (adminToken) {
+        // Admin: fetch all letterheads
+        res = await axios.get(`${import.meta.env.VITE_API_URL}/api/report/letterhead/admin/list`, {
+          headers: { Authorization: `Bearer ${adminToken}` },
+        });
+        setLetterheads(res.data?.letterheads || []);
+      } else if (branchToken && branchId) {
+        // Branch: fetch its own letterhead
+        res = await axios.get(
+          `${import.meta.env.VITE_API_URL}/api/report/letterhead/branch/${branchId}`,
+          { headers: { Authorization: `Bearer ${branchToken}` } }
+        );
+        setLetterheads(res.data?.data ? [res.data.data] : []);
+      } else {
+        console.warn("⚠️ No valid session found: neither branch nor admin detected.");
+        setLetterheads([]);
+      }
+    } catch (err) {
+      console.error("❌ Error fetching letterheads:", err);
+      errorToast("Failed to fetch letterheads");
+    }
+  };
 
   useEffect(() => {
+    if (adminToken) fetchBranches();
     fetchLetterheads();
   }, []);
 
-  // Delete letterhead (only admin can delete)
+  // ✅ Merge branch name into each letterhead
+  const getBranchName = (branchId) => {
+    const branch = branches.find((b) => b._id === branchId);
+    return branch ? branch.name : "Unnamed Branch";
+  };
+  console.log(letterheads);
+  
+
+  // ✅ Delete Letterhead (admin only)
   const handleDelete = async (id) => {
     if (!window.confirm("Are you sure you want to delete this letterhead?")) return;
-
     try {
       const res = await axios.delete(
         `${import.meta.env.VITE_API_URL}/api/report/letterhead/admin/delete/${id}`,
@@ -72,7 +88,7 @@ const Letterhead = () => {
     <div className="p-6">
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-2xl font-semibold">
-          {adminToken ? "All Letterheads" : "Your Letterheads"}
+          {adminToken ? "All Letterheads" : "Your Letterhead"}
         </h2>
         {adminToken && (
           <Link
@@ -90,9 +106,9 @@ const Letterhead = () => {
         <div className="space-y-8">
           {letterheads.map((lh) => (
             <div key={lh._id} className="border rounded p-4 bg-gray-50 relative">
-              {/* Branch Name */}
+              {/* ✅ Branch Name Mapped from Branch List */}
               <h3 className="text-lg font-semibold mb-2">
-                Branch: {lh.name || "Unnamed Branch"} LABORATORY
+                Branch: {lh.branchId.name}
               </h3>
 
               {/* Delete Button (admin only) */}
