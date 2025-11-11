@@ -100,8 +100,76 @@ page.on("requestfailed", req => {
   };
 
   return `
-    <div style="margin-bottom:${spacing * 8}px; font-size:${fontSize}px; font-family:${fontFamily};">
-      ${groups.length > 1 ? `<div style="text-align:center; font-weight:600; background:#fff; padding:4px; margin-bottom:4px;">${test.testName}</div>` : ''}
+    ${groups.map(group => {
+      const groupParams = params.filter(p => (p.groupBy || "Ungrouped") === group);
+      return `
+        ${group && group !== "Ungrouped" ? `<tr><td colspan="4" style="font-weight:600;">${group}</td></tr>` : ''}
+
+        ${groupParams.map(p => {
+          const hl = useHLMarkers ? isOutOfRange(p.value, p.reference) : false;
+          const color = hl && design.redAbnormal ? 'red' : 'black';
+          const weight = hl && design.boldAbnormal ? 'bold' : 'normal';
+          const marker = hl === 'high' ? ' ↑' : hl === 'low' ? ' ↓' : '';
+
+          return `
+            <tr>
+              <td style="padding:3px 5px;">${p.name}</td>
+              <td style="padding:3px 5px; font-weight:${weight}; color:${color};">${p.value || '-'}${marker}</td>
+              <td style="padding:3px 5px;">${p.unit || '-'}</td>
+              <td style="padding:3px 5px;">${p.reference || '-'}</td>
+            </tr>
+          `;
+        }).join('')}
+      `;
+    }).join('')}
+    ${test.interpretation ? `
+  <tr>
+    <td colspan="4" style="padding:4px; color:#374151;">
+      <strong>Interpretation:</strong>
+      <div style="margin-top:4px; margin-left:12px; line-height:1.5;">
+        ${test.interpretation || ''}
+      </div>
+    </td>
+  </tr>
+` : ''}
+
+  `;
+};
+
+
+const renderPanelPage = (item, design, spacing, fontSize, fontFamily, useHLMarkers) => {
+  if (!item) return '';
+  return `
+    <tr>
+      <td colspan="4" style="text-align:center; font-weight:600; background:#fff; padding:4px;">${item.panelOrPackageName || item.testName}</td>
+    </tr>
+    ${item.tests?.map(sub =>
+      sub.isPanel || sub.isPackage
+        ? renderPanelPage(sub, design, spacing, fontSize, fontFamily, useHLMarkers)
+        : renderTestRow(sub, design, spacing, fontSize, fontFamily, useHLMarkers)
+    ).join('')}
+    ${test.interpretation ? `
+  <tr>
+    <td colspan="4" style="padding:4px; color:#374151;">
+      <strong>Interpretation:</strong>
+      <div style="margin-top:4px; margin-left:12px; line-height:1.5;">
+        ${test.interpretation || ''}
+      </div>
+    </td>
+  </tr>
+` : ''}
+
+  `;
+};
+
+
+const renderCategorySection = (category, design, spacing = 1, fontSize = 12, fontFamily = 'Inter', useHLMarkers = true) => {
+  return `
+    <div style="page-break-before: always; margin-bottom:10px;">
+      <div style="text-align:center; font-weight:600; text-transform:uppercase; margin:6px 0;">
+        ${category.categoryName}
+      </div>
+
       <table style="width:100%; border-collapse:collapse; font-size:${fontSize}px;">
         <thead>
           <tr style="border-top:1px solid #000; border-bottom:1px solid #000;">
@@ -111,86 +179,19 @@ page.on("requestfailed", req => {
             <th style="text-align:left; width:20%;">REFERENCE</th>
           </tr>
         </thead>
+
         <tbody>
-          ${groups.map(group => {
-            const groupParams = params.filter(p => (p.groupBy || "Ungrouped") === group);
-            return `
-              ${group && group !== "Ungrouped" ? `<tr><td colspan="4" style="font-weight:600;">${group}</td></tr>` : ''}
-
-              ${params.length > 1 ? `
-  <p style="
-    font-weight: 600;
-    color: #374151;       
-    margin-bottom: 4px;   
-    background-color: #fff;
-    padding-top: 4px;     
-    padding-bottom: 4px;
-  ">
-    ${test.testName}
-  </p>
-` : ''}
-
-              ${groupParams.map(p => {
-                // ✅ Compute HL
-                const hl = useHLMarkers ? isOutOfRange(p.value, p.reference) : false;
-                const isAbnormal = hl !== false; // true if high/low
-                const boldValue = (hl !== false && design.boldAbnormal) || design.boldValues;
-                let marker = '';
-                if (hl === 'high') marker = ' ↑';
-                if (hl === 'low') marker = ' ↓';
-                
-                // ✅ Apply styles correctly
-                const color = isAbnormal && design.redAbnormal ? 'red' : 'black';
-                const fontWeight = boldValue ? 'bold' : 'normal';
-
-                return `
-                  <tr>
-                    <td style="padding:3px 5px;">${p.name}</td>
-                    <td style="padding:3px 5px; font-weight:${fontWeight}; color:${color}">${p.value || '-'}${marker}</td>
-                    <td style="padding:3px 5px;">${p.unit || '-'}</td>
-                    <td style="padding:3px 5px;">${p.reference || '-'}</td>
-                  </tr>
-                `;
-              }).join('')}
-            `;
-          }).join('')}
+          ${category.items?.map(item =>
+            item.isPanel || item.isPackage
+              ? renderPanelPage(item, design, spacing, fontSize, fontFamily, useHLMarkers)
+              : renderTestRow(item, design, spacing, fontSize, fontFamily, useHLMarkers)
+          ).join('')}
         </tbody>
       </table>
-      ${test.interpretation ? `
-        <div style="margin-top:4px; padding:4px; background:#fff; font-size:${fontSize}px;">
-          <strong>Interpretation:</strong>
-          <div style="margin-left:16px; margin-top:2px; color:#4b5563;">${test.interpretation}</div>
-        </div>
-      ` : ''}
     </div>
   `;
 };
 
-
-const renderPanelPage = (item, design, spacing, fontSize, fontFamily, useHLMarkers) => {
-  if (!item) return '';
-  return `
-    <div style="margin-bottom:10px;">
-      <div style="text-align:center; font-weight:600; background:#fff; padding:4px; margin-bottom:4px;">${item.panelOrPackageName || item.testName}</div>
-      ${item.tests?.map(sub => sub.isPanel || sub.isPackage 
-        ? renderPanelPage(sub, design, spacing, fontSize, fontFamily, useHLMarkers)
-        : renderTestRow(sub, design, spacing, fontSize, fontFamily, useHLMarkers)
-      ).join('')}
-    </div>
-  `;
-};
-
-const renderCategorySection = (category, design, spacing = 1, fontSize = 12, fontFamily = 'Inter', useHLMarkers = true) => {
-  return `
-    <div style="text-align:center; font-weight:600; text-transform:uppercase; margin:6px 0;">
-      ${category.categoryName}
-    </div>
-    ${category.items?.map(item => item.isPanel || item.isPackage 
-      ? renderPanelPage(item, design, spacing, fontSize, fontFamily, useHLMarkers)
-      : renderTestRow(item, design, spacing, fontSize, fontFamily, useHLMarkers)
-    ).join('')}
-  `;
-};
 
 const headerImageSrc = letterhead.headerImage
   ? (letterhead.headerImage.startsWith("http")
@@ -236,7 +237,7 @@ table {
           ${printSetting.withLetterhead ? `
           <thead>
             <tr>
-              <th style="padding:${letterheadSettings.headerHeight || 4.5}mm; background:#fff; border-bottom:1px solid #d1d5db;">
+              <th style=" background:#fff; border-bottom:1px solid #d1d5db;">
                 <!-- Header -->
                 <div style="display:flex; justify-content:center; align-items:center; width:100%;">
   <img 
@@ -250,7 +251,7 @@ table {
                 
 
 
-                <div style="display:flex; justify-content:space-between; align-items:flex-start; width:100%; border:1px solid #000; padding:6px;">
+                <div style="display:flex; justify-content:space-between; margin-top:3px; align-items:flex-start; width:100%; border:1px solid #000; padding:6px;">
       
       <!-- Left section -->
       <div style="display:flex; flex-direction:column;">
