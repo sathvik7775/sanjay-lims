@@ -60,6 +60,8 @@ const EditCase = () => {
     address: "",
     aadhaar: "",
     history: "",
+    registeredOn: "",
+
   });
 
   const [payment, setPayment] = useState({
@@ -152,22 +154,26 @@ const EditCase = () => {
         if (res.data.success && res.data.data) {
           const c = res.data.data;
           setFormData({
-            mobile: c.patient?.mobile || "",
-            title: c.patient?.title || "",
-            firstName: c.patient?.firstName || "",
-            lastName: c.patient?.lastName || "",
-            age: c.patient?.age || "",
-            sex: c.patient?.sex || "",
-            uhid: c.patient?.uhid || "",
-            doctor: c.patient?.doctor || "",
-            agent: c.patient?.agent || "",
-            center: c.patient?.center || "Main",
-            onlineReport: c.patient?.onlineReport || false,
-            email: c.patient?.email || "",
-            address: c.patient?.address || "",
-            aadhaar: c.patient?.aadhaar || "",
-            history: c.patient?.history || "",
-          });
+  mobile: c.patient?.mobile || "",
+  title: c.patient?.title || "",
+  firstName: c.patient?.firstName || "",
+  lastName: c.patient?.lastName || "",
+  age: c.patient?.age || "",
+  sex: c.patient?.sex || "",
+  uhid: c.patient?.uhid || "",
+  doctor: c.patient?.doctor || "",
+  agent: c.patient?.agent || "",
+  center: c.patient?.center || "Main",
+  onlineReport: c.patient?.onlineReport || false,
+  email: c.patient?.email || "",
+  address: c.patient?.address || "",
+  aadhaar: c.patient?.aadhaar || "",
+  history: c.patient?.history || "",
+  registeredOn: c.createdAt
+    ? new Date(c.createdAt).toISOString().slice(0, 16)
+    : "", // ✅ formatted datetime
+});
+
 
           setPayment({
             total: c.payment?.total || 0,
@@ -199,6 +205,9 @@ const EditCase = () => {
   tests: selectedTests,
   payment,
   categories: activeCategories,
+  createdAt: formData.registeredOn
+    ? new Date(formData.registeredOn).toISOString()
+    : undefined, // ✅ include registration datetime
   whatsappTriggers: selectedTemplates.map((id) => {
     const template = msgTemplates.find((t) => t._id === id);
     return {
@@ -208,6 +217,7 @@ const EditCase = () => {
     };
   }),
 };
+
 
 
       const config = {
@@ -433,44 +443,65 @@ const EditCase = () => {
               ))}
             </datalist>
           </div>
-          <div className="px-2 py-1 rounded border border-blue-500 w-30 md:mt-6">
-            <p className="text-blue-600 text-sm whitespace-nowrap cursor-pointer">+ Add new</p>
-          </div>
+          <div
+  onClick={() => navigate(`/${branchId}/doctors`, { state: { openModal: true } })}
+  className="px-2 py-1 rounded border border-blue-500 w-30 md:mt-6 cursor-pointer"
+>
+  <p className="text-blue-600 text-sm whitespace-nowrap cursor-pointer">+ Add new</p>
+</div>
         </div>
 
         <div className="flex flex-col md:flex-row gap-3">
-          <div>
-            <label className="block text-sm mb-1">* Collection centre</label>
-            <select
-              name="center"
-              value={formData.center}
-              onChange={handleChange}
-              className="w-40 border border-gray-300 rounded-lg px-3 py-2"
-            >
-              <option value="">-</option>
-              <option value="Main">Main</option>
-              <option value="Main">Home Visit</option>
-              <option value="Main">Center Visit</option>
-            </select>
-          </div>
+  {/* ✅ Collection Centre */}
+  <div>
+    <label className="block text-sm mb-1">* Collection Centre</label>
+    <select
+      name="center"
+      value={formData.center}
+      onChange={handleChange}
+      className="w-40 border border-gray-300 rounded-lg px-3 py-2"
+    >
+      <option value="">-</option>
+      <option value="Main">Main</option>
+      <option value="Home Visit">Home Visit</option>
+      <option value="Center Visit">Center Visit</option>
+    </select>
+  </div>
 
-          <div>
-            <label className="block text-sm mb-1">Sample Collection Technician</label>
-            <input
-              list="agents"
-              name="agent"
-              value={formData.agent}
-              onChange={handleChange}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2"
-              placeholder="Select agent"
-            />
-            <datalist id="agents">
-              {agents.map((item) => (
-                <option key={item._id} value={`${item.name}`} />
-              ))}
-            </datalist>
-          </div>
-        </div>
+  {/* ✅ Sample Collection Technician */}
+  <div>
+    <label className="block text-sm mb-1">Sample Collection Technician</label>
+    <input
+      list="agents"
+      name="agent"
+      value={formData.agent}
+      onChange={handleChange}
+      className="w-full border border-gray-300 rounded-lg px-3 py-2"
+      placeholder="Select agent"
+    />
+    <datalist id="agents">
+      {agents.map((item) => (
+        <option key={item._id} value={`${item.name}`} />
+      ))}
+    </datalist>
+  </div>
+
+  {/* ✅ Registered On (Date & Time Picker) */}
+  {/* ✅ Editable Registered On */}
+<div>
+  <label className="block text-sm mb-1">Registered On*</label>
+  <input
+    type="datetime-local"
+    name="registeredOn"
+    value={formData.registeredOn}
+    onChange={handleChange}
+    className="w-52 border border-gray-300 rounded-lg px-3 py-2"
+  />
+</div>
+
+
+</div>
+
       </div>
 
       {/* Category Buttons */}

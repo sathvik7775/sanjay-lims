@@ -3,6 +3,8 @@ import { Plus, Trash2, X } from "lucide-react";
 import axios from "axios";
 import { LabContext } from "../../context/LabContext";
 import Loader from "../../components/Loader";
+import { useLocation } from "react-router-dom";
+
 
 export default function Doctors() {
   const { adminToken, branchToken, errorToast, successToast } = useContext(LabContext);
@@ -11,7 +13,7 @@ export default function Doctors() {
   const [showModal, setShowModal] = useState(false);
   const [newDoctor, setNewDoctor] = useState({ name: "", phone: "", specialization: "" });
 
-  
+  const location = useLocation();
 
   // ✅ Fetch all doctors
   const fetchDoctors = async () => {
@@ -51,9 +53,7 @@ export default function Doctors() {
       const res = await axios.post(
         `${import.meta.env.VITE_API_URL}/api/doctors/add`,
         newDoctor,
-        {
-          headers: { Authorization: `Bearer ${adminToken}` },
-        }
+        
       );
 
       if (res.data.success) {
@@ -97,6 +97,16 @@ export default function Doctors() {
     fetchDoctors();
   }, []);
 
+  
+
+// ✅ Open modal automatically if navigated with openModal flag
+useEffect(() => {
+  if (location.state?.openModal) {
+    setShowModal(true);
+  }
+}, [location.state]);
+
+
   if (loading) return <Loader/>
 
   return (
@@ -106,14 +116,14 @@ export default function Doctors() {
         <h1 className="text-2xl font-semibold text-gray-800">Referral Doctors</h1>
 
         {/* ✅ Add button (Admin only) */}
-        {adminToken && (
+        
           <button
             onClick={() => setShowModal(true)}
             className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
           >
             <Plus className="w-4 h-4" /> Add New
           </button>
-        )}
+       
       </div>
 
       {/* Table Section */}

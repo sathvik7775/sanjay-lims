@@ -12,7 +12,7 @@ const doctorRouter = express.Router();
 
 // 🧾 Admin routes
 doctorRouter.get("/admin/list", verifyAdminToken, getAllDoctors);
-doctorRouter.post("/add", verifyAdminToken, addDoctor);
+doctorRouter.post("/add",  addDoctor);
 doctorRouter.delete("/delete/:id", verifyAdminToken, deleteDoctor);
 
 // 🏥 Branch routes

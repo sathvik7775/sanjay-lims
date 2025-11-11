@@ -401,9 +401,12 @@ const handleCreateCase = async () => {
               ))}
             </datalist>
           </div>
-          <div className="px-2 py-1 rounded border border-blue-500 w-30 md:mt-6">
-            <p className="text-blue-600 text-sm whitespace-nowrap cursor-pointer">+ Add new</p>
-          </div>
+          <div
+  onClick={() => navigate(`/${branchId}/doctors`, { state: { openModal: true } })}
+  className="px-2 py-1 rounded border border-blue-500 w-30 md:mt-6 cursor-pointer"
+>
+  <p className="text-blue-600 text-sm whitespace-nowrap cursor-pointer">+ Add new</p>
+</div>
         </div>
 
         <div className="flex flex-col md:flex-row gap-3">

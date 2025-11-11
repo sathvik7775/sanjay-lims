@@ -66,7 +66,9 @@ const CaseSchema = new Schema({
 
   whatsappTriggers: { type: [WhatsappTriggerSchema], default: [] },
   createdAt: { type: Date, default: Date.now },
-});
+  },
+  { timestamps: false } // ❗ Disable Mongoose's automatic timestamps
+);
 
 // ✅ Pre-save hook to generate regNo & DCN
 CaseSchema.pre("save", async function (next) {

@@ -19,7 +19,7 @@ const Sidebar = ({branchId}) => {
                 <button onClick={()=> {navigate(`/${branchId}/new-case`)
                     scrollTo(0, 0)
                 }} className='px-10 py-2 cursor-pointer flex items-center gap-2 text-white roboto-third bg-primary rounded-3xl hover:bg-primary-dark transition '><span className='text-xl -mt-1'>+</span><span
-                    className='text-[15px] whitespace-nowrap'>New case</span></button>
+                    className='text-[15px] whitespace-nowrap'>New Bill</span></button>
                 <div className='flex flex-col items-start justify-start mt-5 w-full h-[80vh] scrollable-container overflow-y-auto overflow-x-hidden'>
 
                     <Link to={`/${branchId}/dashboard`} className='flex gap-2 items-center rounded py-2 px-3 hover:bg-[#E5E7EB] cursor-pointer w-full active:bg-primary/23'>
@@ -168,7 +168,7 @@ const Sidebar = ({branchId}) => {
                         <div>
                             <button className='px-10 py-2 cursor-pointer flex items-center gap-2 text-white roboto-third bg-primary rounded-3xl hover:bg-primary-dark transition'>
                                 <span className='text-xl -mt-1'>+</span>
-                                <span className='text-[15px] whitespace-nowrap'>New case</span>
+                                <span className='text-[15px] whitespace-nowrap'>New Bill</span>
                             </button>
                         </div>
                         <img src="/back.png" className='w-7 h-7' onClick={()=> setvisible(false)} alt="Back icon" />

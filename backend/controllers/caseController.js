@@ -65,25 +65,31 @@ export const createCase = async (req, res) => {
 export const updateCase = async (req, res) => {
   try {
     const { id } = req.params;
+    const updatedData = { ...req.body };
 
+    // 🧩 Find the existing case
     const caseToUpdate = await Case.findById(id);
     if (!caseToUpdate)
       return res.status(404).json({ success: false, message: "Case not found" });
 
-    const updatedData = { ...req.body };
-
-    // Update balance & status if payment info is updated
+    // 🧮 Update payment calculations
     if (updatedData.payment) {
       const total = updatedData.payment.total ?? caseToUpdate.payment.total;
       const discount = updatedData.payment.discount ?? caseToUpdate.payment.discount;
       const received = updatedData.payment.received ?? caseToUpdate.payment.received;
       const balance = total - discount - received;
 
-      updatedData.payment.balance = balance;
-      if (!updatedData.status) updatedData.status = balance > 0 ? "due" : "no due";
+      caseToUpdate.payment = {
+        ...caseToUpdate.payment,
+        ...updatedData.payment,
+        balance,
+      };
+
+      // Auto-update status
+      caseToUpdate.status = balance > 0 ? "due" : "no due";
     }
 
-    // Ensure tests are formatted as Map of arrays of IDs
+    // 🧾 Update tests (ensure correct format)
     if (updatedData.tests && typeof updatedData.tests === "object") {
       const formattedTests = {};
       Object.keys(updatedData.tests).forEach((cat) => {
@@ -91,22 +97,39 @@ export const updateCase = async (req, res) => {
           ? updatedData.tests[cat]
           : [];
       });
-      updatedData.tests = formattedTests;
+      caseToUpdate.tests = formattedTests;
     }
 
-    // Handle WhatsApp triggers update
+    // 📋 Update WhatsApp triggers if any
     if (Array.isArray(updatedData.whatsappTriggers)) {
-      updatedData.whatsappTriggers = updatedData.whatsappTriggers.map((t) => ({
+      caseToUpdate.whatsappTriggers = updatedData.whatsappTriggers.map((t) => ({
         templateId: t.templateId,
         enabled: t.enabled ?? false,
         triggerType: t.triggerType ?? "custom",
       }));
     }
 
-    const updatedCase = await Case.findByIdAndUpdate(id, updatedData, { new: true });
-    return res.status(200).json({ success: true, data: updatedCase });
+    // 🧍 Update patient info, categories, etc.
+    if (updatedData.patient) caseToUpdate.patient = updatedData.patient;
+    if (updatedData.categories) caseToUpdate.categories = updatedData.categories;
+    if (updatedData.branchId) caseToUpdate.branchId = updatedData.branchId;
+
+    // 🕒 ✅ Update createdAt if passed (Registered On)
+    if (updatedData.createdAt) {
+      caseToUpdate.createdAt = new Date(updatedData.createdAt);
+      console.log("✅ Registered date updated to:", caseToUpdate.createdAt);
+    }
+
+    // 💾 Save document manually (so createdAt can be modified)
+    await caseToUpdate.save();
+
+    return res.status(200).json({
+      success: true,
+      message: "Case updated successfully",
+      data: caseToUpdate,
+    });
   } catch (error) {
-    console.error("Update Case Error:", error);
+    console.error("❌ Update Case Error:", error);
     return res.status(500).json({ success: false, message: "Server Error" });
   }
 };

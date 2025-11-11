@@ -119,7 +119,7 @@ const AdminSidebar = () => {
           className="px-10 py-2 cursor-pointer flex items-center gap-2 text-white roboto-third bg-primary rounded-3xl hover:bg-primary-dark transition mx-auto"
         >
           <span className="text-xl -mt-1">+</span>
-          <span className="text-[15px] whitespace-nowrap">New Case</span>
+          <span className="text-[15px] whitespace-nowrap">New Bill</span>
         </button>
 
         {/* ✅ Mobile Branch Selector */}
