@@ -251,10 +251,11 @@ table {
                 
 
 
-                <div style="display:flex; justify-content:space-between; margin-top:3px; align-items:flex-start; width:100%; border:1px solid #000; padding:6px;">
+                <div style="display:flex; justify-content:space-between; align-items:flex-start; width:100%; border:1px solid #000; padding:6px;
+                margin:4px;">
       
       <!-- Left section -->
-      <div style="display:flex; flex-direction:column;">
+      <div style="display:flex; flex-direction:column; justify-content:start;">
         <p style="margin:2px 0; font-weight:600; font-size:${printSetting?.design?.fontSize || 12}px;">
           Patient: ${patient.firstName} ${patient.lastName}
         </p>
@@ -268,7 +269,7 @@ table {
 
       <!-- Right section -->
       <div style="display:flex; flex-direction:column; text-align:right;">
-      <div style="display:flex; flex-direction:row; gap:3px;>
+      <div style="display:flex; flex-direction:row; gap:3px; justify-content:start;>
         <p style="margin:2px 0; font-weight:600; font-size:${printSetting?.design?.fontSize || 12}px;">
           Date: ${new Date(reportData.createdAt).toLocaleDateString("en-GB")}
         </p>
@@ -321,7 +322,7 @@ table {
           ${printSetting.withLetterhead ? `
           <tfoot style="display: table-footer-group;">
             <tr>
-              <td style="padding:${letterheadSettings.signatureHeight || 3.4}mm; border-top:1px solid #d1d5db;">
+              <td style=" border-top:1px solid #d1d5db;">
                 <div style="display:flex; flex-wrap:wrap; justify-content:space-between;">${signatureHTML}</div>
                 <!-- Contact Info: 75/25 -->
                 <div style="display:flex; justify-content:center; align-items:center; width:100%; margin-top:8px;">

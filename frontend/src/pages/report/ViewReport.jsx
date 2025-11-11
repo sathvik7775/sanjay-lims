@@ -7,7 +7,7 @@ import Loader from "../../components/Loader";
 import Barcode from "react-barcode";
 
 const ViewReport = () => {
-  const { branchToken, errorToast, navigate, branchId } = useContext(LabContext);
+  const { branchToken, errorToast, navigate, branchId, successToast } = useContext(LabContext);
   const { reportId } = useParams();
 
   const [loading, setLoading] = useState(true);
@@ -141,7 +141,7 @@ const handleGeneratePDF = async () => {
     if (res.data?.success && res.data?.pdfUrl) {
       setPdfUrl(res.data.pdfUrl);
       console.log("✅ PDF generated successfully");
-      errorToast("PDF generated successfully");
+      successToast("PDF generated successfully");
     } else {
       errorToast(res.data?.message || "Failed to generate PDF");
     }
