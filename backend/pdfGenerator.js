@@ -148,7 +148,7 @@ const renderPanelPage = (item, design, spacing, fontSize, fontFamily, useHLMarke
         ? renderPanelPage(sub, design, spacing, fontSize, fontFamily, useHLMarkers)
         : renderTestRow(sub, design, spacing, fontSize, fontFamily, useHLMarkers)
     ).join('')}
-    ${test.interpretation ? `
+    ${item.interpretation ? `
   <tr>
     <td colspan="4" style="padding:4px; color:#374151;">
       <strong>Interpretation:</strong>
