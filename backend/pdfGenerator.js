@@ -153,7 +153,7 @@ const renderPanelPage = (item, design, spacing, fontSize, fontFamily, useHLMarke
     <td colspan="4" style="padding:4px; color:#374151;">
       <strong>Interpretation:</strong>
       <div style="margin-top:4px; margin-left:12px; line-height:1.5;">
-        ${test.interpretation || ''}
+        ${item.interpretation || ''}
       </div>
     </td>
   </tr>
