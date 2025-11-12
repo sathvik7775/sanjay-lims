@@ -13,12 +13,14 @@ const EditPackage = () => {
     useContext(LabContext);
 
   const [formData, setFormData] = useState({
-    name: "",
-    fee: "",
-    gender: "Both",
-    tests: [],
-    panels: [],
-  });
+  name: "",
+  fee: "",
+  gender: "Both",
+  tests: [],
+  panels: [],
+  addToRateList: false, // ✅ Added
+});
+
 
   const [loading, setLoading] = useState(false);
   const [fetching, setFetching] = useState(true);
@@ -41,6 +43,7 @@ const EditPackage = () => {
             gender: pkg.gender || "Both",
             tests: (pkg.tests || []).map((t) => t._id),
             panels: (pkg.panels || []).map((p) => p._id),
+            addToRateList: pkg.addToRateList ?? false,
           });
         } else {
           errorToast("Failed to fetch package data.");
@@ -70,12 +73,14 @@ const EditPackage = () => {
       setLoading(true);
 
       const payload = {
-        name: formData.name,
-        fee: formData.fee,
-        gender: formData.gender,
-        tests: formData.tests,
-        panels: formData.panels,
-      };
+  name: formData.name,
+  fee: formData.fee,
+  gender: formData.gender,
+  tests: formData.tests,
+  panels: formData.panels,
+  addToRateList: formData.addToRateList, // ✅ Added
+};
+
 
       const res = await axios.put(
         `${import.meta.env.VITE_API_URL}/api/test/packages/admin/edit/${id}`,
@@ -195,6 +200,25 @@ const EditPackage = () => {
             value={panelOptions.filter((p) => formData.panels.includes(p.value))}
           />
         </div>
+
+        {/* Add To Rate List */}
+<div className="flex items-center gap-2 mt-3">
+  <input
+    type="checkbox"
+    id="addToRateList"
+    checked={formData.addToRateList}
+    onChange={(e) =>
+      setFormData((prev) => ({
+        ...prev,
+        addToRateList: e.target.checked,
+      }))
+    }
+  />
+  <label htmlFor="addToRateList" className="text-sm font-medium">
+    Add to Rate List
+  </label>
+</div>
+
 
         <div className="flex justify-start gap-3">
           <button

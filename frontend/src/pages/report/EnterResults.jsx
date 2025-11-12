@@ -442,33 +442,33 @@ const EnterResults = () => {
         }
 
         // 🔹 Fetch and attach formula data after tests are loaded
-for (const category of Object.keys(categories)) {
-  for (const test of categories[category]) {
-    // 🧩 If the test itself is formula-based
-    if (test.isFormula) {
-      const formulaId = test.params?.[0]?.paramId || test._id;
-      if (formulaId) {
-        const { formulaString, dependencies } = await fetchFormula(formulaId);
-        test.formulaString = formulaString;
-        test.dependencies = dependencies;
-      }
-    }
+        for (const category of Object.keys(categories)) {
+          for (const test of categories[category]) {
+            // 🧩 If the test itself is formula-based
+            if (test.isFormula) {
+              const formulaId = test.params?.[0]?.paramId || test._id;
+              if (formulaId) {
+                const { formulaString, dependencies } = await fetchFormula(formulaId);
+                test.formulaString = formulaString;
+                test.dependencies = dependencies;
+              }
+            }
 
-    // 🧩 If it has nested panels/packages, handle inner tests too
-    if (test.isPanel || test.isPackage) {
-      for (const innerTest of test.tests || []) {
-        if (innerTest.isFormula) {
-          const formulaId = innerTest.params?.[0]?.paramId || innerTest._id;
-          if (formulaId) {
-            const { formulaString, dependencies } = await fetchFormula(formulaId);
-            innerTest.formulaString = formulaString;
-            innerTest.dependencies = dependencies;
+            // 🧩 If it has nested panels/packages, handle inner tests too
+            if (test.isPanel || test.isPackage) {
+              for (const innerTest of test.tests || []) {
+                if (innerTest.isFormula) {
+                  const formulaId = innerTest.params?.[0]?.paramId || innerTest._id;
+                  if (formulaId) {
+                    const { formulaString, dependencies } = await fetchFormula(formulaId);
+                    innerTest.formulaString = formulaString;
+                    innerTest.dependencies = dependencies;
+                  }
+                }
+              }
+            }
           }
         }
-      }
-    }
-  }
-}
 
 
         setTestsByCategory(categories);
@@ -502,110 +502,110 @@ for (const category of Object.keys(categories)) {
 
 
   const handleChange = async (testName, value) => {
-  console.log(`⚡ handleChange triggered for: ${testName} = ${value}`);
+    // 🧼 Normalize test name once at the start
+    const cleanName = testName?.trim();
+    console.log(`⚡ handleChange triggered for: ${cleanName} = ${value}`);
 
-  // ✅ Immediate UI update for smoother typing
-  setResults((prev) => ({ ...prev, [testName.trim()]: value }));
+    // ✅ Immediate UI update for smoother typing
+    setResults((prev) => ({ ...prev, [cleanName]: value }));
 
-  // ✅ Prepare updated results snapshot
-  const cleanName = testName.trim();
-  const updatedResults = { ...results, [cleanName]: value };
+    // ✅ Prepare updated results snapshot
+    const updatedResults = { ...results, [cleanName]: value };
 
-  // ✅ Flatten all tests
-  const allTests =
-    testsByCategory?.Panels?.flatMap((p) => p.tests || []) || [];
+    // ✅ Flatten all tests
+    const allTests =
+      testsByCategory?.Panels?.flatMap((p) => p.tests || []) || [];
 
-  console.log("🧩 Extracted all tests:", allTests.map((t) => t.testName));
-  console.log("📂 Tests by category:", testsByCategory);
+    console.log("🧩 Extracted all tests:", allTests.map((t) => t.testName));
+    console.log("📂 Tests by category:", testsByCategory);
 
-  for (const test of allTests) {
-    console.log("🧠 Checking test:", test.testName, "→ isFormula:", test.isFormula);
-    console.log("🧩 Full test object:", test);
+    for (const test of allTests) {
+      const testNameTrimmed = test.testName?.trim();
+      console.log("🧠 Checking test:", testNameTrimmed, "→ isFormula:", test.isFormula);
+      console.log("🧩 Full test object:", test);
 
-    if (!test.isFormula) continue;
+      if (!test.isFormula) continue;
 
-    // ✅ Fetch formula if missing
-    if (!test.formulaString || !Array.isArray(test.dependencies)) {
-      try {
-        const paramId = test.params?.[0]?.paramId;
-        if (paramId) {
-          console.log(`📡 Fetching formula for ${test.testName}...`);
-          const { formulaString, dependencies } = await fetchFormula(paramId);
-          test.formulaString = formulaString;
-          test.dependencies = dependencies;
-          console.log(`✅ Formula fetched for ${test.testName}:`, formulaString);
+      // ✅ Fetch formula if missing
+      if (!test.formulaString || !Array.isArray(test.dependencies)) {
+        try {
+          const paramId = test.params?.[0]?.paramId;
+          if (paramId) {
+            console.log(`📡 Fetching formula for ${testNameTrimmed}...`);
+            const { formulaString, dependencies } = await fetchFormula(paramId);
+            test.formulaString = formulaString;
+            test.dependencies = dependencies;
+            console.log(`✅ Formula fetched for ${testNameTrimmed}:`, formulaString);
+          }
+        } catch (err) {
+          console.error(`❌ Failed to fetch formula for ${testNameTrimmed}:`, err);
+          continue;
         }
-      } catch (err) {
-        console.error(`❌ Failed to fetch formula for ${test.testName}:`, err);
+      }
+
+      // ✅ Skip if still missing formula data
+      if (
+        !test.formulaString ||
+        !Array.isArray(test.dependencies) ||
+        test.dependencies.length === 0
+      ) {
+        console.log(`⚠️ Skipping ${testNameTrimmed}, missing formula/dependencies`);
         continue;
       }
-    }
 
-    // ✅ Skip if still missing formula data
-    if (
-      !test.formulaString ||
-      !Array.isArray(test.dependencies) ||
-      test.dependencies.length === 0
-    ) {
-      console.log(`⚠️ Skipping ${test.testName}, missing formula/dependencies`);
-      continue;
-    }
+      console.log(
+        `🧪 Formula test detected: ${testNameTrimmed}`,
+        "\nFormula String:", test.formulaString,
+        "\nDependencies:", test.dependencies.map((d) => d.testName)
+      );
 
-    console.log(
-      `🧪 Formula test detected: ${test.testName}`,
-      "\nFormula String:", test.formulaString,
-      "\nDependencies:", test.dependencies.map((d) => d.testName)
-    );
+      // ✅ Check if all dependencies have values
+      const allDepsPresent = test.dependencies.every((dep) => {
+        const depName = dep.testName?.trim();
+        const hasValue =
+          updatedResults[depName] !== undefined &&
+          updatedResults[depName] !== "";
+        if (!hasValue) console.log(`⚠️ Missing value for dependency: ${depName}`);
+        return hasValue;
+      });
 
-    // ✅ Check if all dependencies have values
-    const allDepsPresent = test.dependencies.every((dep) => {
-      const depName = dep.testName?.trim();
-      const hasValue =
-        updatedResults[depName] !== undefined &&
-        updatedResults[depName] !== "";
-      if (!hasValue) console.log(`⚠️ Missing value for dependency: ${depName}`);
-      return hasValue;
-    });
+      // ✅ Calculate if dependencies are ready
+      if (allDepsPresent) {
+        console.log(`🧮 All dependencies present for: ${testNameTrimmed}`);
+        try {
+          const result = calculateFormulaResult(
+            test.formulaString,
+            test.dependencies,
+            updatedResults
+          );
 
-    // ✅ Calculate if dependencies are ready
-    if (allDepsPresent) {
-      console.log(`🧮 All dependencies present for: ${test.testName}`);
-      try {
-        const result = calculateFormulaResult(
-          test.formulaString,
-          test.dependencies,
-          updatedResults
-        );
-
-        if (result !== null && !isNaN(result)) {
-          const formulaName = test.testName.trim();
-          updatedResults[formulaName] = Number(result.toFixed(2));
-          console.log(`✅ Auto-calculated ${formulaName}: ${result}`);
-        } else {
-          console.log(`⚠️ Invalid numeric result for ${test.testName}`);
+          if (result !== null && !isNaN(result)) {
+            const formulaName = testNameTrimmed;
+            updatedResults[formulaName] = Number(result.toFixed(2));
+            console.log(`✅ Auto-calculated ${formulaName}: ${result}`);
+          } else {
+            console.log(`⚠️ Invalid numeric result for ${testNameTrimmed}`);
+          }
+        } catch (err) {
+          console.error(`❌ Error calculating formula for ${testNameTrimmed}:`, err);
         }
-      } catch (err) {
-        console.error(`❌ Error calculating formula for ${test.testName}:`, err);
       }
     }
-  }
 
-  // ✅ 🧹 Clean results — remove numeric or Mongo-like paramIds
-  const cleanedResults = {};
-  Object.keys(updatedResults).forEach((key) => {
-    // keep only test names (non-numeric)
-    // 🧹 Keep only keys that look like readable test names (not Mongo IDs)
-if (!/^[0-9a-f]{24}$/i.test(key)) {
-  cleanedResults[key] = updatedResults[key];
-}
+    // ✅ 🧹 Clean results — remove numeric or Mongo-like paramIds
+    const cleanedResults = {};
+    Object.keys(updatedResults).forEach((key) => {
+      // 🧹 Keep only keys that look like readable test names (not Mongo IDs)
+      if (!/^[0-9a-f]{24}$/i.test(key)) {
+        cleanedResults[key.trim()] = updatedResults[key];
+      }
+    });
 
-  });
+    // ✅ Finally, update results state
+    setResults(cleanedResults);
 
-  // ✅ Finally, update results state
-  setResults(cleanedResults);
-
-  console.log("🧾 Cleaned results:", cleanedResults);
-};
+    console.log("🧾 Cleaned results:", cleanedResults);
+  };
 
 
 
@@ -657,91 +657,93 @@ if (!/^[0-9a-f]{24}$/i.test(key)) {
   const handleReferenceChange = (paramId, value) =>
     setReferences((prev) => ({ ...prev, [paramId]: value }));
 
- const handleSubmit = async (status) => {
-  if (!report) {
-    errorToast("Patient details not found");
-    return;
-  }
-
-  try {
-    setLoading(true);
-
-    const transformItem = (item) => {
-      if (item.isPanel || item.isPackage) {
-        return {
-          panelOrPackageName: item.panelName || item.packageName,
-          isPanel: item.isPanel || false,
-          isPackage: item.isPackage || false,
-          interpretation: item.interpretation || "",
-          tests: (item.tests || []).map(transformItem),
-        };
-      } else {
-        return {
-          testName: item.testName,
-          interpretation: item.interpretation || "",
-          category: item.category || "Other",
-          params: (item.params || []).map((p) => {
-            // Find the entered value using either test name or paramId
-            const valueFromName = results[p.name];
-            const valueFromId = results[p.paramId];
-
-            return {
-              paramId: p.paramId,
-              name: p.name,
-              unit: p.unit,
-              groupBy: p.groupBy || "Ungrouped",
-
-              // ✅ Only store the numeric/text value (no key name)
-              value: valueFromName || valueFromId || "",
-
-              reference: references[p.paramId] || p.reference || "",
-            };
-          }),
-        };
-      }
-    };
-
-    const payload = {
-      reportId,
-      branchId,
-      status,
-      patient: {
-        firstName: report.patient.firstName,
-        lastName: report.patient.lastName,
-        age: report.patient.age,
-        ageUnit: report.patient.ageUnit || "Years",
-        sex: report.patient.sex,
-        doctor: report.patient.doctor || "",
-        uhid: report.patient.uhid || "",
-        regNo: report.regNo || "",
-      },
-      categories: Object.entries(testsByCategory || {}).map(([categoryName, items = []]) => ({
-        categoryName,
-        items: items.map(transformItem),
-      })),
-    };
-
-    console.log("🧾 Final payload being sent:", payload);
-
-    const res = await axios.post(
-      `${import.meta.env.VITE_API_URL}/api/results/add`,
-      payload,
-      { headers: { Authorization: `Bearer ${branchToken}` } }
-    );
-
-    if (res.data.success) {
-      successToast("Report Generated Successfully");
-      navigate(`/${branchId}/view-report/${reportId}`);
-    } else {
-      errorToast(res.data.message || "Failed to save results");
+  const handleSubmit = async (status) => {
+    if (!report) {
+      errorToast("Patient details not found");
+      return;
     }
-  } catch (err) {
-    console.error("❌ Error saving report:", err);
-    errorToast(err.response?.data?.message || "Server error");
-  } finally {
-    setLoading(false);
-  }
-};
+
+    try {
+      setLoading(true);
+
+      const transformItem = (item) => {
+        if (item.isPanel || item.isPackage) {
+          return {
+            panelOrPackageName: item.panelName || item.packageName,
+            isPanel: item.isPanel || false,
+            isPackage: item.isPackage || false,
+            interpretation: item.interpretation || "",
+            tests: (item.tests || []).map(transformItem),
+          };
+        } else {
+          return {
+            testName: item.testName,
+            interpretation: item.interpretation || "",
+            category: item.category || "Other",
+            params: (item.params || []).map((p) => {
+              // Find the entered value using either test name or paramId
+              const cleanParamName = p.name?.trim();
+              const valueFromName = results[cleanParamName];
+              const valueFromId = results[p.paramId];
+
+
+              return {
+                paramId: p.paramId,
+                name: cleanParamName,
+                unit: p.unit,
+                groupBy: p.groupBy || "Ungrouped",
+
+                // ✅ Only store the numeric/text value (no key name)
+                value: valueFromName || valueFromId || "",
+
+                reference: references[p.paramId] || p.reference || "",
+              };
+            }),
+          };
+        }
+      };
+
+      const payload = {
+        reportId,
+        branchId,
+        status,
+        patient: {
+          firstName: report.patient.firstName,
+          lastName: report.patient.lastName,
+          age: report.patient.age,
+          ageUnit: report.patient.ageUnit || "Years",
+          sex: report.patient.sex,
+          doctor: report.patient.doctor || "",
+          uhid: report.patient.uhid || "",
+          regNo: report.regNo || "",
+        },
+        categories: Object.entries(testsByCategory || {}).map(([categoryName, items = []]) => ({
+          categoryName,
+          items: items.map(transformItem),
+        })),
+      };
+
+      console.log("🧾 Final payload being sent:", payload);
+
+      const res = await axios.post(
+        `${import.meta.env.VITE_API_URL}/api/results/add`,
+        payload,
+        { headers: { Authorization: `Bearer ${branchToken}` } }
+      );
+
+      if (res.data.success) {
+        successToast("Report Generated Successfully");
+        navigate(`/${branchId}/view-report/${reportId}`);
+      } else {
+        errorToast(res.data.message || "Failed to save results");
+      }
+    } catch (err) {
+      console.error("❌ Error saving report:", err);
+      errorToast(err.response?.data?.message || "Server error");
+    } finally {
+      setLoading(false);
+    }
+  };
 
 
 
@@ -782,27 +784,27 @@ if (!/^[0-9a-f]{24}$/i.test(key)) {
       ))}
 
       <div className=" mt-6 flex  gap-4">
-  <button
-    onClick={() => handleSubmit("In Progress")}
-    className="bg-gray-500 hover:bg-gray-600 text-white px-6 py-2 rounded-md shadow-sm transition"
-  >
-    Save Only
-  </button>
+        <button
+          onClick={() => handleSubmit("In Progress")}
+          className="bg-gray-500 hover:bg-gray-600 text-white px-6 py-2 rounded-md shadow-sm transition"
+        >
+          Save Only
+        </button>
 
-  <button
-    onClick={() => handleSubmit("Signed Off")}
-    className="bg-primary-dark hover:bg-primary text-white px-6 py-2 rounded-md shadow-sm transition"
-  >
-    Sign Off
-  </button>
+        <button
+          onClick={() => handleSubmit("Signed Off")}
+          className="bg-primary-dark hover:bg-primary text-white px-6 py-2 rounded-md shadow-sm transition"
+        >
+          Sign Off
+        </button>
 
-  <button
-    onClick={() => handleSubmit("Final")}
-    className="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-md shadow-sm transition"
-  >
-    Final
-  </button>
-</div>
+        <button
+          onClick={() => handleSubmit("Final")}
+          className="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-md shadow-sm transition"
+        >
+          Final
+        </button>
+      </div>
 
     </div>
   );
@@ -822,7 +824,7 @@ const TestRow = ({ item, results, references, handleChange, handleReferenceChang
           </div>
         )}
 
-        
+
       </div>
 
       {/* Parameter groups */}
@@ -846,35 +848,39 @@ const TestRow = ({ item, results, references, handleChange, handleReferenceChang
                 .map((param) => (
                   <tr key={param.paramId} className="border-t hover:bg-gray-50">
                     <td className="px-4 py-2 text-gray-800">
-  <div className="flex items-center gap-2">
-    <span>{param.name}</span>
+                      <div className="flex items-center gap-2">
+                        <span>{param.name}</span>
 
-    {/* 🔹 Formula icon beside param name — but comes from item */}
-    {item.isFormula && item.formulaString && (
-      <div className="relative group inline-flex items-center">
-        <span className="text-blue-600 font-bold cursor-pointer border border-blue-500 px-1 rounded text-xs flex items-center justify-center">
-          ƒ
-        </span>
+                        {/* 🔹 Formula icon beside param name — but comes from item */}
+                        {item.isFormula && item.formulaString && (
+                          <div className="relative group inline-flex items-center">
+                            <span className="text-blue-600 font-bold cursor-pointer border border-blue-500 px-1 rounded text-xs flex items-center justify-center">
+                              ƒ
+                            </span>
 
-        {/* Tooltip from test-level formula */}
-        <div className="absolute hidden group-hover:block bg-gray-800 text-white text-xs rounded px-2 py-1 -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap z-10 shadow-lg">
-          Formula: {item.formulaString}
-          <div className="absolute bottom-[-5px] left-1/2 -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-l-transparent border-r-transparent border-t-gray-800"></div>
-        </div>
-      </div>
-    )}
-  </div>
-</td>
+                            {/* Tooltip from test-level formula */}
+                            <div className="absolute hidden group-hover:block bg-gray-800 text-white text-xs rounded px-2 py-1 -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap z-10 shadow-lg">
+                              Formula: {item.formulaString}
+                              <div className="absolute bottom-[-5px] left-1/2 -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-l-transparent border-r-transparent border-t-gray-800"></div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </td>
 
 
                     {/* ✅ Value input untouched */}
                     <td className="px-3 py-2">
+
+
                       <input
                         type="text"
-                        value={results[param.name] || ""}
-                        onChange={(e) => handleChange(param.name, e.target.value)}
-                        className={`w-full border ${item.isFormula ? 'border-amber-500' : 'border-gray-300'}  rounded px-2 py-1 focus:ring-1 focus:ring-blue-400 outline-none`}
+                        value={results[param.name?.trim()] ?? ""}
+                        onChange={(e) => handleChange(param.name?.trim(), e.target.value)}
+                        className={`w-full border ${item.isFormula ? "border-amber-500" : "border-gray-300"
+                          } rounded px-2 py-1 focus:ring-1 focus:ring-blue-400 outline-none`}
                       />
+
                     </td>
 
                     <td className="px-3 py-2 text-gray-600">{param.unit}</td>

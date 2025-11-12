@@ -190,7 +190,11 @@ export default function TestDatabase() {
                   <td className="border border-gray-400 px-3 py-2">{test.category}</td>
                   <td className="border border-gray-400 px-3 py-2 text-center">
                     <button onClick={() => handleEdit(test)} className="text-blue-500 hover:underline mr-2">Edit</button>
-                    <button onClick={()=> navigate(`/admin/test-view/${test._id}`)}  className="text-blue-500 hover:underline mr-2">View</button>
+                    {adminToken ? (
+                      <button onClick={()=> navigate(`/admin/test-view/${test._id}`)}  className="text-blue-500 hover:underline mr-2">View</button>
+                    ) : (
+                      <button onClick={()=> navigate(`/${branchId}/test-view-branch/${test._id}`)}  className="text-blue-500 hover:underline mr-2">View</button>
+                    )}
                     {/* <button
                       onClick={() => navigate(`/admin/test-values/${test._id}`)}
                       className="text-green-600 hover:underline mr-2"

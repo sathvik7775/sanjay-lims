@@ -85,6 +85,9 @@ const TestSchema = new mongoose.Schema(
       default: false,
     },
 
+    addToRateList: { type: Boolean, default: false },
+
+
     branchId: { type: mongoose.Schema.Types.ObjectId, ref: "Branch" },
 
     status: {

@@ -26,6 +26,7 @@ const EditMultiplepara = () => {
         interpretation: "",
         parameters: [],
         isFormula: false,  // Add the isFormula field
+        addToRateList: true,
     });
 
     // Fetch existing test
@@ -49,6 +50,9 @@ const EditMultiplepara = () => {
                         method: test.method || "",
                         instrument: test.instrument || "",
                         interpretation: test.interpretation || "",
+                        addToRateList: test.addToRateList ?? true,
+                        isFormula: test.isFormula || false,
+
                         parameters: test.parameters?.map((p, index) => ({
                             id: index + 1,
                             order: p.order,
@@ -143,6 +147,8 @@ const EditMultiplepara = () => {
                     isOptional: p.isOptional,
                 })),
                 isFormula: formData.isFormula,
+                addToRateList: formData.addToRateList,
+
             };
 
             const res = await axios.put(
@@ -376,6 +382,17 @@ const EditMultiplepara = () => {
                                 />
                                 <label className="text-sm">Is this a formula test?</label>
                             </div>
+                            <div className="flex items-center mt-2">
+    <input
+        type="checkbox"
+        name="addToRateList"
+        checked={formData.addToRateList}
+        onChange={handleChange}
+        className="mr-2"
+    />
+    <label className="text-sm">Add to Rate List</label>
+</div>
+
 
                         </div>
                     ))}

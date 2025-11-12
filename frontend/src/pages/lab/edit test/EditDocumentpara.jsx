@@ -21,6 +21,7 @@ const EditDocumentpara = () => {
   defaultResult: "",
   displayInReport: true,
   isFormula: false,  // Add isFormula here
+   addToRateList: false,
 });
 
 
@@ -54,6 +55,8 @@ const EditDocumentpara = () => {
             category: test.category || "",
             price: test.price || "",
             defaultResult: test.defaultResult || "",
+            addToRateList: test.addToRateList ?? true,
+            isFormula: test.isFormula || false,
             displayInReport:
               test.displayInReport === undefined ? true : test.displayInReport,
           });
@@ -100,6 +103,7 @@ const EditDocumentpara = () => {
       defaultResult: formData.defaultResult,
       displayInReport: formData.displayInReport,
       isFormula: formData.isFormula,  // Include isFormula here
+      addToRateList: formData.addToRateList,
     };
 
     let url = "";
@@ -246,6 +250,21 @@ const EditDocumentpara = () => {
     Is this a formula test?
   </label>
 </div>
+
+<div className="flex items-center mb-3">
+  <input
+    type="checkbox"
+    id="addToRateList"
+    name="addToRateList"
+    checked={formData.addToRateList}
+    onChange={handleInputChange}
+    className="mr-2"
+  />
+  <label htmlFor="addToRateList" className="text-sm text-gray-600">
+    Add to Rate List
+  </label>
+</div>
+
 
 
           <label className="block text-sm font-medium mb-2">

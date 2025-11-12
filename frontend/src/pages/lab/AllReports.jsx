@@ -10,7 +10,7 @@ const AllReports = () => {
   const [filteredReports, setFilteredReports] = useState([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
-  const pageSize = 7;
+  const pageSize = 20;
 
   const [testDetailsMap, setTestDetailsMap] = useState({}); // reportId => tests/panels/packages
 
@@ -150,9 +150,31 @@ const AllReports = () => {
     }
   };
 
-  useEffect(() => {
-    if (branchId) fetchReports();
-  }, [branchId]);
+  // 1️⃣ Fetch all reports when branchId changes
+useEffect(() => {
+  if (branchId) fetchReports();
+}, [branchId]);
+
+// 2️⃣ When reports are loaded, auto-filter to today's date
+useEffect(() => {
+  if (allReports.length > 0) {
+    const today = new Date().toISOString().split("T")[0];
+
+    setFilters((prev) => ({
+      ...prev,
+      dailyCase: today,
+    }));
+
+    const todaysReports = allReports.filter((r) => {
+      const reportDate = new Date(r.createdAt).toISOString().split("T")[0];
+      return reportDate === today;
+    });
+
+    setFilteredReports(todaysReports);
+  }
+}, [allReports]);
+
+
 
   // ---------------- Filters ----------------
   const handleFilterChange = (e) => {
@@ -188,7 +210,13 @@ const AllReports = () => {
     if (filters.status) results = results.filter((r) => r.dynamicStatus === filters.status);
     if (filters.referredBy) results = results.filter((r) => r.referredBy === filters.referredBy);
     if (filters.regNo) results = results.filter((r) => r.regNo.includes(filters.regNo));
-    if (filters.dailyCase) results = results.filter((r) => r.dailyCase.includes(filters.dailyCase));
+    if (filters.dailyCase) {
+  results = results.filter((r) => {
+    const reportDate = new Date(r.createdAt).toISOString().split("T")[0];
+    return reportDate === filters.dailyCase;
+  });
+}
+
     if (filters.uhid) results = results.filter((r) => r.uhid.toLowerCase().includes(filters.uhid.toLowerCase()));
     if (filters.test) {
       results = results.filter((r) =>
@@ -238,7 +266,14 @@ const AllReports = () => {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mb-6">
         <input type="text" placeholder="Patient first name" name="patient" value={filters.patient} onChange={handleFilterChange} className="border px-3 py-2 rounded-md text-sm" />
         <input type="text" placeholder="Reg no" name="regNo" value={filters.regNo} onChange={handleFilterChange} className="border px-3 py-2 rounded-md text-sm" />
-        <input type="text" placeholder="Daily case" name="dailyCase" value={filters.dailyCase} onChange={handleFilterChange} className="border px-3 py-2 rounded-md text-sm" />
+        <input
+  type="date"
+  name="dailyCase"
+  value={filters.dailyCase || new Date().toISOString().split("T")[0]}  // default today
+  onChange={handleFilterChange}
+  className="border px-3 py-2 rounded-md text-sm"
+/>
+
         <input type="text" placeholder="UHID" name="uhid" value={filters.uhid} onChange={handleFilterChange} className="border px-3 py-2 rounded-md text-sm" />
 
         <select name="status" value={filters.status} onChange={handleFilterChange} className="border px-3 py-2 rounded-md text-sm">

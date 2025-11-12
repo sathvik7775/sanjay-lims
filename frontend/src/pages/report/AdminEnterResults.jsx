@@ -498,13 +498,14 @@ const AdminEnterResults = () => {
 
 
   const handleChange = async (testName, value) => {
-  console.log(`⚡ handleChange triggered for: ${testName} = ${value}`);
+  // 🧼 Normalize test name once at the start
+  const cleanName = testName?.trim();
+  console.log(`⚡ handleChange triggered for: ${cleanName} = ${value}`);
 
   // ✅ Immediate UI update for smoother typing
-  setResults((prev) => ({ ...prev, [testName.trim()]: value }));
+  setResults((prev) => ({ ...prev, [cleanName]: value }));
 
   // ✅ Prepare updated results snapshot
-  const cleanName = testName.trim();
   const updatedResults = { ...results, [cleanName]: value };
 
   // ✅ Flatten all tests
@@ -515,7 +516,8 @@ const AdminEnterResults = () => {
   console.log("📂 Tests by category:", testsByCategory);
 
   for (const test of allTests) {
-    console.log("🧠 Checking test:", test.testName, "→ isFormula:", test.isFormula);
+    const testNameTrimmed = test.testName?.trim();
+    console.log("🧠 Checking test:", testNameTrimmed, "→ isFormula:", test.isFormula);
     console.log("🧩 Full test object:", test);
 
     if (!test.isFormula) continue;
@@ -525,14 +527,14 @@ const AdminEnterResults = () => {
       try {
         const paramId = test.params?.[0]?.paramId;
         if (paramId) {
-          console.log(`📡 Fetching formula for ${test.testName}...`);
+          console.log(`📡 Fetching formula for ${testNameTrimmed}...`);
           const { formulaString, dependencies } = await fetchFormula(paramId);
           test.formulaString = formulaString;
           test.dependencies = dependencies;
-          console.log(`✅ Formula fetched for ${test.testName}:`, formulaString);
+          console.log(`✅ Formula fetched for ${testNameTrimmed}:`, formulaString);
         }
       } catch (err) {
-        console.error(`❌ Failed to fetch formula for ${test.testName}:`, err);
+        console.error(`❌ Failed to fetch formula for ${testNameTrimmed}:`, err);
         continue;
       }
     }
@@ -543,12 +545,12 @@ const AdminEnterResults = () => {
       !Array.isArray(test.dependencies) ||
       test.dependencies.length === 0
     ) {
-      console.log(`⚠️ Skipping ${test.testName}, missing formula/dependencies`);
+      console.log(`⚠️ Skipping ${testNameTrimmed}, missing formula/dependencies`);
       continue;
     }
 
     console.log(
-      `🧪 Formula test detected: ${test.testName}`,
+      `🧪 Formula test detected: ${testNameTrimmed}`,
       "\nFormula String:", test.formulaString,
       "\nDependencies:", test.dependencies.map((d) => d.testName)
     );
@@ -565,7 +567,7 @@ const AdminEnterResults = () => {
 
     // ✅ Calculate if dependencies are ready
     if (allDepsPresent) {
-      console.log(`🧮 All dependencies present for: ${test.testName}`);
+      console.log(`🧮 All dependencies present for: ${testNameTrimmed}`);
       try {
         const result = calculateFormulaResult(
           test.formulaString,
@@ -574,14 +576,14 @@ const AdminEnterResults = () => {
         );
 
         if (result !== null && !isNaN(result)) {
-          const formulaName = test.testName.trim();
+          const formulaName = testNameTrimmed;
           updatedResults[formulaName] = Number(result.toFixed(2));
           console.log(`✅ Auto-calculated ${formulaName}: ${result}`);
         } else {
-          console.log(`⚠️ Invalid numeric result for ${test.testName}`);
+          console.log(`⚠️ Invalid numeric result for ${testNameTrimmed}`);
         }
       } catch (err) {
-        console.error(`❌ Error calculating formula for ${test.testName}:`, err);
+        console.error(`❌ Error calculating formula for ${testNameTrimmed}:`, err);
       }
     }
   }
@@ -589,12 +591,10 @@ const AdminEnterResults = () => {
   // ✅ 🧹 Clean results — remove numeric or Mongo-like paramIds
   const cleanedResults = {};
   Object.keys(updatedResults).forEach((key) => {
-    // keep only test names (non-numeric)
     // 🧹 Keep only keys that look like readable test names (not Mongo IDs)
-if (!/^[0-9a-f]{24}$/i.test(key)) {
-  cleanedResults[key] = updatedResults[key];
-}
-
+    if (!/^[0-9a-f]{24}$/i.test(key)) {
+      cleanedResults[key.trim()] = updatedResults[key];
+    }
   });
 
   // ✅ Finally, update results state
@@ -678,12 +678,14 @@ if (!/^[0-9a-f]{24}$/i.test(key)) {
           category: item.category || "Other",
           params: (item.params || []).map((p) => {
             // Find the entered value using either test name or paramId
-            const valueFromName = results[p.name];
-            const valueFromId = results[p.paramId];
+           const cleanParamName = p.name?.trim();
+const valueFromName = results[cleanParamName];
+const valueFromId = results[p.paramId];
+
 
             return {
               paramId: p.paramId,
-              name: p.name,
+              name: cleanParamName,
               unit: p.unit,
               groupBy: p.groupBy || "Ungrouped",
 
@@ -843,12 +845,12 @@ const TestRow = ({ item, results, references, handleChange, handleReferenceChang
 </td>
                   <td className="px-3 py-2">
                     <input
-                      type="text"
-                      value={results[param.name] || ""} // ✅ use param.name as key for both display & update
-                      onChange={(e) => handleChange(param.name, e.target.value)} // ✅ pass test name instead of paramId
-                      className="w-full border border-gray-300 rounded px-2 py-1 focus:ring-1 focus:ring-blue-400 outline-none"
-                    />
-
+                        type="text"
+                        value={results[param.name?.trim()] ?? ""}
+                        onChange={(e) => handleChange(param.name?.trim(), e.target.value)}
+                        className={`w-full border ${item.isFormula ? "border-amber-500" : "border-gray-300"
+                          } rounded px-2 py-1 focus:ring-1 focus:ring-blue-400 outline-none`}
+                      />
                   </td>
                   <td className="px-3 py-2 text-gray-600">{param.unit}</td>
                   <td className="px-3 py-2 text-gray-600">

@@ -16,6 +16,8 @@ const Multiplepara = () => {
   instrument: '',
   interpretation: '',
   isFormula: false,  // Ensure this is set here
+  addToRateList: true,
+
   parameters: [
     { id: 1, name: '', unit: '', inputType: 'Single Line', defaultResult: '', isOptional: false },
     { id: 2, name: '', unit: '', inputType: 'Single Line', defaultResult: '', isOptional: false },
@@ -83,7 +85,10 @@ const Multiplepara = () => {
         defaultResult: param.defaultResult,
         isOptional: param.isOptional,
       })),
-      isFormula: formData.isFormula,  // Ensure isFormula is added here
+      isFormula: formData.isFormula, 
+       
+      addToRateList: formData.addToRateList,
+
     };
 
     // Determine URL and headers
@@ -385,6 +390,18 @@ const Multiplepara = () => {
   />
   <label htmlFor="isFormula" className="text-sm">Is Formula Test?</label>
 </div>
+
+<div className="flex items-center mt-2">
+  <input
+    type="checkbox"
+    name="addToRateList"
+    checked={formData.addToRateList}
+    onChange={handleTestDetailsChange}
+    className="mr-2"
+  />
+  <label htmlFor="addToRateList" className="text-sm">Add to Rate List</label>
+</div>
+
 
 
 

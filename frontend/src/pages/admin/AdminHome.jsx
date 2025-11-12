@@ -72,6 +72,7 @@ import PrintSettings from '../report/PrintSettings'
 import AdminPrintSetting from '../report/AdminPrintSetting'
 import AddTestManually from '../lab/AddTestManually'
 import WhatsappTemplates from '../report/WhatsappTemplates'
+import RateList from '../lab/RateList'
 
 
 const AdminHome = () => {
@@ -164,6 +165,7 @@ const AdminHome = () => {
             <Route path="edit-result/:reportId" element={<AdminEditResult selectedBranch={selectedBranch} />} />
             <Route path="print-settings/:reportId" element={<AdminPrintSetting selectedBranch={selectedBranch} />} />
             <Route path="msg-temp" element={<WhatsappTemplates selectedBranch={selectedBranch} />} />
+            <Route path="rate-list" element={<RateList selectedBranch={selectedBranch} />} />
             
           </Routes>
         </div>

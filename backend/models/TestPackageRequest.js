@@ -27,6 +27,7 @@ const testPackageRequestSchema = new mongoose.Schema(
         ref: "Test",
       },
     ],
+    addToRateList: { type: Boolean, default: false },
     panels: [
       {
         type: mongoose.Schema.Types.ObjectId,

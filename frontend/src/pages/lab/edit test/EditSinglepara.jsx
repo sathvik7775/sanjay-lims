@@ -30,6 +30,8 @@ const EditSinglepara = () => {
     instrument: "",
     interpretation: "",
     isFormula: false, // Added field for formula checkbox
+    addToRateList: true,
+
   });
 
 
@@ -58,6 +60,8 @@ const EditSinglepara = () => {
             instrument: test.instrument || "",
             interpretation: test.interpretation || "",
             isFormula: test.isFormula || false,  // Ensure isFormula is fetched
+            addToRateList: test.addToRateList ?? true, // ✅ include this
+
           });
         } else {
           errorToast?.("Failed to load test details");
@@ -106,6 +110,8 @@ const EditSinglepara = () => {
       interpretation: formData.interpretation,
       parameters: [], // single param — can be left empty
       isFormula: formData.isFormula, // Include isFormula in the payload
+      addToRateList: formData.addToRateList,
+
     };
 
     const res = await axios.put(
@@ -306,6 +312,17 @@ const EditSinglepara = () => {
                 className="ml-2"
               />
             </div>
+            <div className="flex items-center mt-2">
+  <label className="text-sm font-semibold">Add to Rate List</label>
+  <input
+    type="checkbox"
+    name="addToRateList"
+    checked={formData.addToRateList}
+    onChange={handleChange}
+    className="ml-2"
+  />
+</div>
+
 
           </div>
 

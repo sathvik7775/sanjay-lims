@@ -33,6 +33,7 @@ const testPackageSchema = new mongoose.Schema(
       type: Boolean,
       default: false, // Branch requests default to not in ratelist
     },
+    addToRateList: { type: Boolean, default: false },
     createdBy: {
       type: String,
       ref: "admin",

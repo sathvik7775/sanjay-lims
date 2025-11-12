@@ -18,6 +18,8 @@ const Documentpara = () => {
   defaultResult: "",
   displayInReport: true,
   isFormula: false,  // Add isFormula here
+  addToRateList: true,
+
 });
 
 
@@ -50,6 +52,8 @@ const Documentpara = () => {
       defaultResult: formData.defaultResult,
       displayInReport: formData.displayInReport,
       isFormula: formData.isFormula,  // Add isFormula to the payload
+      addToRateList: formData.addToRateList,
+
     };
 
     let url = "";
@@ -207,6 +211,21 @@ const Documentpara = () => {
     Is this a formula test?
   </label>
 </div>
+
+<div className="flex items-center mb-3">
+  <input
+    type="checkbox"
+    id="addToRateList"
+    name="addToRateList"
+    checked={formData.addToRateList}
+    onChange={handleInputChange}
+    className="mr-2"
+  />
+  <label htmlFor="addToRateList" className="text-sm text-gray-600">
+    Add to Rate List
+  </label>
+</div>
+
 
 
           <label className="block text-sm font-medium mb-2">

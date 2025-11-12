@@ -21,6 +21,7 @@ const Singlepara = () => {
     instrument: "",
     interpretation: "",
     isFormula: false, // This field was added
+    addToRatelist: true,
   });
 
 
@@ -70,6 +71,8 @@ const Singlepara = () => {
         isOptional: formData.isOptional,
         interpretation: formData.interpretation,
         isFormula: formData.isFormula, // Add this line
+        addToRatelist: formData.addToRatelist, // ✅ NEW FIELD
+
       };
 
 
@@ -282,6 +285,18 @@ const Singlepara = () => {
                 className="ml-2"
               />
             </div>
+
+            <div className="flex items-center">
+  <label className="text-sm font-semibold">Add to Ratelist</label>
+  <input
+    type="checkbox"
+    name="addToRatelist"
+    checked={formData.addToRatelist}
+    onChange={handleChange}
+    className="ml-2"
+  />
+</div>
+
             <div className="col-span-1">
               <label htmlFor="price" className="block text-sm font-semibold">Price</label>
               <input

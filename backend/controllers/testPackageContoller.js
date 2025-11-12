@@ -49,7 +49,7 @@ export const getPackageById = async (req, res) => {
  */
 export const addPackage = async (req, res) => {
   try {
-    const { name, fee, gender, tests, panels } = req.body;
+    const { name, fee, gender, tests, panels, addToRateList  } = req.body;
     const userType = req.userType; // "admin" or "branch"
     const branchId = req.branchId || null;
 
@@ -71,6 +71,7 @@ export const addPackage = async (req, res) => {
         panels,
         createdBy: req.adminId || "admin",
         inRatelist: false, // default not in ratelist
+        addToRateList: addToRateList || true,
       });
 
       await newPackage.save();
@@ -97,6 +98,7 @@ export const addPackage = async (req, res) => {
         tests,
         panels,
         status: "Pending",
+        addToRateList: addToRateList || true,
       });
 
       await newRequest.save();
@@ -137,6 +139,7 @@ export const handlePackageRequest = async (req, res) => {
         panels: request.panels,
         createdBy: "admin",
         inRatelist: false,
+        addToRateList: request.addToRateList || true,
       });
       await newPackage.save();
     }
@@ -188,7 +191,7 @@ export const deletePackage = async (req, res) => {
 export const editPackage = async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, fee, gender, tests, panels } = req.body;
+    const { name, fee, gender, tests, panels, addToRateList  } = req.body;
 
     if (!name) return res.status(400).json({ success: false, message: "Name is required" });
 
@@ -206,6 +209,7 @@ export const editPackage = async (req, res) => {
     pkg.gender = gender;
     pkg.tests = tests;
     pkg.panels = panels;
+    pkg.addToRateList = addToRateList || true;
 
     await pkg.save();
 

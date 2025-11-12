@@ -112,6 +112,10 @@ const Sidebar = ({branchId}) => {
                                 <img src="/server.png" className='w-5 h-5' alt="" />
                                 <p className='text-secondary roboto-third text-[15px] whitespace-nowrap'>Test database</p>
                             </Link>
+                            <Link to={`/${branchId}/rate-list`} className='flex gap-2 items-center cursor-pointer hover:bg-[#E5E7EB] px-3 rounded py-2'>
+                                <img src="/credit-card.png" className='w-5 h-5' alt="" />
+                                <p className='text-secondary roboto-third text-[15px] whitespace-nowrap'>RateList</p>
+                            </Link>
                             <Link to={`/${branchId}/interpretations`} className='flex gap-2 items-center cursor-pointer hover:bg-[#E5E7EB] px-3 rounded py-2'>
                                 <img src="/i.png" className='w-5 h-5' alt="" />
                                 <p className='text-secondary roboto-third text-[15px] whitespace-nowrap'>Interpretations</p>
@@ -265,6 +269,10 @@ const Sidebar = ({branchId}) => {
                             <Link to={`/${branchId}/database`} onClick={()=> setvisible(false)} className='flex gap-2 items-center cursor-pointer hover:bg-[#E5E7EB] px-3 rounded py-2'>
                                 <img src="/server.png" className='w-5 h-5' alt="" />
                                 <p className='text-secondary roboto-third text-[15px] whitespace-nowrap'>Test database</p>
+                            </Link>
+                            <Link to={`/${branchId}/rate-list`} onClick={()=> setvisible(false)} className='flex gap-2 items-center cursor-pointer hover:bg-[#E5E7EB] px-3 rounded py-2'>
+                                <img src="/credit-card.png" className='w-5 h-5' alt="" />
+                                <p className='text-secondary roboto-third text-[15px] whitespace-nowrap'>RateList</p>
                             </Link>
                             <Link to={`/${branchId}/interpretations`} onClick={()=> setvisible(false)} className='flex gap-2 items-center cursor-pointer hover:bg-[#E5E7EB] px-3 rounded py-2'>
                                 <img src="/i.png" className='w-5 h-5' alt="" />

@@ -20,7 +20,8 @@ const EditNestedpara = () => {
   instrument: '',
   interpretation: '',
   parameters: [],
-  isFormula: false,  // Add isFormula here
+  isFormula: false,
+  addToRateList: false, // ✅ Add this line
 });
 
   // Fetch existing test for edit
@@ -50,6 +51,8 @@ const EditNestedpara = () => {
             method: test.method || '',
             instrument: test.instrument || '',
             interpretation: test.interpretation || '',
+            addToRateList: test.addToRateList ?? true,
+            isFormula: test.isFormula || false,
             parameters: test.parameters?.map((p, index) => ({
               id: index + 1,
               order: p.order,
@@ -137,6 +140,7 @@ const EditNestedpara = () => {
         isOptional: param.isOptional,
       })),
       isFormula: formData.isFormula,  // Add isFormula to the payload
+       addToRateList: formData.addToRateList,
     };
 
     let url = '';
@@ -343,6 +347,18 @@ const EditNestedpara = () => {
   />
   <label className="text-sm">Is this a formula test?</label>
 </div>
+
+<div className="flex items-center mt-2">
+  <input
+    type="checkbox"
+    name="addToRateList"
+    checked={formData.addToRateList}
+    onChange={handleTestDetailsChange}
+    className="mr-2"
+  />
+  <label className="text-sm">Add this test to Rate List</label>
+</div>
+
 
         {/* Interpretation */}
         <div className="mt-4">

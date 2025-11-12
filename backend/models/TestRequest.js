@@ -42,6 +42,7 @@ const TestRequestSchema = new mongoose.Schema(
     instrument: { type: String, default: "" },
     interpretation: { type: String, default: "" },
     parameters: { type: [ParameterSchema], default: [] },
+    addToRateList: { type: Boolean, default: false },
     branchId: { type: mongoose.Schema.Types.ObjectId, ref: "Branch", required: true },
     status: {
       type: String,

@@ -51,6 +51,7 @@ export const addPanel = async (req, res) => {
       hideInterpretation,
       hideMethod,
       interpretation,
+      addToRateList
     } = req.body;
 
     const userType = req.userType; // "admin" or "branch"
@@ -77,6 +78,7 @@ export const addPanel = async (req, res) => {
         interpretation,
         status: "Active",
         createdBy: "admin",
+         addToRateList: addToRateList || true,
       });
 
       await newPanel.save();
@@ -97,6 +99,7 @@ export const addPanel = async (req, res) => {
         interpretation,
         branchId,
         status: "Pending",
+         addToRateList: addToRateList || true,
       });
 
       await newRequest.save();
@@ -114,7 +117,7 @@ export const addPanel = async (req, res) => {
 export const editPanel = async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, category, price, tests, hideInterpretation, hideMethod, interpretation } = req.body;
+    const { name, category, price, tests, hideInterpretation, hideMethod, interpretation, addToRateList } = req.body;
 
     if (!name || !category)
       return res.status(400).json({ success: false, message: "Name and category are required" });
@@ -136,6 +139,8 @@ export const editPanel = async (req, res) => {
     panel.hideInterpretation = hideInterpretation;
     panel.hideMethod = hideMethod;
     panel.interpretation = interpretation;
+    panel.addToRateList = addToRateList || true; // ✅ added
+
 
     await panel.save();
 
@@ -171,6 +176,7 @@ export const handlePanelRequest = async (req, res) => {
         price: request.price,
         tests: request.tests, // full test objects
         hideInterpretation: request.hideInterpretation,
+        addToRateList: request.addToRateList || true,
         hideMethod: request.hideMethod,
         interpretation: request.interpretation,
         status: "Active",

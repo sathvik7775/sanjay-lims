@@ -21,6 +21,8 @@ const Nestedpara = () => {
       { id: 2, order: 2, name: '', unit: '', inputType: 'Single Line', groupBy: '', defaultResult: '', isOptional: false },
     ],
     isFormula: false, // Add isFormula to the state
+    addToRateList: true,
+
 });
 
   const handleInputChange = (e, index) => {
@@ -95,6 +97,8 @@ const Nestedpara = () => {
           isOptional: param.isOptional,
         })),
         isFormula: formData.isFormula, 
+        addToRateList: formData.addToRateList,
+
       };
 
       if (adminToken) {
@@ -406,6 +410,18 @@ const Nestedpara = () => {
   />
   <label className="text-sm">Is this a formula test?</label>
 </div>
+
+<div className="flex items-center mt-2">
+  <input
+    type="checkbox"
+    name="addToRateList"
+    checked={formData.addToRateList}
+    onChange={handleChange}
+    className="mr-2"
+  />
+  <label className="text-sm">Add to Rate List</label>
+</div>
+
 
 
         {/* Interpretation */}

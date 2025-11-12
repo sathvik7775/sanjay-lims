@@ -53,12 +53,10 @@ export const getTestById = async (req, res) => {
  * - Branch: creates a request
  */
 export const addTest = async (req, res) => {
-  console.log(req.body);
-  console.log(req.userType);
-  console.log(req.branchId);
+  
   
   try {
-    const { name, type, category, price, method, instrument, interpretation, parameters, shortName, unit, defaultResult, isFormula } = req.body;
+    const { name, type, category, price, method, instrument, interpretation, parameters, shortName, unit, defaultResult, isFormula, addToRateList } = req.body;
     const userType = req.userType; // "admin" or "branch"
     const branchId = req.branchId || null;
 
@@ -85,6 +83,8 @@ export const addTest = async (req, res) => {
         status: "Active",
         createdBy: "admin",
         isFormula: isFormula || false,
+        addToRateList: addToRateList || true,
+
       });
       await newTest.save();
       return res.status(201).json({ success: true, message: "Test added globally", data: newTest });
@@ -109,6 +109,7 @@ export const addTest = async (req, res) => {
         branchId,
         status: "Pending",
         isFormula: isFormula || false,
+        addToRateList: addToRateList || true,
       });
       await newRequest.save();
       return res.status(201).json({ success: true, message: "Test request sent", data: newRequest });
@@ -152,6 +153,7 @@ export const handleTestRequest = async (req, res) => {
         status: "Active",
         createdBy: "admin",
         isFormula: request.isFormula || false,
+        addToRateList: request.addToRateList || true,
       });
       await newTest.save();
     }
@@ -186,7 +188,7 @@ export const deleteTest = async (req, res) => {
 export const editTest = async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, type, category, price, method, instrument, interpretation, parameters, shortName, unit, defaultResult, isFormula } = req.body;
+    const { name, type, category, price, method, instrument, interpretation, parameters, shortName, unit, defaultResult, isFormula, addToRateList } = req.body;
 
     if (!name || !type) {
       return res.status(400).json({ success: false, message: "Test name and type are required" });
@@ -213,6 +215,7 @@ export const editTest = async (req, res) => {
     test.interpretation = interpretation;
     test.parameters = parameters;
     test.isFormula = isFormula || false;
+    test.addToRateList = addToRateList || true;
     await test.save();
 
     return res.status(200).json({ success: true, message: "Test updated successfully", data: test });

@@ -48,6 +48,7 @@ const TestPanelSchema = new Schema(
       type: String,
       default: "",
     },
+    addToRateList: { type: Boolean, default: false },
     createdBy: {
       type: String,
       default: "admin",

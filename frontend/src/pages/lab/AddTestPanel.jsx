@@ -16,6 +16,7 @@ export default function AddTestPanel() {
     hideInterpretation: true,
     hideMethod: true,
     interpretation: "",
+    addToRateList: true,
   });
 
   const handleChange = (e) => {
@@ -55,6 +56,7 @@ export default function AddTestPanel() {
       hideInterpretation: formData.hideInterpretation,
       hideMethod: formData.hideMethod,
       interpretation: formData.interpretation,
+      addToRateList: formData.addToRateList,
     };
 
     let url = "";
@@ -84,6 +86,7 @@ export default function AddTestPanel() {
         hideInterpretation: true,
         hideMethod: true,
         interpretation: "",
+        
       });
     } else {
       errorToast?.(res.data.message || "Failed to save panel");
@@ -173,6 +176,18 @@ export default function AddTestPanel() {
             />
             Hide individual test method and instrument from report.
           </label>
+
+          <label className="flex items-center gap-2 text-sm">
+  <input
+    type="checkbox"
+    name="addToRateList"
+    checked={formData.addToRateList}
+    onChange={handleChange}
+    className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+  />
+  Add this panel to rate list automatically.
+</label>
+
         </div>
 
         {/* Tests */}

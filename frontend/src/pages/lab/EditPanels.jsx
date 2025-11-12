@@ -20,6 +20,7 @@ export default function EditPanels() {
     hideInterpretation: true,
     hideMethod: true,
     interpretation: "",
+    addToRateList: true,
   });
 
   useEffect(() => {
@@ -54,6 +55,7 @@ export default function EditPanels() {
             hideInterpretation: p.hideInterpretation,
             hideMethod: p.hideMethod,
             interpretation: p.interpretation || "",
+            addToRateList: p.addToRateList || false,
           });
         } else {
           errorToast?.("Panel not found");
@@ -100,6 +102,7 @@ export default function EditPanels() {
         hideInterpretation: formData.hideInterpretation,
         hideMethod: formData.hideMethod,
         interpretation: formData.interpretation,
+        addToRateList: formData.addToRateList,
       };
 
       const res = await axios.put(
@@ -193,7 +196,20 @@ export default function EditPanels() {
             onChange={handleSelectChange}
             placeholder="Search and select multiple tests..."
           />
+
+          
         </div>
+
+        <label className="flex items-center gap-2 text-sm">
+  <input
+    type="checkbox"
+    name="addToRateList"
+    checked={formData.addToRateList}
+    onChange={handleChange}
+    className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+  />
+  Add this panel to rate list automatically.
+</label>
 
         {/* Interpretation */}
         <div>

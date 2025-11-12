@@ -46,6 +46,7 @@ const TestPanelRequestSchema = new Schema(
       enum: ["Pending", "Approved", "Rejected"],
       default: "Pending",
     },
+    addToRateList: { type: Boolean, default: false },
     adminId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User", // Admin who approves/rejects

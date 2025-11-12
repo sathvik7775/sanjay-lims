@@ -39,6 +39,8 @@ import ViewReport from './report/ViewReport'
 import EditResult from './report/EditResult'
 import PrintSettings from './report/PrintSettings'
 import AddTestManually from './lab/AddTestManually'
+import BranchTestView from './lab/BranchTestView'
+import RateList from './lab/RateList'
 
 const MainHome = () => {
     const { branchId } = useParams()
@@ -80,6 +82,8 @@ const MainHome = () => {
         <Route path='edit-result/:reportId' element={<EditResult branchId={branchId}/>}/>
         <Route path='view-report/:reportId' element={<ViewReport branchId={branchId}/>}/>
         <Route path='print-settings/:reportId' element={<PrintSettings branchId={branchId}/>}/>
+        <Route path='test-view-branch/:id' element={<BranchTestView branchId={branchId}/>}/>
+        <Route path='rate-list' element={<RateList branchId={branchId}/>}/>
 
         {/* second */}
 

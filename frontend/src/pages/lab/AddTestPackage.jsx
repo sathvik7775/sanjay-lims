@@ -17,12 +17,14 @@ const AddTestPackage = () => {
   } = useContext(LabContext);
 
   const [formData, setFormData] = useState({
-    name: "",
-    fee: "",
-    gender: "Both",
-    tests: [],
-    panels: [],
-  });
+  name: "",
+  fee: "",
+  gender: "Both",
+  tests: [],
+  panels: [],
+  addToRateList: true, // ✅ Added
+});
+
 
   const [loading, setLoading] = useState(false);
 
@@ -48,6 +50,7 @@ const AddTestPackage = () => {
       gender: formData.gender,
       tests: formData.tests,
       panels: formData.panels,
+       addToRateList: formData.addToRateList,
     };
 
     // Determine URL and headers
@@ -209,6 +212,25 @@ const AddTestPackage = () => {
             value={panelOptions.filter((p) => formData.panels.includes(p.value))}
           />
         </div>
+
+        {/* Add To Rate List */}
+<div className="flex items-center gap-2 mt-3">
+  <input
+    type="checkbox"
+    id="addToRateList"
+    checked={formData.addToRateList}
+    onChange={(e) =>
+      setFormData((prev) => ({
+        ...prev,
+        addToRateList: e.target.checked,
+      }))
+    }
+  />
+  <label htmlFor="addToRateList" className="text-sm font-medium">
+    Add to Rate List
+  </label>
+</div>
+
 
         {/* Buttons */}
         <div className="flex justify-start gap-3">
