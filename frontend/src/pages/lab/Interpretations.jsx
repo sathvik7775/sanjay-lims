@@ -4,7 +4,7 @@ import axios from "axios";
 import Loader from "../../components/Loader";
 
 const Interpretations = () => {
-  const { adminToken, errorToast, branchToken } = useContext(LabContext);
+  const { adminToken, errorToast, branchToken, navigate } = useContext(LabContext);
 
   const [activeTab, setActiveTab] = useState("tests");
   const [searchTerm, setSearchTerm] = useState("");
@@ -72,10 +72,13 @@ const panelsRes = await axios.get(panelsUrl, {
     <div className="w-full p-6 bg-white rounded-lg shadow-lg mt-6">
       <h1 className="text-2xl font-semibold mb-4">Interpretations</h1>
 
+      
+
       <div className="flex items-center justify-between mb-4">
         <div className="text-sm text-gray-600">
-          <span className="text-green-500">✔</span> You can now copy interpretations from Library{" "}
-          <span className="text-blue-500">to update. NEW</span>
+          <span className="text-green-500">✔</span> To edit the interpretation, go to the{" "}
+          <span onClick={()=> navigate('admin/test-database')} className="text-blue-500 cursor-pointer">Test Database{" "}</span>
+          <span className="">and click Edit on the test.</span>
         </div>
         <div className="text-sm">Panels: {interpretations.panels.length}</div>
       </div>
@@ -141,9 +144,9 @@ const panelsRes = await axios.get(panelsUrl, {
                       className="text-blue-500 hover:underline whitespace-nowrap"
                       onClick={() => setModalContent(item.interpretation)}
                     >
-                      View all
+                      View full
                     </button>
-                    <button className="text-blue-500 hover:underline whitespace-nowrap">Edit</button>
+                    
                   </div>
                 </td>
               )}

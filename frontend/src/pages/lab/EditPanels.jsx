@@ -212,44 +212,47 @@ export default function EditPanels() {
 </label>
 
         {/* Interpretation */}
-        <div>
-          <label className="block text-sm font-medium mb-1">Interpretation</label>
-          <Editor
-            apiKey="0vfv6vlb9kccql8v3on0qtobc8m7irv267colygcsartuoxa"
-            value={formData.interpretation}
-            init={{
-              height: 250,
-              menubar: false,
-              plugins: [
-                "advlist",
-                "autolink",
-                "lists",
-                "link",
-                "image",
-                "charmap",
-                "preview",
-                "anchor",
-                "searchreplace",
-                "visualblocks",
-                "code",
-                "fullscreen",
-                "insertdatetime",
-                "media",
-                "table",
-                "help",
-                "wordcount",
-              ],
-              toolbar:
-                "undo redo | bold italic underline | alignleft aligncenter alignright alignjustify | bullist numlist | link image | code",
-              content_style:
-                "body { font-family:Helvetica,Arial,sans-serif; font-size:14px; }",
-              branding: false,
-            }}
-            onEditorChange={(content) =>
-              setFormData((prev) => ({ ...prev, interpretation: content }))
-            }
-          />
-        </div>
+        {!loading && (
+  <div>
+    <label className="block text-sm font-medium mb-1">Interpretation</label>
+    <Editor
+      apiKey="0vfv6vlb9kccql8v3on0qtobc8m7irv267colygcsartuoxa"
+      value={formData.interpretation}
+      init={{
+        height: 250,
+        menubar: false,
+        plugins: [
+          "advlist",
+          "autolink",
+          "lists",
+          "link",
+          "image",
+          "charmap",
+          "preview",
+          "anchor",
+          "searchreplace",
+          "visualblocks",
+          "code",
+          "fullscreen",
+          "insertdatetime",
+          "media",
+          "table",
+          "help",
+          "wordcount",
+        ],
+        toolbar:
+          "undo redo | bold italic underline | alignleft aligncenter alignright alignjustify | bullist numlist | link image | code",
+        content_style:
+          "body { font-family:Helvetica,Arial,sans-serif; font-size:14px; }",
+        branding: false,
+      }}
+      onEditorChange={(content) =>
+        setFormData((prev) => ({ ...prev, interpretation: content }))
+      }
+    />
+  </div>
+)}
+
 
         {/* Buttons */}
         <div className="flex gap-3 pt-4">

@@ -29,11 +29,11 @@ export default function TestPanels({ branchId }) {
 
         const res = await axios.get(url, { headers });
 
-        console.log("panels", res.data.panels);
+      
         
 
         if (res.data.success) {
-          setPanels(res.data.panels || []);
+          setPanels(res.data.panels.reverse() || []);
         } else {
           errorToast(res.data.message || "Failed to load panels");
         }

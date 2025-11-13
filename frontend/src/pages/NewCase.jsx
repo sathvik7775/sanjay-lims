@@ -483,7 +483,7 @@ const handleCreateCase = async () => {
   } else if (cat === "ECG") {
   filteredTests = dummyTests.filter((t) => t.category === "Ecg");
 } else if (cat === "TMT") {
-  filteredTests = dummyTests.filter((t) => t.category === "tmt");
+  filteredTests = dummyTests.filter((t) => t.category === "Tmt");
 } else if (cat === "ECHO") {
   filteredTests = dummyTests.filter((t) => t.category === "Echo");
 } else if (cat === "X - RAY") {
