@@ -599,6 +599,20 @@ const TestRow = ({ test, printSetting }) => {
 
         return (
           <React.Fragment key={group}>
+
+            {group &&
+  group.length > 0 &&
+  groups[0] === group &&
+  params.length > 1 && (
+    <tr>
+      <td colSpan={4} className="px-2 font-semibold">
+        {test.testName}
+      </td>
+    </tr>
+)}
+
+
+
             {group  && (
               <tr>
                 <td colSpan={4} className=" px-2 font-semibold ">
@@ -606,6 +620,8 @@ const TestRow = ({ test, printSetting }) => {
                 </td>
               </tr>
             )}
+
+            
 
             {groupParams.map((p) => {
               const hl = useHLMarkers ? isOutOfRange(p.value, p.reference) : false;

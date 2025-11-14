@@ -84,20 +84,37 @@ const EditResult = () => {
 
         // ✅ Save full structure for resubmission
         if (resultData && Array.isArray(resultData.categories)) {
-          setResultStructure(resultData.categories);
+  setResultStructure(resultData.categories);
 
-          resultData.categories.forEach((cat) => {
-            (cat.items || []).forEach((item) => {
-              (item.tests || []).forEach((test) => {
-                collectedTests.push(test);
-                (test.params || []).forEach((p) => {
-                  initialResults[p.paramId] = p.value || "";
-                  initialReferences[p.paramId] = p.reference || "";
-                });
-              });
-            });
+  resultData.categories.forEach((cat) => {
+    (cat.items || []).forEach((item) => {
+
+      // 🔹 CASE 1: Panel → has tests[]
+      if (Array.isArray(item.tests) && item.tests.length > 0) {
+        item.tests.forEach((test) => {
+          collectedTests.push(test);
+
+          (test.params || []).forEach((p) => {
+            initialResults[p.paramId] = p.value || "";
+            initialReferences[p.paramId] = p.reference || "";
           });
-        }
+        });
+      }
+
+      // 🔹 CASE 2: Normal test → params[] directly inside items
+      else {
+        collectedTests.push(item);
+
+        (item.params || []).forEach((p) => {
+          initialResults[p.paramId] = p.value || "";
+          initialReferences[p.paramId] = p.reference || "";
+        });
+      }
+
+    });
+  });
+}
+
 
         setResults(initialResults);
         setReferences(initialReferences);
@@ -320,6 +337,21 @@ const TestRow = ({ item, results, references, handleChange }) => {
   const params = Array.isArray(item.params) ? item.params : [];
   const groups = [...new Set(params.map((p) => p.groupBy || "Ungrouped"))];
 
+  // 👉 Same logic used in print version
+  const getHL = (value, reference) => {
+    if (!value || !reference) return false;
+
+    const match = reference.match(/([\d.]+)\s*-\s*([\d.]+)/);
+    if (!match) return false;
+
+    const [, min, max] = match;
+    const num = parseFloat(value);
+
+    if (num < parseFloat(min)) return "low";
+    if (num > parseFloat(max)) return "high";
+    return false;
+  };
+
   return (
     <div className="mt-4 px-6 border rounded-md pb-4">
       <div className="font-semibold text-gray-800 mb-2">✶ {item.testName}</div>
@@ -341,42 +373,63 @@ const TestRow = ({ item, results, references, handleChange }) => {
             <tbody>
               {params
                 .filter((p) => (p.groupBy || "Ungrouped") === group)
-                .map((param) => (
-                  <tr key={param.paramId} className="border-t hover:bg-gray-50">
-                    <td className="px-4 py-2 text-gray-800">
-                      <div className="flex items-center gap-2">
-                        <span>{param.name}</span>
-                        {param.isFormula && param.formulaString && (
-                          <div className="relative group inline-flex items-center">
-                            <span className="text-blue-600 font-bold cursor-pointer border border-blue-500 px-1 rounded text-xs">
-                              ƒ
-                            </span>
-                            <div className="absolute hidden group-hover:block bg-gray-800 text-white text-xs rounded px-2 py-1 -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap z-10 shadow-lg">
-                              Formula: {param.formulaString}
+                .map((param) => {
+                  const value = results[param.paramId] || "";
+                  const ref = references[param.paramId] || "";
+
+                  const hl = getHL(value, ref); // 👉 calculate high/low
+                  const style = {
+                    color: hl ? "red" : "black",
+                    fontWeight: hl ? "bold" : "normal",
+                  };
+                  const marker = hl === "high" ? " ↑" : hl === "low" ? " ↓" : "";
+
+                  return (
+                    <tr key={param.paramId} className="border-t hover:bg-gray-50">
+                      <td className="px-4 py-2 text-gray-800">
+                        <div className="flex items-center gap-2">
+                          <span>{param.name}</span>
+
+                          {/* Formula badge */}
+                          {param.isFormula && param.formulaString && (
+                            <div className="relative group inline-flex items-center">
+                              <span className="text-blue-600 font-bold cursor-pointer border border-blue-500 px-1 rounded text-xs">
+                                ƒ
+                              </span>
+                              <div className="absolute hidden group-hover:block bg-gray-800 text-white text-xs rounded px-2 py-1 -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap z-10 shadow-lg">
+                                Formula: {param.formulaString}
+                              </div>
                             </div>
-                          </div>
-                        )}
-                      </div>
-                    </td>
-                    <td className="px-3 py-2">
-                      <input
-                        type="text"
-                        value={results[param.paramId] || ""}
-                        onChange={(e) => handleChange(param.paramId, e.target.value)}
-                        className="w-full border border-gray-300 rounded px-2 py-1 focus:ring-1 focus:ring-blue-400 outline-none"
-                      />
-                    </td>
-                    <td className="px-3 py-2 text-gray-600">{param.unit}</td>
-                    <td className="px-3 py-2 text-gray-600">
-                      <input
-                        type="text"
-                        value={references[param.paramId] || ""}
-                        disabled
-                        className="w-full border border-gray-300 rounded px-2 py-1 bg-gray-100"
-                      />
-                    </td>
-                  </tr>
-                ))}
+                          )}
+                        </div>
+                      </td>
+
+                      {/* Value input with highlight */}
+                      <td className="px-3 py-2">
+                        <input
+                          type="text"
+                          value={value}
+                          onChange={(e) => handleChange(param.paramId, e.target.value)}
+                          className="w-full border border-gray-300 rounded px-2 py-1 focus:ring-1 focus:ring-blue-400 outline-none"
+                          style={style}
+                        />
+                        <span className="ml-1 text-red-600 font-bold">{marker}</span>
+                      </td>
+
+                      <td className="px-3 py-2 text-gray-600">{param.unit}</td>
+
+                      {/* Reference */}
+                      <td className="px-3 py-2 text-gray-600">
+                        <input
+                          type="text"
+                          value={ref}
+                          disabled
+                          className="w-full border border-gray-300 rounded px-2 py-1 bg-gray-100"
+                        />
+                      </td>
+                    </tr>
+                  );
+                })}
             </tbody>
           </table>
         </div>
@@ -384,5 +437,6 @@ const TestRow = ({ item, results, references, handleChange }) => {
     </div>
   );
 };
+
 
 export default EditResult;

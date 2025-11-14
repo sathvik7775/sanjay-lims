@@ -1,13 +1,9 @@
-
-
-
-
-
 import React, { useState, useEffect, useContext } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import axios from "axios";
 import { LabContext } from "../../context/LabContext";
 import Loader from "../../components/Loader";
+import {TriangleAlert} from 'lucide-react'
 
 // 🔹 Convert age to years
 const ageToYears = (age, unit) => {
@@ -379,24 +375,35 @@ const AdminEnterResults = () => {
           }
 
           if (item.type === "PANEL") {
-            const panel = item.data;
-            const panelObj = {
-              panelName: panel.name,
-              isPanel: true,
-              interpretation: panel.interpretation || "", // ✅ ADD THIS
-              tests: [],
-            };
+  const panel = item.data;
 
-            for (let testItem of panel.tests || []) {
-              const testId = extractId(testItem);
-              const testObj = await fetchTestWithRefs(testId, reportData, adminToken);
-              if (testObj) panelObj.tests.push(...testObj);
-            }
+  const panelObj = {
+    panelName: panel.name,
+    isPanel: true,
+    interpretation: panel.interpretation || "",
+    tests: [],
+  };
 
-            traverseTests(panelObj.tests);
-            if (!categories["Panels"]) categories["Panels"] = [];
-            categories["Panels"].push(panelObj);
-          }
+  // Load tests of panel
+  for (let testItem of panel.tests || []) {
+    const testId = extractId(testItem);
+   const testObj = await fetchTestWithRefs(testId, reportData, adminToken);
+
+    if (testObj) panelObj.tests.push(...testObj);
+  }
+
+  traverseTests(panelObj.tests);
+
+  // ⭐ REAL CATEGORY of PANEL (from panel document)
+  const realCategory = panel.category?.trim() || "Other";
+
+  // Create category bucket if missing
+  if (!categories[realCategory]) categories[realCategory] = [];
+
+  // Push panel into its real category
+  categories[realCategory].push(panelObj);
+}
+
 
 
           if (item.type === "PACKAGE") {
@@ -509,8 +516,21 @@ const AdminEnterResults = () => {
   const updatedResults = { ...results, [cleanName]: value };
 
   // ✅ Flatten all tests
-  const allTests =
-    testsByCategory?.Panels?.flatMap((p) => p.tests || []) || [];
+  // ✅ Extract ALL tests from ALL categories
+const allTests = [];
+
+Object.values(testsByCategory || {}).forEach((categoryItems) => {
+  categoryItems.forEach((item) => {
+    if (item.isPanel || item.isPackage) {
+      // inner tests
+      item.tests?.forEach((t) => allTests.push(t));
+    } else {
+      // normal test
+      allTests.push(item);
+    }
+  });
+});
+
 
   console.log("🧩 Extracted all tests:", allTests.map((t) => t.testName));
   console.log("📂 Tests by category:", testsByCategory);
@@ -801,16 +821,66 @@ const valueFromId = results[p.paramId];
   );
 };
 
-const TestRow = ({ item, results, references, handleChange, handleReferenceChange }) => {
+const TestRow = ({ item, results, references, handleChange,  }) => {
   const params = Array.isArray(item.params) ? item.params : [];
   const groups = [...new Set(params.map((p) => p.groupBy || "Ungrouped"))];
 
+  // Detect DLC test
+  const isDLC = item.testName?.trim().toLowerCase() === "differential leucocyte count";
+
+  // DLC Total Calculation
+  let dlcTotal = 0;
+  if (isDLC) {
+    dlcTotal = params.reduce((sum, p) => {
+      const val = parseFloat(results[p.name?.trim()] || 0);
+      return sum + (isNaN(val) ? 0 : val);
+    }, 0);
+  }
+
+  // Check if value is out of reference range
+  const checkOutOfRange = (value, reference) => {
+    if (!value || !reference) return null;
+
+    const match = reference.match(/([\d.]+)\s*-\s*([\d.]+)/);
+    if (!match) return null;
+
+    const [, min, max] = match;
+    const numVal = parseFloat(value);
+
+    if (numVal < parseFloat(min)) return { type: "low", min, max };
+    if (numVal > parseFloat(max)) return { type: "high", min, max };
+
+    return null;
+  };
+
+  const getSeverityMultiplier = (value, refValue) => {
+    const num = parseFloat(value);
+    const ref = parseFloat(refValue);
+    if (!num || !ref || ref === 0) return 1;
+    return Number((num / ref).toFixed(1));
+  };
+
   return (
     <div className="mt-4 px-6">
-      {params.length > 1 && <div className="font-semibold text-gray-800 mb-2">✶ {item.testName}</div>}
+
+      {/* Test name + formula icon */}
+      <div className="flex items-center gap-2 mb-2">
+        {params.length > 1 && (
+          <div className="font-semibold text-gray-800">
+            ✶ {item.testName}
+          </div>
+        )}
+
+        
+      </div>
+
+      {/* GROUPS */}
       {groups.map((group) => (
         <div key={group} className="mb-4">
-          {group && <div className="font-semibold text-gray-700 mb-1 ml-7">{group}</div>}
+          {group && (
+            <div className="font-semibold text-gray-700 mb-1 ml-7">{group}</div>
+          )}
+
           <table className="w-full text-sm border-t border-gray-300">
             <thead>
               <tr className="bg-gray-100">
@@ -820,53 +890,113 @@ const TestRow = ({ item, results, references, handleChange, handleReferenceChang
                 <th className="text-left px-2 py-1 w-[20%]">Reference</th>
               </tr>
             </thead>
+
             <tbody>
-              {params.filter((p) => (p.groupBy || "Ungrouped") === group).map((param) => (
-                <tr key={param.paramId} className="border-t hover:bg-gray-50">
-                  <td className="px-4 py-2 text-gray-800">
-  <div className="flex items-center gap-2">
-    <span>{param.name}</span>
+              {params
+                .filter((p) => (p.groupBy || "Ungrouped") === group)
+                .map((param) => {
+                  const value = results[param.name?.trim()] || "";
+                  const reference = references[param.paramId] || "";
+                  const check = checkOutOfRange(value, reference);
 
-    {/* 🔹 Formula icon beside param name — but comes from item */}
-    {item.isFormula && item.formulaString && (
-      <div className="relative group inline-flex items-center">
-        <span className="text-blue-600 font-bold cursor-pointer border border-blue-500 px-1 rounded text-xs flex items-center justify-center">
-          ƒ
-        </span>
+                  let textStyle = "border-gray-300 text-black";
+                  let marker = "";
+                  let tooltip = "";
 
-        {/* Tooltip from test-level formula */}
-        <div className="absolute hidden group-hover:block bg-gray-800 text-white text-xs rounded px-2 py-1 -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap z-10 shadow-lg">
-          Formula: {item.formulaString}
-          <div className="absolute bottom-[-5px] left-1/2 -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-l-transparent border-r-transparent border-t-gray-800"></div>
-        </div>
+                  if (check) {
+                    textStyle = "border-red-500 font-bold text-red-600";
+
+                    if (check.type === "high") {
+                      marker = "H ↑";
+                      const multiplier = getSeverityMultiplier(value, check.max);
+                      tooltip = `${value} is ${multiplier} times higher than ${check.max}. Please verify.`;
+                    } else if (check.type === "low") {
+                      marker = "L ↓";
+                      tooltip = `${value} is lower than ${check.min}. Please verify.`;
+                    }
+                  }
+
+                  return (
+                    <tr key={param.paramId} className="border-t hover:bg-gray-50">
+
+                      {/* Param Name + High/Low marker */}
+                      <td className="px-4 py-2 flex items-center gap-2">
+  {marker && (
+    <span className="text-red-600 font-bold text-xs">{marker}</span>
+  )}
+
+  {param.name}
+
+  {/* Formula Icon + Tooltip */}
+  {item.isFormula && item.formulaString && (
+    <div className="relative group inline-flex items-center">
+      <span className="text-blue-600 font-bold cursor-pointer border border-blue-500 px-1 rounded text-xs flex items-center justify-center">
+        ƒ
+      </span>
+
+      {/* Tooltip */}
+      <div className="absolute hidden group-hover:block bg-gray-800 text-white text-xs rounded px-2 py-1 -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap shadow-lg">
+        Formula: {item.formulaString}
+        <div className="absolute bottom-[-5px] left-1/2 -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-l-transparent border-r-transparent border-t-gray-800"></div>
       </div>
-    )}
-  </div>
+    </div>
+  )}
 </td>
-                  <td className="px-3 py-2">
-                    <input
-                        type="text"
-                        value={results[param.name?.trim()] ?? ""}
-                        onChange={(e) => handleChange(param.name?.trim(), e.target.value)}
-                        className={`w-full border ${item.isFormula ? "border-amber-500" : "border-gray-300"
-                          } rounded px-2 py-1 focus:ring-1 focus:ring-blue-400 outline-none`}
-                      />
-                  </td>
-                  <td className="px-3 py-2 text-gray-600">{param.unit}</td>
-                  <td className="px-3 py-2 text-gray-600">
-                    <input
-                      type="text"
-                      value={references[param.paramId] || ""}
-                      onChange={(e) => handleReferenceChange(param.paramId, e.target.value)}
-                      disabled
-                      className="w-full border border-gray-300 rounded px-2 py-1 focus:ring-1 focus:ring-blue-400 outline-none"
-                    />
-                  </td>
-                </tr>
-              ))}
+
+
+                      {/* Value Input */}
+                      <td className="px-3 py-2 relative">
+                        <input
+                          type="text"
+                          value={value}
+                          onChange={(e) => handleChange(param.name?.trim(), e.target.value)}
+                          className={`w-full border rounded px-2 py-1 ${textStyle} ${item.isFormula ? "border-amber-500" : ""} focus:ring-1 outline-none`}
+                        />
+
+                        {/* Tooltip */}
+                        {check && (
+                          <div className="absolute right-2 top-1/2 -translate-y-1/2 group cursor-pointer mr-2">
+                            <TriangleAlert className="text-red-600 w-4 h-4" />
+
+                            <div className="hidden group-hover:block absolute right-6 top-1/2 -translate-y-1/2 bg-white border border-red-500 text-red-500 text-xs p-2 rounded shadow-lg w-[200px] font-bold">
+                              {tooltip}
+                            </div>
+                          </div>
+                        )}
+                      </td>
+
+                      <td className="px-3 py-2 text-gray-600">{param.unit}</td>
+
+                      {/* Reference */}
+                      <td className="px-3 py-2 text-gray-600">
+                        <input
+                          type="text"
+                          value={reference}
+                          disabled
+                          className="w-full border border-gray-300 rounded px-2 py-1"
+                        />
+                      </td>
+                    </tr>
+                  );
+                })}
             </tbody>
           </table>
 
+          {/* DLC Total */}
+          {isDLC && (
+            <div className="mt-3 px-2">
+              <div className={`font-semibold text-sm ${dlcTotal === 100 ? "text-green-600" : "text-red-600"}`}>
+                Total: {dlcTotal}
+              </div>
+              {dlcTotal !== 100 && (
+                <div className="text-xs text-red-500 mt-1">
+                  ⚠ Total must be exactly 100.
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Interpretation */}
           {item.interpretation && (
             <div className="mt-3 mb-2 px-2">
               <div className="font-semibold text-gray-800 text-sm">Interpretation:</div>
@@ -877,10 +1007,10 @@ const TestRow = ({ item, results, references, handleChange, handleReferenceChang
             </div>
           )}
 
-          {/* Display the calculated result */}
+          {/* Calculated Formula Result */}
           {item.isFormula && item.calculatedResult && (
             <div className="mt-2 text-sm text-gray-600">
-              <strong>Calculated Result: </strong> {item.calculatedResult}
+              <strong>Calculated Result:</strong> {item.calculatedResult}
             </div>
           )}
         </div>
@@ -888,7 +1018,6 @@ const TestRow = ({ item, results, references, handleChange, handleReferenceChang
     </div>
   );
 };
-
 
 
 // 🔹 Component to render panel or package with nested tests

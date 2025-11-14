@@ -3,22 +3,21 @@ import { MoreHorizontal } from "lucide-react";
 import axios from "axios";
 import { LabContext } from "../../context/LabContext";
 
-
 const AllCases = () => {
   const { branchId, navigate, branchToken, errorToast } = useContext(LabContext);
-
-
-
 
   const [openMenu, setOpenMenu] = useState(null);
   const [allCases, setAllCases] = useState([]);
   const [filteredCases, setFilteredCases] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  // Default today
+  const today = new Date().toISOString().split("T")[0];
+
   const [filters, setFilters] = useState({
-    duration: "Past 7 days",
-    fromDate: "",
-    toDate: "",
+    duration: "Today",
+    fromDate: today,
+    toDate: today,
     regNo: "",
     patientName: "",
     referredBy: "",
@@ -35,17 +34,25 @@ const AllCases = () => {
       const config = {
         headers: { Authorization: `Bearer ${branchToken}` },
       };
+
       const response = await axios.get(
         `${import.meta.env.VITE_API_URL}/api/cases/branch/list/${branchId}`,
         config
       );
 
-      console.log("cases", response.data);
-
-
       if (response.data.success) {
-        setAllCases(response.data.data);
-        setFilteredCases(response.data.data);
+        const data = response.data.data;
+        setAllCases(data);
+
+        // 🔥 Auto filter today's cases
+        const todaysFiltered = data.filter((c) => {
+          const caseDate = new Date(c.createdAt || c.date)
+            .toISOString()
+            .split("T")[0];
+          return caseDate === today;
+        });
+
+        setFilteredCases(todaysFiltered);
       } else {
         errorToast(response.data.message || "Failed to fetch cases");
       }
@@ -64,17 +71,51 @@ const AllCases = () => {
   // ---------------- Filters ----------------
   const handleFilterChange = (e) => {
     const { name, value, type, checked } = e.target;
+
+    if (name === "duration") {
+      const today = new Date();
+      let fromDate = "";
+      let toDate = today.toISOString().split("T")[0];
+
+      if (value === "Today") {
+        fromDate = toDate;
+      } else if (value === "Past 7 days") {
+        const past = new Date();
+        past.setDate(today.getDate() - 7);
+        fromDate = past.toISOString().split("T")[0];
+      } else if (value === "Past 30 days") {
+        const past = new Date();
+        past.setDate(today.getDate() - 30);
+        fromDate = past.toISOString().split("T")[0];
+      } else if (value === "Custom range") {
+        fromDate = "";
+        toDate = "";
+      }
+
+      setFilters((prev) => ({
+        ...prev,
+        duration: value,
+        fromDate,
+        toDate,
+      }));
+
+      return;
+    }
+
     setFilters((prev) => ({
       ...prev,
       [name]: type === "checkbox" ? checked : value,
     }));
   };
 
+  // Clear filters → Reset to Today
   const handleClear = () => {
+    const today = new Date().toISOString().split("T")[0];
+
     setFilters({
-      duration: "Past 7 days",
-      fromDate: "",
-      toDate: "",
+      duration: "Today",
+      fromDate: today,
+      toDate: today,
       regNo: "",
       patientName: "",
       referredBy: "",
@@ -83,9 +124,19 @@ const AllCases = () => {
       hasDue: false,
       cancelled: false,
     });
-    setFilteredCases(allCases);
+
+    // Also reset to today's cases automatically
+    const todaysFiltered = allCases.filter((c) => {
+      const caseDate = new Date(c.createdAt || c.date)
+        .toISOString()
+        .split("T")[0];
+      return caseDate === today;
+    });
+
+    setFilteredCases(todaysFiltered);
   };
 
+  // Search handler
   const handleSearch = () => {
     let results = [...allCases];
 
@@ -97,7 +148,7 @@ const AllCases = () => {
 
     if (filters.patientName) {
       results = results.filter((c) =>
-        c.patient.toLowerCase().includes(filters.patientName.toLowerCase())
+        c.patient.firstName.toLowerCase().includes(filters.patientName.toLowerCase())
       );
     }
 
@@ -106,31 +157,36 @@ const AllCases = () => {
     }
 
     if (filters.collectionCentre) {
-      results = results.filter(
-        (c) => c.collectionCentre === filters.collectionCentre
-      );
+      results = results.filter((c) => c.collectionCentre === filters.collectionCentre);
     }
 
     if (filters.sampleAgent) {
       results = results.filter((c) =>
-        c.agent.toLowerCase().includes(filters.sampleAgent.toLowerCase())
+        c.agent?.toLowerCase().includes(filters.sampleAgent.toLowerCase())
       );
     }
 
     if (filters.hasDue) {
-      results = results.filter((c) => c.total > c.paid);
+      results = results.filter((c) => c.payment.total > c.payment.received);
     }
 
     if (filters.cancelled) {
       results = results.filter((c) => c.cancelled);
     }
 
+    // Date Filters
     if (filters.fromDate) {
-      results = results.filter((c) => new Date(c.date) >= new Date(filters.fromDate));
+      results = results.filter(
+        (c) => new Date(c.date || c.createdAt) >= new Date(filters.fromDate)
+      );
     }
 
     if (filters.toDate) {
-      results = results.filter((c) => new Date(c.date) <= new Date(filters.toDate));
+      results = results.filter(
+        (c) =>
+          new Date(c.date || c.createdAt) <=
+          new Date(filters.toDate + "T23:59:59")
+      );
     }
 
     setFilteredCases(results);
@@ -141,9 +197,9 @@ const AllCases = () => {
   return (
     <div className="p-6">
       <h1 className="text-2xl font-semibold mb-6">All cases</h1>
+
       {/* Filter Section */}
       <div className="grid md:grid-cols-6 grid-cols-2 gap-4 mb-6 items-end">
-        {/* Duration */}
         <select
           name="duration"
           value={filters.duration}
@@ -156,25 +212,43 @@ const AllCases = () => {
           <option>Custom range</option>
         </select>
 
-        {/* From date */}
-        <input
-          type="date"
-          name="fromDate"
-          value={filters.fromDate}
-          onChange={handleFilterChange}
-          className="border rounded-md px-2 py-1 text-sm"
-        />
+        {/* Date Filters in separate row */}
+{/* Date Filters in separate row */}
+<div className="md:col-span-2 col-span-2 grid grid-cols-2 gap-4">
 
-        {/* To date */}
-        <input
-          type="date"
-          name="toDate"
-          value={filters.toDate}
-          onChange={handleFilterChange}
-          className="border rounded-md px-2 py-1 text-sm"
-        />
+  {/* FROM DATE */}
+  <div className="flex flex-col">
+    <label className="text-xs text-gray-600 mb-1">From</label>
+    <input
+      type="date"
+      name="fromDate"
+      value={filters.fromDate}
+      onChange={handleFilterChange}
+      className={`border rounded-md px-2 py-1 text-sm min-w-[140px]
+        ${filters.duration !== "Custom range" ? "bg-gray-200" : ""}
+      `}
+    />
+  </div>
 
-        {/* Reg. no */}
+  {/* TO DATE */}
+  <div className="flex flex-col">
+    <label className="text-xs text-gray-600 mb-1">To</label>
+    <input
+      type="date"
+      name="toDate"
+      value={filters.toDate}
+      onChange={handleFilterChange}
+      className={`border rounded-md px-2 py-1 text-sm min-w-[140px]
+        ${filters.duration !== "Custom range" ? "bg-gray-200" : ""}
+      `}
+    />
+  </div>
+
+</div>
+
+
+
+
         <input
           type="text"
           placeholder="Reg. no"
@@ -184,7 +258,6 @@ const AllCases = () => {
           className="border rounded-md px-2 py-1 text-sm"
         />
 
-        {/* Patient first name */}
         <input
           type="text"
           placeholder="Patient first name"
@@ -194,7 +267,6 @@ const AllCases = () => {
           className="border rounded-md px-2 py-1 text-sm"
         />
 
-        {/* Referred by */}
         <select
           name="referredBy"
           value={filters.referredBy}
@@ -207,7 +279,6 @@ const AllCases = () => {
           <option>GOWELNEXT TPA</option>
         </select>
 
-        {/* Collection Centre */}
         <select
           name="collectionCentre"
           value={filters.collectionCentre}
@@ -219,7 +290,6 @@ const AllCases = () => {
           <option>Centre B</option>
         </select>
 
-        {/* Sample collection agent */}
         <input
           type="text"
           placeholder="Sample collection agent"
@@ -229,7 +299,6 @@ const AllCases = () => {
           className="border rounded-md px-2 py-1 text-sm col-span-2"
         />
 
-        {/* Checkboxes */}
         <label className="flex items-center space-x-2 text-sm">
           <input
             type="checkbox"
@@ -239,6 +308,7 @@ const AllCases = () => {
           />
           <span>Has due</span>
         </label>
+
         <label className="flex items-center space-x-2 text-sm">
           <input
             type="checkbox"
@@ -249,7 +319,6 @@ const AllCases = () => {
           <span>Cancelled</span>
         </label>
 
-        {/* Buttons */}
         <div className="flex space-x-2 col-span-2">
           <button
             onClick={handleSearch}
@@ -257,6 +326,7 @@ const AllCases = () => {
           >
             Search
           </button>
+
           <button
             onClick={handleClear}
             className="bg-gray-200 px-4 py-1 rounded-md text-sm"
@@ -282,6 +352,7 @@ const AllCases = () => {
               <th className="p-3 text-left">ACTIONS</th>
             </tr>
           </thead>
+
           <tbody>
             {filteredCases.length === 0 ? (
               <tr>
@@ -293,39 +364,60 @@ const AllCases = () => {
               filteredCases.map((c, i) => (
                 <tr key={i} className="border-b hover:bg-gray-50">
                   <td className="p-3">{c.regNo}</td>
-                 <td className="p-3 text-wrap">
-  {new Date(c.createdAt || c.date).toLocaleDateString("en-GB")}
-  <br />
-  {new Date(c.createdAt || c.date).toLocaleTimeString("en-GB", {
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: true,
-  })}
-</td>
+
+                  <td className="p-3 text-wrap">
+                    {new Date(c.createdAt || c.date).toLocaleDateString("en-GB")}
+                    <br />
+                    {new Date(c.createdAt || c.date).toLocaleTimeString("en-GB", {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                      hour12: true,
+                    })}
+                  </td>
 
                   <td className="p-3">
                     {c.patient.firstName} {c.patient.lastName} <br />
-                    <span className="text-gray-500 text-xs">📞 {c.patient.mobile}</span>
+                    <span className="text-gray-500 text-xs">
+                      📞 {c.patient.mobile}
+                    </span>
                   </td>
+
                   <td className="p-3">{c.patient.doctor || c.referredBy}</td>
+
                   <td className="p-3">Rs.{c.payment.total}</td>
                   <td className="p-3">Rs.{c.payment.received}</td>
                   <td className="p-3">Rs.{c.payment.discount}</td>
+
                   <td className="p-3">
                     <span className="bg-blue-600 text-white px-2 py-1 rounded-md text-xs">
                       {c.status}
                     </span>
                   </td>
+
                   <td className="p-3 relative">
-                    <button onClick={()=> navigate(`/${branchId}/bill/${c._id}`)} className="text-blue-600 text-sm mr-2">
+                    <button
+                      onClick={() => navigate(`/${branchId}/bill/${c._id}`)}
+                      className="text-blue-600 text-sm mr-2"
+                    >
                       View bill
                     </button>
-                    <button onClick={() => setOpenMenu(openMenu === i ? null : i)}>
+
+                    <button
+                      onClick={() =>
+                        setOpenMenu(openMenu === i ? null : i)
+                      }
+                    >
                       <MoreHorizontal className="inline-block w-5 h-5" />
                     </button>
+
                     {openMenu === i && (
                       <div className="absolute right-0 mt-2 bg-white border shadow-md rounded-md z-10">
-                        <button onClick={()=> navigate(`/${branchId}/edit-case/${c._id}`)} className="px-4 py-2 text-red-500 hover:bg-gray-100 w-full text-left">
+                        <button
+                          onClick={() =>
+                            navigate(`/${branchId}/edit-case/${c._id}`)
+                          }
+                          className="px-4 py-2 text-red-500 hover:bg-gray-100 w-full text-left"
+                        >
                           Modify
                         </button>
                       </div>
@@ -342,4 +434,3 @@ const AllCases = () => {
 };
 
 export default AllCases;
-

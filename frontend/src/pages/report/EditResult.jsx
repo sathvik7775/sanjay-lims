@@ -84,20 +84,37 @@ const EditResult = () => {
 
         // ✅ Save full structure for resubmission
         if (resultData && Array.isArray(resultData.categories)) {
-          setResultStructure(resultData.categories);
+  setResultStructure(resultData.categories);
 
-          resultData.categories.forEach((cat) => {
-            (cat.items || []).forEach((item) => {
-              (item.tests || []).forEach((test) => {
-                collectedTests.push(test);
-                (test.params || []).forEach((p) => {
-                  initialResults[p.paramId] = p.value || "";
-                  initialReferences[p.paramId] = p.reference || "";
-                });
-              });
-            });
+  resultData.categories.forEach((cat) => {
+    (cat.items || []).forEach((item) => {
+
+      // 🔹 CASE 1: Panel → has tests[]
+      if (Array.isArray(item.tests) && item.tests.length > 0) {
+        item.tests.forEach((test) => {
+          collectedTests.push(test);
+
+          (test.params || []).forEach((p) => {
+            initialResults[p.paramId] = p.value || "";
+            initialReferences[p.paramId] = p.reference || "";
           });
-        }
+        });
+      }
+
+      // 🔹 CASE 2: Normal test → params[] directly inside items
+      else {
+        collectedTests.push(item);
+
+        (item.params || []).forEach((p) => {
+          initialResults[p.paramId] = p.value || "";
+          initialReferences[p.paramId] = p.reference || "";
+        });
+      }
+
+    });
+  });
+}
+
 
         setResults(initialResults);
         setReferences(initialReferences);
@@ -231,158 +248,266 @@ const handleChange = async (paramId, value) => {
 
   return (
     <div className="p-6 bg-gray-50 min-h-screen">
-      <h1 className="font-bold text-2xl mb-4">Edit Results</h1>
 
-      <PatientHeader report={report} />
+  {/* Header */}
+  <PatientHeader report={report} />
 
-      {Object.entries(
-        allTests.reduce((acc, test) => {
-          const category = test.category?.trim() || "Uncategorized";
-          if (!acc[category]) acc[category] = [];
-          acc[category].push(test);
-          return acc;
-        }, {})
-      ).map(([categoryName, tests], cIdx) => (
-        <div key={cIdx} className="mb-10 border rounded-lg bg-white shadow-sm">
-          <div className="border-b bg-gray-100 px-4 py-3 text-center font-semibold text-gray-700">
-            ✶ {categoryName.toUpperCase()}
-          </div>
+  {/* Group tests by category */}
+  {Object.entries(
+    allTests.reduce((acc, test) => {
+      const category = test.category?.trim() || "Uncategorized";
+      if (!acc[category]) acc[category] = [];
+      acc[category].push(test);
+      return acc;
+    }, {})
+  ).map(([categoryName, tests], cIdx) => (
+    <div key={cIdx} className="mb-10 border rounded-lg bg-white shadow-sm">
 
-          {tests.map((test, iIdx) => (
-            <TestRow
-              key={iIdx}
-              item={test}
-              results={results}
-              references={references}
-              handleChange={handleChange}
-            />
-          ))}
-        </div>
-      ))}
+      <div className="border-b bg-gray-100 px-4 py-3 text-center font-semibold text-gray-700">
+        ✶ {categoryName.toUpperCase()}
+      </div>
 
-      {branchToken && (
-        <div className="mt-6 flex gap-4">
-          <button
-            onClick={() => handleSubmit("In Progress")}
-            className="bg-gray-500 hover:bg-gray-600 text-white px-6 py-2 rounded-md shadow-sm transition"
-          >
-            Save Only
-          </button>
-
-          <button
-            onClick={() => handleSubmit("Signed Off")}
-            className="bg-primary-dark hover:bg-primary text-white px-6 py-2 rounded-md shadow-sm transition"
-          >
-            Sign Off
-          </button>
-
-          <button
-            onClick={() => handleSubmit("Final")}
-            className="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-md shadow-sm transition"
-          >
-            Final
-          </button>
-        </div>
+      {tests.map((test, iIdx) =>
+        test.isPanel || test.isPackage ? (
+          <PanelOrPackageRow
+            key={iIdx}
+            item={test}
+            results={results}
+            references={references}
+            handleChange={handleChange}
+            
+          />
+        ) : (
+          <TestRow
+            key={iIdx}
+            item={test}
+            results={results}
+            references={references}
+            handleChange={handleChange}
+            
+          />
+        )
       )}
     </div>
+  ))}
+
+  {/* Buttons */}
+  <div className="mt-6 flex gap-4">
+    <button
+      onClick={() => handleSubmit("In Progress")}
+      className="bg-gray-500 hover:bg-gray-600 text-white px-6 py-2 rounded-md shadow-sm transition"
+    >
+      Save Only
+    </button>
+
+    <button
+      onClick={() => handleSubmit("Signed Off")}
+      className="bg-primary-dark hover:bg-primary text-white px-6 py-2 rounded-md shadow-sm transition"
+    >
+      Sign Off
+    </button>
+
+    <button
+      onClick={() => handleSubmit("Final")}
+      className="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-md shadow-sm transition"
+    >
+      Final
+    </button>
+  </div>
+
+</div>
   );
 };
 
-/* ----------------------------- 🔹 Patient Header ----------------------------- */
 const PatientHeader = ({ report }) => (
   <div className="border rounded-lg bg-white shadow-sm p-4 mb-6">
     <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-sm">
-      <p>
-        <strong>Patient:</strong> {report.patient.firstName} {report.patient.lastName}
-      </p>
-      <p>
-        <strong>Age / Sex:</strong> {report.patient.age} {report.patient.ageUnit || "Years"} /{" "}
-        {report.patient.sex}
-      </p>
-      <p>
-        <strong>Doctor:</strong> {report.patient.doctor || "—"}
-      </p>
-      <p>
-        <strong>Date:</strong> {new Date(report.createdAt).toLocaleDateString()}
-      </p>
-      <p>
-        <strong>Reg No:</strong> {report.regNo}
-      </p>
-      <p>
-        <strong>UHID:</strong> {report.patient.uhid}
-      </p>
+      <p><strong>Patient Name:</strong> {report.patient.firstName} {report.patient.lastName}</p>
+      <p><strong>Age / Sex:</strong> {report.patient.age} {report.patient.ageUnit || "Years"} / {report.patient.sex}</p>
+      <p><strong>Referred By:</strong> {report.patient.doctor || "—"}</p>
+      <p><strong>Date:</strong> {new Date(report.createdAt).toLocaleDateString()}</p>
+      <p><strong>PAT. ID:</strong> {report.regNo}</p>
+      <p><strong>UHID:</strong> {report.patient.uhid}</p>
     </div>
   </div>
 );
 
-/* ----------------------------- 🔹 Test Table ----------------------------- */
-const TestRow = ({ item, results, references, handleChange }) => {
+
+const TestRow = ({ item, results, references, handleChange,  }) => {
   const params = Array.isArray(item.params) ? item.params : [];
   const groups = [...new Set(params.map((p) => p.groupBy || "Ungrouped"))];
 
+  const isDLC = item.testName?.trim().toLowerCase() === "differential leucocyte count";
+
+  let dlcTotal = 0;
+  if (isDLC) {
+    dlcTotal = params.reduce((sum, p) => {
+      const val = parseFloat(results[p.paramId] || 0);
+      return sum + (isNaN(val) ? 0 : val);
+    }, 0);
+  }
+
+  const checkRange = (value, reference) => {
+    if (!value || !reference) return null;
+
+    const match = reference.match(/([\d.]+)\s*-\s*([\d.]+)/);
+    if (!match) return null;
+
+    const [, min, max] = match;
+    const numVal = parseFloat(value);
+
+    if (numVal < parseFloat(min)) return { type: "low", min, max };
+    if (numVal > parseFloat(max)) return { type: "high", min, max };
+    return null;
+  };
+
   return (
-    <div className="mt-4 px-6 border rounded-md pb-4">
-      <div className="font-semibold text-gray-800 mb-2">✶ {item.testName}</div>
+    <div className="mt-4 px-6">
+
+      {params.length > 1 && (
+        <div className="font-semibold text-gray-800 mb-2">
+          ✶ {item.testName}
+        </div>
+      )}
 
       {groups.map((group) => (
         <div key={group} className="mb-4">
-          {group && <div className="font-semibold text-gray-700 mb-1 ml-7">{group}</div>}
+          {group && <div className="font-semibold text-gray-700 ml-7 mb-1">{group}</div>}
 
-          <table className="w-full text-sm border-t border-gray-300">
+          <table className="w-full text-sm border-t border-gray-300 table-fixed">
             <thead>
               <tr className="bg-gray-100">
-                <th className="text-left px-2 py-1 w-[40%]">Parameter</th>
-                <th className="text-left px-2 py-1 w-[20%]">Value</th>
-                <th className="text-left px-2 py-1 w-[20%]">Unit</th>
-                <th className="text-left px-2 py-1 w-[20%]">Reference</th>
+                <th className="px-2 py-1 text-left w-[40%]">Test</th>
+                <th className="px-2 py-1 text-left w-[20%]">Value</th>
+                <th className="px-2 py-1 text-left w-[20%]">Unit</th>
+                <th className="px-2 py-1 text-left w-[20%]">Reference</th>
               </tr>
             </thead>
 
             <tbody>
               {params
                 .filter((p) => (p.groupBy || "Ungrouped") === group)
-                .map((param) => (
-                  <tr key={param.paramId} className="border-t hover:bg-gray-50">
-                    <td className="px-4 py-2 text-gray-800">
-                      <div className="flex items-center gap-2">
-                        <span>{param.name}</span>
-                        {param.isFormula && param.formulaString && (
-                          <div className="relative group inline-flex items-center">
-                            <span className="text-blue-600 font-bold cursor-pointer border border-blue-500 px-1 rounded text-xs">
-                              ƒ
-                            </span>
-                            <div className="absolute hidden group-hover:block bg-gray-800 text-white text-xs rounded px-2 py-1 -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap z-10 shadow-lg">
-                              Formula: {param.formulaString}
+                .map((param) => {
+                  const value = results[param.paramId] || "";
+                  const reference = references[param.paramId] || "";
+                  const out = checkRange(value, reference);
+
+                  return (
+                    <tr key={param.paramId} className="border-t">
+                      <td className="px-4 py-2 w-[40%] flex items-center gap-2">
+                        {out && (
+                          <span className="text-red-600 font-bold text-xs">
+                            {out.type === "high" ? "H ↑" : "L ↓"}
+                          </span>
+                        )}
+                        {param.name}
+                      </td>
+
+                      <td className="px-3 py-2 relative">
+                        <input
+                          type="text"
+                          value={value}
+                          onChange={(e) =>
+                            handleChange(param.paramId, e.target.value)
+                          }
+                          className={`w-full border rounded px-2 py-1 ${
+                            out ? "border-red-500 text-red-600 font-bold" : "border-gray-300"
+                          }`}
+                        />
+
+                        {out && (
+                          <div className="absolute right-2 top-1/2 -translate-y-1/2 group cursor-pointer">
+                            <span className="text-red-600 font-bold">⚠</span>
+                            <div className="hidden group-hover:block absolute right-6 top-1/2 -translate-y-1/2 bg-white border border-red-700 text-red-500 text-xs p-2 rounded shadow-lg w-48">
+                              {out.type === "high"
+                                ? `${value} is higher than ${out.max}`
+                                : `${value} is lower than ${out.min}`}
                             </div>
                           </div>
                         )}
-                      </div>
-                    </td>
-                    <td className="px-3 py-2">
-                      <input
-                        type="text"
-                        value={results[param.paramId] || ""}
-                        onChange={(e) => handleChange(param.paramId, e.target.value)}
-                        className="w-full border border-gray-300 rounded px-2 py-1 focus:ring-1 focus:ring-blue-400 outline-none"
-                      />
-                    </td>
-                    <td className="px-3 py-2 text-gray-600">{param.unit}</td>
-                    <td className="px-3 py-2 text-gray-600">
-                      <input
-                        type="text"
-                        value={references[param.paramId] || ""}
-                        disabled
-                        className="w-full border border-gray-300 rounded px-2 py-1 bg-gray-100"
-                      />
-                    </td>
-                  </tr>
-                ))}
+                      </td>
+
+                      <td className="px-3 py-2 text-gray-600">{param.unit}</td>
+
+                      <td className="px-3 py-2">
+                        <input
+                          type="text"
+                          value={reference}
+                          disabled
+                          className="w-full border border-gray-300 bg-gray-100 rounded px-2 py-1"
+                        />
+                      </td>
+                    </tr>
+                  );
+                })}
             </tbody>
           </table>
+
+          {isDLC && (
+            <div className="mt-2 text-sm font-semibold">
+              Total:{" "}
+              <span className={dlcTotal === 100 ? "text-green-600" : "text-red-600"}>
+                {dlcTotal}
+              </span>
+            </div>
+          )}
+
+          {item.interpretation && (
+            <div className="mt-3">
+              <div className="font-semibold text-gray-800 text-sm">Interpretation:</div>
+              <div
+                className="text-gray-700 text-sm ml-4"
+                dangerouslySetInnerHTML={{ __html: item.interpretation }}
+              />
+            </div>
+          )}
         </div>
       ))}
     </div>
   );
 };
+
+
+const PanelOrPackageRow = ({ item, results, references, handleChange }) => (
+  <div className="mt-6 px-6">
+    <div className="text-center bg-gray-200 px-3 py-2 font-semibold text-gray-700 mb-1">
+      {item.panelName || item.packageName}
+    </div>
+
+    {item.tests?.map((test, idx) =>
+      test.isPanel || test.isPackage ? (
+        <PanelOrPackageRow
+          key={idx}
+          item={test}
+          results={results}
+          references={references}
+          handleChange={handleChange}
+          
+        />
+      ) : (
+        <TestRow
+          key={idx}
+          item={test}
+          results={results}
+          references={references}
+          handleChange={handleChange}
+          
+        />
+      )
+    )}
+
+    {item.interpretation && (
+      <div className="mt-3 mb-2 px-2">
+        <div className="font-semibold text-gray-800 text-sm">Interpretation:</div>
+        <div
+          className="text-gray-700 text-sm mt-1 ml-4"
+          dangerouslySetInnerHTML={{ __html: item.interpretation }}
+        />
+      </div>
+    )}
+  </div>
+);
+
+
 
 export default EditResult;
