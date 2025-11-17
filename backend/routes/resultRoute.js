@@ -24,6 +24,8 @@ resultRouter.get("/report/:reportId", verifyBranchToken, getResultsByReport);
 
 // ✏️ Update existing result
 resultRouter.put("/update/:reportId", verifyBranchToken, updateResult);
+resultRouter.delete("/delete/:reportId",  deleteResult);
+resultRouter.delete("/admin/delete/:reportId", verifyAdminToken, deleteResult);
 
 /**
  * 🧾 ADMIN ROUTES
@@ -32,7 +34,7 @@ resultRouter.put("/update/:reportId", verifyBranchToken, updateResult);
 resultRouter.post("/admin/add", verifyAdminToken, addResult);
 
 // 🗑️ Delete result
-resultRouter.delete("/admin/delete/:reportId", verifyAdminToken, deleteResult);
+
 resultRouter.get("/admin/report/:reportId", verifyAdminToken, getResultsByReport);
 resultRouter.put("/admin/update/:reportId", verifyAdminToken, updateResult);
 

@@ -73,6 +73,7 @@ import AdminPrintSetting from '../report/AdminPrintSetting'
 import AddTestManually from '../lab/AddTestManually'
 import WhatsappTemplates from '../report/WhatsappTemplates'
 import RateList from '../lab/RateList'
+import TodaysAdminreports from './lab master/TodaysAdminReports'
 
 
 const AdminHome = () => {
@@ -103,6 +104,7 @@ const AdminHome = () => {
             {/* ✅ Lab (Master) */}
             
             <Route path="all-reports" element={<AdminAllReports selectedBranch={selectedBranch} />} />
+            <Route path="today-reports" element={<TodaysAdminreports selectedBranch={selectedBranch} />} />
             <Route path="test-database" element={<TestDatabase selectedBranch={selectedBranch} />} />
             <Route path="test-categories" element={<TestCategories selectedBranch={selectedBranch} />} />
             <Route path="test-panels" element={<TestPanels selectedBranch={selectedBranch} />} />

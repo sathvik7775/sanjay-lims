@@ -4,7 +4,8 @@ import axios from "axios";
 import { LabContext } from "../../../context/LabContext";
 
 const AdminTransactions = () => {
-  const { adminToken, branchId, navigate } = useContext(LabContext);
+  const { adminToken, navigate } = useContext(LabContext);
+
   const [branches, setBranches] = useState([]);
   const [transactions, setTransactions] = useState([]);
   const [filteredTransactions, setFilteredTransactions] = useState([]);
@@ -15,12 +16,16 @@ const AdminTransactions = () => {
     collectionCentre: "",
     type: "",
     branch: "",
+    from: "",
+    to: "",
   });
 
   const [page, setPage] = useState(1);
   const rowsPerPage = 10;
 
-  // 🔹 Fetch branches
+  // ============================
+  //  FETCH BRANCHES
+  // ============================
   useEffect(() => {
     const fetchBranches = async () => {
       try {
@@ -28,8 +33,7 @@ const AdminTransactions = () => {
           `${import.meta.env.VITE_API_URL}/api/admin/branch/list`,
           { headers: { Authorization: `Bearer ${adminToken}` } }
         );
-        console.log(res.data);
-        
+
         setBranches(res.data.branches || []);
       } catch (err) {
         console.error("Error fetching branches:", err);
@@ -38,7 +42,9 @@ const AdminTransactions = () => {
     fetchBranches();
   }, [adminToken]);
 
-  // 🔹 Fetch transactions (cases)
+  // ============================
+  //  FETCH TRANSACTIONS
+  // ============================
   useEffect(() => {
     const fetchTransactions = async () => {
       try {
@@ -46,43 +52,38 @@ const AdminTransactions = () => {
           `${import.meta.env.VITE_API_URL}/api/cases/admin/list`,
           { headers: { Authorization: `Bearer ${adminToken}` } }
         );
+
         const cases = res.data.data || [];
 
-        // Convert cases into transaction-friendly format
         const mapped = cases.map((c) => {
-   // branchId from case: can be string or object
-  const branchIdStr = c.branchId?._id ? c.branchId._id.toString() : c.branchId?.toString();
+          const branchIdStr = c.branchId?._id
+            ? c.branchId._id.toString()
+            : c.branchId?.toString();
 
-  // find branch
-  const branch = branches.find((b) => b._id === branchIdStr) || {};
+          const branch = branches.find((b) => b._id === branchIdStr) || {};
 
-  console.log("BranchId:", branchIdStr, "→ Found:", branch.name);
-    
-
-    
-    
-
-  return {
-    id: c._id,
-    regNo: c.regNo || "N/A",
-    dcn: c.dcn || "N/A", 
-    patientName: `${c.patient?.firstName || ""} ${c.patient?.lastName || ""}`,
-    referredBy: c.patient?.doctor || "SELF",
-    date: new Date(c.createdAt).toLocaleDateString("en-GB"),
-    time: new Date(c.createdAt).toLocaleTimeString("en-GB", {
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: true,
-    }),
-    cc: c.center || "Main",
-    type: c.status === "due" ? "Pending" : "Income",
-    amount: c.payment?.total || 0,
-    method: c.payment?.mode || "Cash",
-    receivedBy: branch?.name || "N/A", // ✅ show branch name as receiver
-        // ✅ show branch name
-    branch: branch?.name || "N/A",     // ✅ show branch name
-  };
-});
+          return {
+            id: c._id,
+            regNo: c.regNo || "N/A",
+            dcn: c.dcn || "N/A",
+            patientName: `${c.patient?.firstName || ""} ${
+              c.patient?.lastName || ""
+            }`,
+            referredBy: c.patient?.doctor || "SELF",
+            date: new Date(c.createdAt).toISOString().split("T")[0], // YYYY-MM-DD
+            time: new Date(c.createdAt).toLocaleTimeString("en-GB", {
+              hour: "2-digit",
+              minute: "2-digit",
+              hour12: true,
+            }),
+            cc: c.center || "Main",
+            type: c.status === "due" ? "Pending" : "Income",
+            amount: c.payment?.total || 0,
+            method: c.payment?.mode || "Cash",
+            receivedBy: branch?.name || "N/A",
+            branch: branch?.name || "N/A",
+          };
+        });
 
         setTransactions(mapped);
         setFilteredTransactions(mapped);
@@ -91,9 +92,11 @@ const AdminTransactions = () => {
       }
     };
     fetchTransactions();
-  }, [adminToken]);
+  }, [adminToken, branches]);
 
-  // 🔹 Handle filters
+  // ============================
+  //  FILTER HANDLERS
+  // ============================
   const handleFilterChange = (e) => {
     const { name, value } = e.target;
     setFilters((prev) => ({ ...prev, [name]: value }));
@@ -102,25 +105,74 @@ const AdminTransactions = () => {
   const handleSearch = () => {
     let results = [...transactions];
 
-    if (filters.paymentMode)
+    // Payment Mode
+    if (filters.paymentMode) {
       results = results.filter(
-        (t) => t.method.toLowerCase() === filters.paymentMode.toLowerCase()
+        (t) => t.method?.toLowerCase() === filters.paymentMode.toLowerCase()
       );
+    }
 
-    if (filters.collectionCentre)
+    // Collection Centre
+    if (filters.collectionCentre) {
       results = results.filter(
-        (t) => t.cc.toLowerCase() === filters.collectionCentre.toLowerCase()
+        (t) =>
+          t.cc?.toLowerCase() === filters.collectionCentre.toLowerCase()
       );
+    }
 
-    if (filters.type)
+    // Type
+    if (filters.type) {
       results = results.filter(
-        (t) => t.type.toLowerCase() === filters.type.toLowerCase()
+        (t) => t.type?.toLowerCase() === filters.type.toLowerCase()
       );
+    }
 
-    if (filters.branch)
+    // Branch
+    if (filters.branch) {
       results = results.filter(
-        (t) => t.branch.toLowerCase() === filters.branch.toLowerCase()
+        (t) => t.branch?.toLowerCase() === filters.branch.toLowerCase()
       );
+    }
+
+    // DATE FILTERS
+    const today = new Date();
+
+    // Past 7 Days
+    if (filters.duration === "Past 7 days") {
+      const seven = new Date();
+      seven.setDate(today.getDate() - 7);
+
+      results = results.filter((t) => {
+        const d = new Date(t.date);
+        return d >= seven && d <= today;
+      });
+    }
+
+    // Past 30 Days
+    if (filters.duration === "Past 30 days") {
+      const thirty = new Date();
+      thirty.setDate(today.getDate() - 30);
+
+      results = results.filter((t) => {
+        const d = new Date(t.date);
+        return d >= thirty && d <= today;
+      });
+    }
+
+    // Custom Date Range
+    if (
+      filters.duration === "Custom" &&
+      filters.from &&
+      filters.to
+    ) {
+      const from = new Date(filters.from);
+      const to = new Date(filters.to);
+
+      results = results.filter((t) => {
+        const d = new Date(t.date);
+        return d >= from && d <= to;
+      });
+    }
 
     setFilteredTransactions(results);
     setPage(1);
@@ -133,25 +185,33 @@ const AdminTransactions = () => {
       collectionCentre: "",
       type: "",
       branch: "",
+      from: "",
+      to: "",
     });
+
     setFilteredTransactions(transactions);
     setPage(1);
   };
 
-  // 🔹 Pagination
+  // ============================
+  //  PAGINATION
+  // ============================
   const paginatedData = filteredTransactions.slice(
     (page - 1) * rowsPerPage,
     page * rowsPerPage
   );
 
-  
-
+  // ============================
+  //  RENDER UI
+  // ============================
   return (
     <div className="p-6">
       <h1 className="text-2xl font-semibold mb-4">Transactions</h1>
 
-      {/* 🔹 Filters */}
+      {/* Filters */}
       <div className="border rounded-lg shadow-sm mb-6 bg-white p-4 grid grid-cols-5 gap-4 items-end">
+
+        {/* Duration */}
         <div>
           <label className="block text-sm font-medium">Duration</label>
           <select
@@ -166,6 +226,34 @@ const AdminTransactions = () => {
           </select>
         </div>
 
+        {/* Custom Date Range */}
+        {filters.duration === "Custom" && (
+          <div className="col-span-2 flex gap-4">
+            <div>
+              <label className="text-sm">From</label>
+              <input
+                type="date"
+                name="from"
+                value={filters.from}
+                onChange={handleFilterChange}
+                className="border rounded-md w-full p-2 text-sm"
+              />
+            </div>
+
+            <div>
+              <label className="text-sm">To</label>
+              <input
+                type="date"
+                name="to"
+                value={filters.to}
+                onChange={handleFilterChange}
+                className="border rounded-md w-full p-2 text-sm"
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Payment Mode */}
         <div>
           <label className="block text-sm font-medium">Payment mode</label>
           <select
@@ -181,6 +269,7 @@ const AdminTransactions = () => {
           </select>
         </div>
 
+        {/* Collection Centre */}
         <div>
           <label className="block text-sm font-medium">Collection centre</label>
           <select
@@ -189,13 +278,14 @@ const AdminTransactions = () => {
             onChange={handleFilterChange}
             className="border rounded-md w-full p-2 text-sm"
           >
-            <option value="">Select centre</option>
-            <option>Main</option>
-            <option>Centre A</option>
-            <option>Centre B</option>
+            <option value="">Collection centre</option>
+          <option value="Main">Main</option>
+          <option value="Home visit">Home visit</option>
+          <option value="Center visit">Center visit</option>
           </select>
         </div>
 
+        {/* Type */}
         <div>
           <label className="block text-sm font-medium">Type</label>
           <select
@@ -210,6 +300,7 @@ const AdminTransactions = () => {
           </select>
         </div>
 
+        {/* Branch */}
         <div>
           <label className="block text-sm font-medium">Branch</label>
           <select
@@ -220,11 +311,14 @@ const AdminTransactions = () => {
           >
             <option value="">All Branches</option>
             {branches.map((b) => (
-              <option key={b._id}>{b.name}</option>
+              <option key={b._id} value={b.name}>
+                {b.name}
+              </option>
             ))}
           </select>
         </div>
 
+        {/* Buttons */}
         <div className="col-span-5 flex gap-2 justify-end mt-2">
           <button
             onClick={handleSearch}
@@ -241,7 +335,7 @@ const AdminTransactions = () => {
         </div>
       </div>
 
-      {/* 🔹 Table */}
+      {/* Table */}
       <div className="overflow-x-auto">
         <table className="w-full border text-sm">
           <thead className="bg-gray-100">
@@ -261,6 +355,7 @@ const AdminTransactions = () => {
               <th className="p-2 border">ACTION</th>
             </tr>
           </thead>
+
           <tbody>
             {paginatedData.length === 0 ? (
               <tr>
@@ -271,7 +366,9 @@ const AdminTransactions = () => {
             ) : (
               paginatedData.map((row, i) => (
                 <tr key={i} className="hover:bg-gray-50">
-                  <td className="p-2 border">{i + 1 + (page - 1) * rowsPerPage}</td>
+                  <td className="p-2 border">
+                    {i + 1 + (page - 1) * rowsPerPage}
+                  </td>
                   <td className="p-2 border">{row.regNo}</td>
                   <td className="p-2 border">{row.patientName}</td>
                   <td className="p-2 border">{row.referredBy}</td>
@@ -283,7 +380,11 @@ const AdminTransactions = () => {
                   <td className="p-2 border">Rs.{row.amount}</td>
                   <td className="p-2 border">{row.method}</td>
                   <td className="p-2 border">{row.receivedBy}</td>
-                  <td onClick={()=> navigate(`/admin/bill/${row.id}`)} className="p-2 border text-blue-600 cursor-pointer">
+
+                  <td
+                    onClick={() => navigate(`/admin/bill/${row.id}`)}
+                    className="p-2 border text-blue-600 cursor-pointer"
+                  >
                     View bill
                   </td>
                 </tr>
@@ -293,7 +394,7 @@ const AdminTransactions = () => {
         </table>
       </div>
 
-      {/* 🔹 Pagination */}
+      {/* Pagination */}
       <div className="flex justify-between items-center mt-4">
         <button
           disabled={page === 1}
@@ -304,11 +405,15 @@ const AdminTransactions = () => {
         </button>
 
         <span>
-          Page {page} of {Math.ceil(filteredTransactions.length / rowsPerPage)}
+          Page {page} of{" "}
+          {Math.ceil(filteredTransactions.length / rowsPerPage)}
         </span>
 
         <button
-          disabled={page === Math.ceil(filteredTransactions.length / rowsPerPage)}
+          disabled={
+            page ===
+            Math.ceil(filteredTransactions.length / rowsPerPage)
+          }
           onClick={() => setPage((p) => p + 1)}
           className="flex items-center border rounded-md px-3 py-1 disabled:opacity-50"
         >

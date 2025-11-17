@@ -26,9 +26,12 @@ const AdminNavbar = () => {
     }
   };
 
-  useEffect(() => {
-  fetchBranches();
-}, []);
+useEffect(() => {
+  if (adminToken) {
+    fetchBranches();
+  }
+}, [adminToken]);
+
 
         const logout = ()=>{
                 setAdminToken("")

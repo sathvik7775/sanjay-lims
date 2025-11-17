@@ -198,45 +198,86 @@ const EditCase = () => {
 
   // ---------------- Update Case ----------------
   const handleUpdateCase = async () => {
-    try {
-      const caseData = {
-  branchId,
-  patient: formData,
-  tests: selectedTests,
-  payment,
-  categories: activeCategories,
-  createdAt: formData.registeredOn
-    ? new Date(formData.registeredOn).toISOString()
-    : undefined, // ✅ include registration datetime
-  whatsappTriggers: selectedTemplates.map((id) => {
-    const template = msgTemplates.find((t) => t._id === id);
-    return {
-      templateId: id,
-      enabled: false,
-      triggerType: template?.triggerType || "custom",
+  try {
+    // 1️⃣ Check existing results
+    const existingResults = await axios.get(
+      `${import.meta.env.VITE_API_URL}/api/results/report/${id}`,
+      { headers: { Authorization: `Bearer ${branchToken}` } }
+    );
+
+    console.log("🔥 RAW EXISTING RESULTS:", existingResults.data);
+
+    const resultData = existingResults.data?.data;
+
+    // 🔍 If result exists, delete it (works for array OR object)
+    let hasResults = false;
+
+    if (Array.isArray(resultData)) {
+      hasResults = resultData.length > 0;
+    } else if (resultData && typeof resultData === "object") {
+      hasResults = true;
+    }
+
+    if (hasResults) {
+      const deleteRes = await axios.delete(
+        `${import.meta.env.VITE_API_URL}/api/results/delete/${id}`,
+        { headers: { Authorization: `Bearer ${branchToken}` } }
+      );
+
+      console.log("🗑 DELETE RESPONSE:", deleteRes.data);
+
+      if (!deleteRes.data.success) {
+        errorToast("Cannot update case: previous results could not be deleted.");
+        return;
+      }
+
+      console.log("Previous results deleted ✅");
+    }
+
+    // 2️⃣ Prepare updated case data
+    const caseData = {
+      branchId,
+      patient: formData,
+      tests: selectedTests,
+      payment,
+      categories: activeCategories,
+      createdAt: formData.registeredOn
+        ? new Date(formData.registeredOn).toISOString()
+        : undefined,
+      whatsappTriggers: selectedTemplates.map((templateId) => {
+        const template = msgTemplates.find((t) => t._id === templateId);
+        return {
+          templateId,
+          enabled: false,
+          triggerType: template?.triggerType || "custom",
+        };
+      }),
     };
-  }),
+
+    // 3️⃣ Update the case
+    const response = await axios.put(
+      `${import.meta.env.VITE_API_URL}/api/cases/branch/edit/${id}`,
+      caseData,
+      {
+        headers: {
+          Authorization: `Bearer ${branchToken}`,
+          "Content-Type": "application/json",
+        },
+      }
+    );
+
+    if (response.data.success) {
+      successToast("Case updated successfully!");
+      // navigate(`/${branchId}/all-cases`);
+    } else {
+      errorToast(response.data.message || "Failed to update case");
+    }
+  } catch (error) {
+    console.error("Update Case Error:", error);
+    errorToast(error.response?.data?.message || "Server error");
+  }
 };
 
-
-
-      const config = {
-        headers: { Authorization: `Bearer ${branchToken}`, "Content-Type": "application/json" },
-      };
-
-      const response = await axios.put(`${import.meta.env.VITE_API_URL}/api/cases/branch/edit/${id}`, caseData, config);
-
-      if (response.data.success) {
-        successToast("Case updated successfully!");
-        navigate(`/${branchId}/all-cases`); // go back to cases list
-      } else {
-        errorToast(response.data.message || "Failed to update case");
-      }
-    } catch (error) {
-      console.error("Update Case Error:", error);
-      errorToast(error.response?.data?.message || "Server error");
-    }
-  };
 
 
   return (

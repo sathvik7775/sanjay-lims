@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useContext } from "react";
-import { LabContext } from "../../context/LabContext";
-import Loader from "../../components/Loader";
+
 import axios from "axios";
+import { LabContext } from "../../../context/LabContext";
+import Loader from "../../../components/Loader";
 
 
-const Todaysreports = () => {
-  const { branchId, branchToken, navigate, errorToast } = useContext(LabContext);
+const TodaysAdminreports = () => {
+  const { branchId, branchToken, navigate, errorToast, adminToken } = useContext(LabContext);
 
   const [allReports, setAllReports] = useState([]);
   const [filteredReports, setFilteredReports] = useState([]);
@@ -50,8 +51,8 @@ const Todaysreports = () => {
     // 1️⃣ Try as TEST
     try {
       const res = await axios.get(
-        `${import.meta.env.VITE_API_URL}/api/test/database/test/${safeId}`,
-        { headers: { Authorization: `Bearer ${branchToken}` } }
+        `${import.meta.env.VITE_API_URL}/api/test/database/admin/test/${safeId}`,
+        { headers: { Authorization: `Bearer ${adminToken}` } }
       );
       if (res.data.success && res.data.data) {
         return { type: "TEST", data: { name: res.data.data.name, category: res.data.data.categoryName } };
@@ -61,8 +62,8 @@ const Todaysreports = () => {
     // 2️⃣ Try as PANEL
     try {
       const res = await axios.get(
-        `${import.meta.env.VITE_API_URL}/api/test/panels/panel/${safeId}`,
-        { headers: { Authorization: `Bearer ${branchToken}` } }
+        `${import.meta.env.VITE_API_URL}/api/test/panels/admin/panel/${safeId}`,
+        { headers: { Authorization: `Bearer ${adminToken}` } }
       );
       if (res.data.success && res.data.data) {
         return { type: "PANEL", data: res.data.data };
@@ -72,8 +73,8 @@ const Todaysreports = () => {
     // 3️⃣ Try as PACKAGE
     try {
       const res = await axios.get(
-        `${import.meta.env.VITE_API_URL}/api/test/packages/branch/package/${safeId}`,
-        { headers: { Authorization: `Bearer ${branchToken}` } }
+        `${import.meta.env.VITE_API_URL}/api/test/packages/admin/package/${safeId}`,
+        { headers: { Authorization: `Bearer ${adminToken}` } }
       );
       if (res.data.success && res.data.data) {
         return { type: "PACKAGE", data: res.data.data };
@@ -103,9 +104,9 @@ const Todaysreports = () => {
   const fetchReports = async () => {
     try {
       setLoading(true);
-      const config = { headers: { Authorization: `Bearer ${branchToken}` } };
+      const config = { headers: { Authorization: `Bearer ${adminToken}` } };
       const res = await axios.get(
-        `${import.meta.env.VITE_API_URL}/api/cases/branch/list/${branchId}`,
+        `${import.meta.env.VITE_API_URL}/api/cases/admin/list`,
         config
       );
 
@@ -117,7 +118,7 @@ const Todaysreports = () => {
           reports.map(async (r) => {
             try {
               const caseRes = await axios.get(
-                `${import.meta.env.VITE_API_URL}/api/results/report/${r._id}`,
+                `${import.meta.env.VITE_API_URL}/api/results/admin/report/${r._id}`,
                 config
               );
 
@@ -498,7 +499,7 @@ useEffect(() => {
 
                 <td className="p-3 flex flex-col gap-1">
                   <button
-                    onClick={() => navigate(`/${branchId}/bill/${r._id}`)}
+                    onClick={() => navigate(`/admin/bill/${r._id}`)}
                     className="text-blue-600 text-sm"
                   >
                     View
@@ -507,7 +508,7 @@ useEffect(() => {
                   <button
                     onClick={() =>
                       navigate(
-                        `/${branchId}/${r.dynamicStatus === "Signed off" ? "edit-result" : "enter-result"}/${r._id}`
+                        `/admin/${r.dynamicStatus === "Signed off" ? "edit-result" : "enter-result"}/${r._id}`
                       )
                     }
                     className="text-gray-600 text-sm"
@@ -550,4 +551,4 @@ useEffect(() => {
 
 }
 
-export default Todaysreports
+export default TodaysAdminreports

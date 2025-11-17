@@ -6,7 +6,13 @@ dotenv.config();
 export const verifyBranchToken = (req, res, next) => {
   const authHeader = req.headers.authorization;
 
-  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+  // ❗ Prevent verifying "null" or "undefined"
+  if (
+    !authHeader ||
+    !authHeader.startsWith("Bearer ") ||
+    authHeader.split(" ")[1] === "null" ||
+    authHeader.split(" ")[1] === "undefined"
+  ) {
     return res.status(401).json({ success: false, message: "No token provided" });
   }
 
@@ -14,13 +20,15 @@ export const verifyBranchToken = (req, res, next) => {
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
     if (decoded.role !== "branch") {
       return res.status(403).json({ success: false, message: "Access denied" });
     }
 
     req.branch = decoded;
-    req.userType = "branch"; // ✅ add this
-    req.branchId = decoded.branchId; 
+    req.userType = "branch";
+    req.branchId = decoded.branchId;
+
     next();
   } catch (err) {
     return res.status(401).json({ success: false, message: "Invalid or expired token" });

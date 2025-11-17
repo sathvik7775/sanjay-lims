@@ -173,6 +173,7 @@ const AdminSidebar = () => {
           {/* Lab Master */}
           <Section title="Lab (Master)" icon="/test-tube.png" name="lab">
           
+            <MenuItem icon="/report.png" text="Today's Reports" to="/admin/today-reports" />
             <MenuItem icon="/list.png" text="All Reports" to="/admin/all-reports" />
             <MenuItem icon="/server.png" text="Test Database" to="/admin/test-database" />
             <MenuItem icon="/credit-card.png" text="RateList" to="/admin/rate-list" />

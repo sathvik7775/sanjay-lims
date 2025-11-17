@@ -4,7 +4,7 @@ import { LabContext } from "../../context/LabContext";
 import Loader from "../../components/Loader";
 
 const BranchLogin = () => {
-  const { setBranchId, navigate, successToast, errorToast, branchData, setBranchData } = useContext(LabContext);
+  const { setBranchId, navigate, successToast, errorToast, branchData, setBranchData, setBranchToken } = useContext(LabContext);
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -33,15 +33,20 @@ const BranchLogin = () => {
       
 
       if (res.data.success) {
-        // Save token + branch info
-        localStorage.setItem("branchToken", res.data.token);
-        localStorage.setItem("branchInfo", JSON.stringify(res.data.branch));
+  // Save token + branch info
+  localStorage.setItem("branchToken", res.data.token);
+  localStorage.setItem("branchInfo", JSON.stringify(res.data.branch));
 
-        setBranchId(res.data.branch._id);
-        setBranchData(res.data.branch)
-        successToast(res.data.message);
-        navigate(`/${res.data.branch._id}/dashboard`);
-      } else {
+  // ❗ VERY IMPORTANT
+  setBranchToken(res.data.token);
+
+  setBranchId(res.data.branch._id);
+  setBranchData(res.data.branch);
+
+  successToast(res.data.message);
+  navigate(`/${res.data.branch._id}/dashboard`);
+}
+ else {
         errorToast(res.data.message);
       }
     } catch (err) {
@@ -100,9 +105,7 @@ const BranchLogin = () => {
             <input type="checkbox" className="cursor-pointer accent-indigo-500" />
             Remember me
           </label>
-          <a className="text-blue-600 hover:underline" href="#">
-            Forgot Password?
-          </a>
+          
         </div>
 
         {/* Login button */}

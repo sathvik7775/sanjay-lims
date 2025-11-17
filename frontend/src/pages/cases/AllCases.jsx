@@ -4,12 +4,15 @@ import axios from "axios";
 import { LabContext } from "../../context/LabContext";
 
 const AllCases = () => {
-  const { branchId, navigate, branchToken, errorToast } = useContext(LabContext);
+  const { branchId, navigate, branchToken, errorToast, agents } = useContext(LabContext);
 
   const [openMenu, setOpenMenu] = useState(null);
   const [allCases, setAllCases] = useState([]);
   const [filteredCases, setFilteredCases] = useState([]);
   const [loading, setLoading] = useState(true);
+
+  // Doctor list
+  const [doctorList, setDoctorList] = useState([]);
 
   // Default today
   const today = new Date().toISOString().split("T")[0];
@@ -26,6 +29,22 @@ const AllCases = () => {
     hasDue: false,
     cancelled: false,
   });
+
+  // ---------------- Fetch doctors ----------------
+  const fetchDoctors = async () => {
+    try {
+      const res = await axios.get(
+        `${import.meta.env.VITE_API_URL}/api/doctors/branch/list`,
+        { headers: { Authorization: `Bearer ${branchToken}` } }
+      );
+
+      if (res.data.success) {
+        setDoctorList(res.data.data || []);
+      }
+    } catch (err) {
+      console.log("Doctor fetch error", err);
+    }
+  };
 
   // ---------------- Fetch cases ----------------
   const fetchCases = async () => {
@@ -44,7 +63,6 @@ const AllCases = () => {
         const data = response.data.data;
         setAllCases(data);
 
-        // 🔥 Auto filter today's cases
         const todaysFiltered = data.filter((c) => {
           const caseDate = new Date(c.createdAt || c.date)
             .toISOString()
@@ -65,7 +83,10 @@ const AllCases = () => {
   };
 
   useEffect(() => {
-    if (branchId) fetchCases();
+    if (branchId) {
+      fetchDoctors();
+      fetchCases();
+    }
   }, [branchId]);
 
   // ---------------- Filters ----------------
@@ -77,9 +98,8 @@ const AllCases = () => {
       let fromDate = "";
       let toDate = today.toISOString().split("T")[0];
 
-      if (value === "Today") {
-        fromDate = toDate;
-      } else if (value === "Past 7 days") {
+      if (value === "Today") fromDate = toDate;
+      else if (value === "Past 7 days") {
         const past = new Date();
         past.setDate(today.getDate() - 7);
         fromDate = past.toISOString().split("T")[0];
@@ -108,7 +128,6 @@ const AllCases = () => {
     }));
   };
 
-  // Clear filters → Reset to Today
   const handleClear = () => {
     const today = new Date().toISOString().split("T")[0];
 
@@ -125,7 +144,6 @@ const AllCases = () => {
       cancelled: false,
     });
 
-    // Also reset to today's cases automatically
     const todaysFiltered = allCases.filter((c) => {
       const caseDate = new Date(c.createdAt || c.date)
         .toISOString()
@@ -136,7 +154,7 @@ const AllCases = () => {
     setFilteredCases(todaysFiltered);
   };
 
-  // Search handler
+  // ---------------- Search ----------------
   const handleSearch = () => {
     let results = [...allCases];
 
@@ -153,11 +171,13 @@ const AllCases = () => {
     }
 
     if (filters.referredBy) {
-      results = results.filter((c) => c.referredBy === filters.referredBy);
+      results = results.filter((c) => c.patient.doctor === filters.referredBy);
     }
 
+    
+
     if (filters.collectionCentre) {
-      results = results.filter((c) => c.collectionCentre === filters.collectionCentre);
+      results = results.filter((c) => c.patient.center === filters.collectionCentre);
     }
 
     if (filters.sampleAgent) {
@@ -174,7 +194,6 @@ const AllCases = () => {
       results = results.filter((c) => c.cancelled);
     }
 
-    // Date Filters
     if (filters.fromDate) {
       results = results.filter(
         (c) => new Date(c.date || c.createdAt) >= new Date(filters.fromDate)
@@ -198,8 +217,10 @@ const AllCases = () => {
     <div className="p-6">
       <h1 className="text-2xl font-semibold mb-6">All cases</h1>
 
-      {/* Filter Section */}
+      {/* ---------------- FILTERS ---------------- */}
       <div className="grid md:grid-cols-6 grid-cols-2 gap-4 mb-6 items-end">
+
+        {/* DURATION */}
         <select
           name="duration"
           value={filters.duration}
@@ -212,43 +233,36 @@ const AllCases = () => {
           <option>Custom range</option>
         </select>
 
-        {/* Date Filters in separate row */}
-{/* Date Filters in separate row */}
-<div className="md:col-span-2 col-span-2 grid grid-cols-2 gap-4">
+        {/* DATE RANGE */}
+        <div className="md:col-span-2 col-span-2 grid grid-cols-2 gap-4">
+          <div className="flex flex-col">
+            <label className="text-xs text-gray-600 mb-1">From</label>
+            <input
+              type="date"
+              name="fromDate"
+              value={filters.fromDate}
+              onChange={handleFilterChange}
+              className={`border rounded-md px-2 py-1 text-sm min-w-[140px]
+                ${filters.duration !== "Custom range" ? "bg-gray-200" : ""}
+              `}
+            />
+          </div>
 
-  {/* FROM DATE */}
-  <div className="flex flex-col">
-    <label className="text-xs text-gray-600 mb-1">From</label>
-    <input
-      type="date"
-      name="fromDate"
-      value={filters.fromDate}
-      onChange={handleFilterChange}
-      className={`border rounded-md px-2 py-1 text-sm min-w-[140px]
-        ${filters.duration !== "Custom range" ? "bg-gray-200" : ""}
-      `}
-    />
-  </div>
+          <div className="flex flex-col">
+            <label className="text-xs text-gray-600 mb-1">To</label>
+            <input
+              type="date"
+              name="toDate"
+              value={filters.toDate}
+              onChange={handleFilterChange}
+              className={`border rounded-md px-2 py-1 text-sm min-w-[140px]
+                ${filters.duration !== "Custom range" ? "bg-gray-200" : ""}
+              `}
+            />
+          </div>
+        </div>
 
-  {/* TO DATE */}
-  <div className="flex flex-col">
-    <label className="text-xs text-gray-600 mb-1">To</label>
-    <input
-      type="date"
-      name="toDate"
-      value={filters.toDate}
-      onChange={handleFilterChange}
-      className={`border rounded-md px-2 py-1 text-sm min-w-[140px]
-        ${filters.duration !== "Custom range" ? "bg-gray-200" : ""}
-      `}
-    />
-  </div>
-
-</div>
-
-
-
-
+        {/* REG NO */}
         <input
           type="text"
           placeholder="Reg. no"
@@ -258,6 +272,7 @@ const AllCases = () => {
           className="border rounded-md px-2 py-1 text-sm"
         />
 
+        {/* PATIENT NAME */}
         <input
           type="text"
           placeholder="Patient first name"
@@ -267,6 +282,7 @@ const AllCases = () => {
           className="border rounded-md px-2 py-1 text-sm"
         />
 
+        {/* REFERRED BY (DYNAMIC) */}
         <select
           name="referredBy"
           value={filters.referredBy}
@@ -274,11 +290,14 @@ const AllCases = () => {
           className="border rounded-md px-2 py-1 text-sm"
         >
           <option value="">Referred by</option>
-          <option>MEDIBUDDY TPA</option>
-          <option>HEALTHINDIA TPA</option>
-          <option>GOWELNEXT TPA</option>
+          {doctorList.map((doc) => (
+            <option key={doc._id} value={doc.name}>
+              {doc.name}
+            </option>
+          ))}
         </select>
 
+        {/* COLLECTION CENTRE (STATIC) */}
         <select
           name="collectionCentre"
           value={filters.collectionCentre}
@@ -286,19 +305,15 @@ const AllCases = () => {
           className="border rounded-md px-2 py-1 text-sm"
         >
           <option value="">Collection centre</option>
-          <option>Centre A</option>
-          <option>Centre B</option>
+          <option value="Main">Main</option>
+          <option value="Home visit">Home visit</option>
+          <option value="Center visit">Center visit</option>
         </select>
 
-        <input
-          type="text"
-          placeholder="Sample collection agent"
-          name="sampleAgent"
-          value={filters.sampleAgent}
-          onChange={handleFilterChange}
-          className="border rounded-md px-2 py-1 text-sm col-span-2"
-        />
+        {/* SAMPLE AGENT */}
+        
 
+        {/* CHECKBOXES */}
         <label className="flex items-center space-x-2 text-sm">
           <input
             type="checkbox"
@@ -319,6 +334,7 @@ const AllCases = () => {
           <span>Cancelled</span>
         </label>
 
+        {/* BUTTONS */}
         <div className="flex space-x-2 col-span-2">
           <button
             onClick={handleSearch}
@@ -336,99 +352,130 @@ const AllCases = () => {
         </div>
       </div>
 
-      {/* Table */}
-      <div className="overflow-x-auto border rounded-lg shadow">
-        <table className="w-full text-sm">
-          <thead className="bg-gray-100 text-gray-600">
-            <tr>
-              <th className="p-3 text-left">REG. NO.</th>
-              <th className="p-3 text-left">DATE</th>
-              <th className="p-3 text-left">PATIENT</th>
-              <th className="p-3 text-left">REFERRED BY</th>
-              <th className="p-3 text-left">TOTAL</th>
-              <th className="p-3 text-left">PAID</th>
-              <th className="p-3 text-left">DISCOUNT</th>
-              <th className="p-3 text-left">STATUS</th>
-              <th className="p-3 text-left">ACTIONS</th>
-            </tr>
-          </thead>
+      {/* ---------------- TABLE ---------------- */}
+      <div className="overflow-x-auto border border-gray-300 ">
+  <table className="w-full text-sm">
+    {/* HEADER */}
+    <thead className="bg-gray-500 text-gray-600 text-xs uppercase">
+      <tr>
+        <th className="p-3 w-10"></th>
+        <th className="p-3 text-left">REG. NO.</th>
+        <th className="p-3 text-left">DATE</th>
+        <th className="p-3 text-left">PATIENT</th>
+        <th className="p-3 text-left">REFERRED BY</th>
+        <th className="p-3 text-left">TOTAL</th>
+        <th className="p-3 text-left">PAID</th>
+        <th className="p-3 text-left">DISCOUNT</th>
+        <th className="p-3 text-left">STATUS</th>
+        <th className="p-3 text-left">ACTIONS</th>
+      </tr>
+    </thead>
 
-          <tbody>
-            {filteredCases.length === 0 ? (
-              <tr>
-                <td colSpan="9" className="text-center py-4 text-gray-500">
-                  No results found
-                </td>
-              </tr>
-            ) : (
-              filteredCases.map((c, i) => (
-                <tr key={i} className="border-b hover:bg-gray-50">
-                  <td className="p-3">{c.regNo}</td>
+    {/* BODY */}
+    <tbody>
+      {filteredCases.length === 0 ? (
+        <tr>
+          <td colSpan="10" className="text-center py-4 text-gray-500">
+            No results found
+          </td>
+        </tr>
+      ) : (
+        filteredCases.map((c, i) => (
+          <tr key={i} className="border-b hover:bg-gray-50">
+            
+            {/* ARROW ICON */}
+            <td className="text-center">
+              <span className="text-blue-600 text-lg font-bold cursor-pointer">
+                ›
+              </span>
+            </td>
 
-                  <td className="p-3 text-wrap">
-                    {new Date(c.createdAt || c.date).toLocaleDateString("en-GB")}
-                    <br />
-                    {new Date(c.createdAt || c.date).toLocaleTimeString("en-GB", {
-                      hour: "2-digit",
-                      minute: "2-digit",
-                      hour12: true,
-                    })}
-                  </td>
+            {/* REG NO */}
+            <td className="p-3 font-medium text-gray-800">{c.regNo}</td>
 
-                  <td className="p-3">
-                    {c.patient.firstName} {c.patient.lastName} <br />
-                    <span className="text-gray-500 text-xs">
-                      📞 {c.patient.mobile}
-                    </span>
-                  </td>
+            {/* DATE + TIME */}
+            <td className="p-3 text-gray-700 leading-tight">
+              {new Date(c.createdAt || c.date).toLocaleDateString("en-GB")}
+              <br />
+              <span className="text-xs text-gray-500">
+                {new Date(c.createdAt || c.date).toLocaleTimeString("en-GB", {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                  hour12: true,
+                })}
+              </span>
+            </td>
 
-                  <td className="p-3">{c.patient.doctor || c.referredBy}</td>
+            {/* PATIENT */}
+            <td className="p-3">
+              <div className="font-medium text-gray-800">
+                {c.patient.firstName} {c.patient.lastName}
+              </div>
+              <div className="text-gray-500 text-xs flex items-center gap-1">
+                <span className="text-gray-500">📞</span>
+                {c.patient.mobile}
+              </div>
+            </td>
 
-                  <td className="p-3">Rs.{c.payment.total}</td>
-                  <td className="p-3">Rs.{c.payment.received}</td>
-                  <td className="p-3">Rs.{c.payment.discount}</td>
+            {/* REFERRED BY */}
+            <td className="p-3 text-gray-700">
+              {doctorList.find((d) => d._id === c.referredBy)?.name ||
+                c.patient.doctor ||
+                "-"}
+            </td>
 
-                  <td className="p-3">
-                    <span className="bg-blue-600 text-white px-2 py-1 rounded-md text-xs">
-                      {c.status}
-                    </span>
-                  </td>
+            {/* TOTAL */}
+            <td className="p-3 font-medium text-gray-800">
+              Rs.{c.payment.total}
+            </td>
 
-                  <td className="p-3 relative">
-                    <button
-                      onClick={() => navigate(`/${branchId}/bill/${c._id}`)}
-                      className="text-blue-600 text-sm mr-2"
-                    >
-                      View bill
-                    </button>
+            {/* PAID */}
+            <td className="p-3 text-gray-700">Rs.{c.payment.received}</td>
 
-                    <button
-                      onClick={() =>
-                        setOpenMenu(openMenu === i ? null : i)
-                      }
-                    >
-                      <MoreHorizontal className="inline-block w-5 h-5" />
-                    </button>
+            {/* DISCOUNT */}
+            <td className="p-3 text-gray-700">Rs.{c.payment.discount}</td>
 
-                    {openMenu === i && (
-                      <div className="absolute right-0 mt-2 bg-white border shadow-md rounded-md z-10">
-                        <button
-                          onClick={() =>
-                            navigate(`/${branchId}/edit-case/${c._id}`)
-                          }
-                          className="px-4 py-2 text-red-500 hover:bg-gray-100 w-full text-left"
-                        >
-                          Modify
-                        </button>
-                      </div>
-                    )}
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
+            {/* STATUS PILL */}
+            <td className="p-3">
+              <span className="bg-blue-600 text-white px-3 py-1 rounded-md text-xs font-semibold">
+                {c.status}
+              </span>
+            </td>
+
+            {/* ACTIONS */}
+            <td className="p-3 relative">
+              <button
+                onClick={() => navigate(`/${branchId}/bill/${c._id}`)}
+                className="text-blue-600 text-sm font-medium hover:underline"
+              >
+                View bill
+              </button>
+
+              <button
+                onClick={() => setOpenMenu(openMenu === i ? null : i)}
+                className="ml-2"
+              >
+                <MoreHorizontal className="inline-block w-5 h-5 text-gray-600" />
+              </button>
+
+              {openMenu === i && (
+                <div className="absolute right-0 mt-2 bg-white border shadow-md rounded-md z-10 w-28">
+                  <button
+                    onClick={() => navigate(`/${branchId}/edit-case/${c._id}`)}
+                    className="px-4 py-2 text-red-500 hover:bg-gray-100 w-full text-left"
+                  >
+                    Modify
+                  </button>
+                </div>
+              )}
+            </td>
+          </tr>
+        ))
+      )}
+    </tbody>
+  </table>
+</div>
+
     </div>
   );
 };

@@ -1,5 +1,6 @@
 import Result from "../models/Result.js";
 import Case from "../models/Case.js"; // or Report model depending on your project
+import mongoose from "mongoose";
 
 /**
  * @desc Add new result entry with full report structure
@@ -112,13 +113,33 @@ export const updateResult = async (req, res) => {
  * @route DELETE /api/results/delete/:reportId
  * @access Admin
  */
+
+
 export const deleteResult = async (req, res) => {
   try {
     const { reportId } = req.params;
-    const deleted = await Result.findOneAndDelete({ reportId });
 
-    if (!deleted)
-      return res.status(404).json({ success: false, message: "Result not found" });
+    console.log("🗑 Deleting Result for reportId:", reportId);
+
+    // Ensure valid ObjectId
+    if (!mongoose.Types.ObjectId.isValid(reportId)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid reportId format",
+      });
+    }
+
+    // Convert to ObjectId the correct way
+    const deleted = await Result.findOneAndDelete({
+      reportId: new mongoose.Types.ObjectId(reportId),
+    });
+
+    if (!deleted) {
+      return res.status(404).json({
+        success: false,
+        message: "Result not found",
+      });
+    }
 
     return res.status(200).json({
       success: true,
@@ -129,7 +150,6 @@ export const deleteResult = async (req, res) => {
     res.status(500).json({ success: false, message: "Server error" });
   }
 };
-
 /**
  * @desc Get all results
  * @route GET /api/results/all
