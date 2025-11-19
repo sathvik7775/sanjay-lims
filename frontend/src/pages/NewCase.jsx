@@ -72,11 +72,11 @@ const handleTemplateToggle = (id) => {
     "ECG",
     "TMT",
     "ECHO",
-    "X - RAY",
+    "XRAY",
     "USG",
     
-    "OUTSOURCE LAB",
-    "OTHER TESTS",
+    "OUTSOURCE",
+    "OTHER",
   ];
 
   const titleToGender = {

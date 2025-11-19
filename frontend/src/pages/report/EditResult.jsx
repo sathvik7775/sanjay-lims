@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useContext } from "react";
+import React, { useState, useEffect, useContext, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import axios from "axios";
 import { LabContext } from "../../context/LabContext";
@@ -50,6 +50,7 @@ const EditResult = () => {
   const navigate = useNavigate();
 
   const [loading, setLoading] = useState(true);
+  const [openMenu, setOpenMenu] = useState(false);
   const [report, setReport] = useState(null);
   const [results, setResults] = useState({});
   const [references, setReferences] = useState({});
@@ -242,6 +243,46 @@ const handleChange = async (paramId, value) => {
     }
   };
 
+  const menuRef = useRef(null);
+  
+  
+    useEffect(() => {
+    function handleClickOutside(event) {
+      if (menuRef.current && !menuRef.current.contains(event.target)) {
+        setOpenMenu(false);   // 🔥 Close menu
+      }
+    }
+  
+    document.addEventListener("mousedown", handleClickOutside);
+  
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
+  
+  const [showBar, setShowBar] = useState(true);
+  const [lastScrollY, setLastScrollY] = useState(0);
+  
+  useEffect(() => {
+    const handleScroll = () => {
+      if (window.scrollY > lastScrollY) {
+        // scrolling DOWN → hide
+        setShowBar(false);
+      } else {
+        // scrolling UP → show
+        setShowBar(true);
+      }
+      setLastScrollY(window.scrollY);
+    };
+  
+    window.addEventListener("scroll", handleScroll);
+  
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, [lastScrollY]);
+  
+  
+  
+
   /* ----------------------------- 🔹 UI ----------------------------- */
   if (loading) return <Loader />;
   if (!report) return <p className="p-6 text-gray-500">Report not found</p>;
@@ -291,29 +332,83 @@ const handleChange = async (paramId, value) => {
     </div>
   ))}
 
-  {/* Buttons */}
-  <div className="mt-6 flex gap-4">
-    <button
-      onClick={() => handleSubmit("In Progress")}
-      className="bg-gray-500 hover:bg-gray-600 text-white px-6 py-2 rounded-md shadow-sm transition"
-    >
-      Save Only
-    </button>
+  <div
+  className={`fixed bottom-0 left-[225px] right-0 
+              bg-white border-t border-gray-300 shadow-lg z-50
+              transition-transform duration-300
+              ${showBar ? "translate-y-0" : "translate-y-full"}`}
+>
+  <div className="w-full max-w-[1200px] mx-auto px-4 py-3 
+                  flex items-start justify-start gap-3">
 
-    <button
-      onClick={() => handleSubmit("Signed Off")}
-      className="bg-primary-dark hover:bg-primary text-white px-6 py-2 rounded-md shadow-sm transition"
-    >
-      Sign Off
-    </button>
+    {/* SIGN OFF GROUP */}
+    <div ref={menuRef} className="relative flex">
 
+      <button
+        onClick={() => handleSubmit("Signed Off")}
+        className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white
+                   px-5 h-10 rounded-l-md shadow transition border-r border-white"
+      >
+        <img src="/signature-w.png" className="w-4 h-4" />
+        <span className="font-medium">Sign off</span>
+      </button>
+
+      <button
+        onClick={() => setOpenMenu(!openMenu)}
+        className="bg-blue-600 hover:bg-blue-700 text-white w-10 h-10 
+                   flex items-center justify-center rounded-r-md shadow transition"
+      >
+        <img src="/down-arrow-w.png" className="w-3 h-3 opacity-80" />
+      </button>
+
+      {openMenu && (
+        <div className="absolute right-0 bottom-12 w-48 bg-white rounded-md shadow-lg border border-gray-300">
+
+          <div className="absolute -bottom-2 right-4 w-3 h-3 bg-white 
+                          rotate-45 border-l border-b"></div>
+
+          <ul className="py-2 text-sm">
+            <li
+              onClick={() => navigate(`/${branchId}/bill/${reportId}`)}
+              className="px-4 py-2 hover:bg-gray-100 cursor-pointer flex gap-2 items-center"
+            >
+              <img src="/eye.png" className="w-4 h-4" /> View bill
+            </li>
+
+            <li
+              onClick={() => navigate(`/${branchId}/edit-case/${reportId}`)}
+              className="px-4 py-2 hover:bg-gray-100 cursor-pointer flex gap-2 items-center"
+            >
+              <img src="/edit.png" className="w-4 h-4" /> Modify case
+            </li>
+          </ul>
+        </div>
+      )}
+    </div>
+
+    {/* FINAL BUTTON */}
     <button
       onClick={() => handleSubmit("Final")}
-      className="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-md shadow-sm transition"
+      className="flex items-center gap-2 border border-gray-300 text-gray-700 
+                 px-5 h-10 rounded-md hover:bg-gray-100 transition"
     >
-      Final
+      <img src="/check.png" className="w-4 h-4" />
+      <span className="font-medium">Final</span>
     </button>
+
+    {/* SAVE ONLY BUTTON */}
+    <button
+      onClick={() => handleSubmit("In Progress")}
+      className="flex items-center gap-2 border border-gray-300 text-gray-700 
+                 px-5 h-10 rounded-md hover:bg-gray-100 transition"
+    >
+      <img src="/save.png" className="w-4 h-4" />
+      <span className="font-medium">Save only</span>
+    </button>
+
   </div>
+</div>
+
 
 </div>
   );

@@ -124,10 +124,7 @@ const Sidebar = ({branchId}) => {
                                 <img src="/i.png" className='w-5 h-5' alt="" />
                                 <p className='text-secondary roboto-third text-[15px] whitespace-nowrap'>Interpretations</p>
                             </Link>
-                            <Link to={`/${branchId}/preferred-test`} className='flex gap-2 items-center cursor-pointer hover:bg-[#E5E7EB] px-3 rounded py-2'>
-                                <img src="/behavior.png" className='w-5 h-5' alt="" />
-                                <p className='text-secondary roboto-third text-[15px] whitespace-nowrap'>Preferred Tests</p>
-                            </Link>
+                            
 
                         </div>
                     </div>
@@ -286,10 +283,7 @@ const Sidebar = ({branchId}) => {
                                 <img src="/i.png" className='w-5 h-5' alt="" />
                                 <p className='text-secondary roboto-third text-[15px] whitespace-nowrap'>Interpretations</p>
                             </Link>
-                            <Link to={`/${branchId}/preferred-test`} onClick={()=> setvisible(false)} className='flex gap-2 items-center cursor-pointer hover:bg-[#E5E7EB] px-3 rounded py-2'>
-                                <img src="/behavior.png" className='w-5 h-5' alt="" />
-                                <p className='text-secondary roboto-third text-[15px] whitespace-nowrap'>Preferred Tests</p>
-                            </Link>
+                            
 
                         </div>
                         </div>

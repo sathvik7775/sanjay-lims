@@ -11,7 +11,7 @@ const EditAdminCase = () => {
 
   const { id } = useParams(); // case id from URL
   const navigate = useNavigate();
-
+const [categoryDcn, setCategoryDcn] = useState({});
    const [msgTemplates, setMsgTemplates] = useState([]); // fetched templates
 const [selectedTemplates, setSelectedTemplates] = useState([]); // array of selected template IDs
 
@@ -84,11 +84,11 @@ const handleTemplateToggle = (id) => {
     "ECG",
     "TMT",
     "ECHO",
-    "X - RAY",
+    "XRAY",
     "USG",
     
-    "OUTSOURCE LAB",
-    "OTHER TESTS",
+    "OUTSOURCE",
+    "OTHER",
   ];
 
   const titleToGender = {
@@ -98,6 +98,18 @@ const handleTemplateToggle = (id) => {
     "Dr.": "other",
 
   };
+
+   // Prefix mapping
+  const prefixMap = {
+  LAB: "L",
+  ECG: "E",
+  TMT: "T",
+  ECHO: "EH",   
+  XRAY: "X",
+  USG: "U",
+  OUTSOURCE: "O",
+  OTHER: "OT",
+};
 
   // ---------------- Handlers ----------------
   const handleChange = (e) => {
@@ -181,6 +193,26 @@ const handleTemplateToggle = (id) => {
           });
 
           setActiveCategories(c.categories || []);
+
+          const dcnCodes = (c.dcn || "")
+            .split(",")
+            .map((s) => s.trim())
+            .filter(Boolean);
+
+          // MAP TO CATEGORY → DCN
+          const catDcnMap = {};
+
+          dcnCodes.forEach((code) => {
+            const prefix = code[0]; // first letter
+            const category = Object.keys(prefixMap).find(
+              (cat) => prefixMap[cat] === prefix
+            );
+            if (category) {
+              catDcnMap[category] = code;
+            }
+          });
+
+          setCategoryDcn(catDcnMap);
           setSelectedTests(c.tests || {});
         }
       } catch (err) {
@@ -578,7 +610,16 @@ const selectedOptions = selectedForCat.map((t) => ({
 
   return (
     <div key={cat} className="bg-white p-4 rounded-xl shadow-sm mb-6 border">
-      <h2 className="font-semibold mb-2 text-gray-700">{cat} Investigations</h2>
+      <div className="flex items-center gap-3 mb-3">
+  {/* 🔥 DCN badge */}
+  <span className="px-3 py-1 bg-gray-200 text-gray-800 rounded text-xs font-semibold">
+    {categoryDcn[cat] || prefixMap[cat] + "00"}
+  </span>
+
+  <h2 className="font-semibold text-gray-700 text-lg">
+    {cat} Investigations
+  </h2>
+</div>
 
       {/* ✅ Multiselect input now correctly displays selected tests */}
       <Select

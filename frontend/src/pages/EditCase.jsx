@@ -13,18 +13,21 @@ const EditCase = () => {
   const { id } = useParams(); // case id from URL
   const navigate = useNavigate();
 
+  const [categoryDcn, setCategoryDcn] = useState({});
+
+
   const [msgTemplates, setMsgTemplates] = useState([]); // fetched templates
   const [selectedTemplates, setSelectedTemplates] = useState([]); // array of selected template IDs
-  
-  
+
+
   useEffect(() => {
     const fetchTemplates = async () => {
       try {
         const res = await axios.get(`${import.meta.env.VITE_API_URL}/api/whatsapp/get`, {
-          
+
         });
         console.log(res.data);
-        
+
         if (res.data.success) setMsgTemplates(res.data.data);
       } catch (err) {
         console.error("Failed to fetch templates:", err);
@@ -32,17 +35,30 @@ const EditCase = () => {
     };
     fetchTemplates();
   }, []);
-  
-  
-  
-  
-  
+
+
+
+
+
   const handleTemplateToggle = (id) => {
     setSelectedTemplates((prev) =>
       prev.includes(id) ? prev.filter((t) => t !== id) : [...prev, id]
     );
   };
-  
+
+  // Prefix mapping
+  const prefixMap = {
+  LAB: "L",
+  ECG: "E",
+  TMT: "T",
+  ECHO: "EH",   
+  XRAY: "X",
+  USG: "U",
+  OUTSOURCE: "O",
+  OTHER: "OT",
+};
+
+
 
   const [formData, setFormData] = useState({
     mobile: "",
@@ -87,12 +103,13 @@ const EditCase = () => {
     "ECG",
     "TMT",
     "ECHO",
-    "X - RAY",
+    "XRAY",
     "USG",
-    
-    "OUTSOURCE LAB",
-    "OTHER TESTS",
+
+    "OUTSOURCE",
+    "OTHER",
   ];
+
 
   const titleToGender = {
     "Mr.": "Male",
@@ -154,25 +171,25 @@ const EditCase = () => {
         if (res.data.success && res.data.data) {
           const c = res.data.data;
           setFormData({
-  mobile: c.patient?.mobile || "",
-  title: c.patient?.title || "",
-  firstName: c.patient?.firstName || "",
-  lastName: c.patient?.lastName || "",
-  age: c.patient?.age || "",
-  sex: c.patient?.sex || "",
-  uhid: c.patient?.uhid || "",
-  doctor: c.patient?.doctor || "",
-  agent: c.patient?.agent || "",
-  center: c.patient?.center || "Main",
-  onlineReport: c.patient?.onlineReport || false,
-  email: c.patient?.email || "",
-  address: c.patient?.address || "",
-  aadhaar: c.patient?.aadhaar || "",
-  history: c.patient?.history || "",
-  registeredOn: c.createdAt
-    ? new Date(c.createdAt).toISOString().slice(0, 16)
-    : "", // ✅ formatted datetime
-});
+            mobile: c.patient?.mobile || "",
+            title: c.patient?.title || "",
+            firstName: c.patient?.firstName || "",
+            lastName: c.patient?.lastName || "",
+            age: c.patient?.age || "",
+            sex: c.patient?.sex || "",
+            uhid: c.patient?.uhid || "",
+            doctor: c.patient?.doctor || "",
+            agent: c.patient?.agent || "",
+            center: c.patient?.center || "Main",
+            onlineReport: c.patient?.onlineReport || false,
+            email: c.patient?.email || "",
+            address: c.patient?.address || "",
+            aadhaar: c.patient?.aadhaar || "",
+            history: c.patient?.history || "",
+            registeredOn: c.createdAt
+              ? new Date(c.createdAt).toISOString().slice(0, 16)
+              : "", // ✅ formatted datetime
+          });
 
 
           setPayment({
@@ -185,6 +202,28 @@ const EditCase = () => {
           });
 
           setActiveCategories(c.categories || []);
+
+          // SPLIT DCN LIKE "E44, O1, X1, L63"
+          const dcnCodes = (c.dcn || "")
+            .split(",")
+            .map((s) => s.trim())
+            .filter(Boolean);
+
+          // MAP TO CATEGORY → DCN
+          const catDcnMap = {};
+
+          dcnCodes.forEach((code) => {
+            const prefix = code[0]; // first letter
+            const category = Object.keys(prefixMap).find(
+              (cat) => prefixMap[cat] === prefix
+            );
+            if (category) {
+              catDcnMap[category] = code;
+            }
+          });
+
+          setCategoryDcn(catDcnMap);
+
           setSelectedTests(c.tests || {});
         }
       } catch (err) {
@@ -197,53 +236,21 @@ const EditCase = () => {
   }, [id, adminToken]);
 
   // ---------------- Update Case ----------------
-  const handleUpdateCase = async () => {
+ // ---------------- Update Case ----------------
+const handleUpdateCase = async () => {
   try {
-    // 1️⃣ Check existing results
-    const existingResults = await axios.get(
-      `${import.meta.env.VITE_API_URL}/api/results/report/${id}`,
-      { headers: { Authorization: `Bearer ${branchToken}` } }
-    );
-
-    console.log("🔥 RAW EXISTING RESULTS:", existingResults.data);
-
-    const resultData = existingResults.data?.data;
-
-    // 🔍 If result exists, delete it (works for array OR object)
-    let hasResults = false;
-
-    if (Array.isArray(resultData)) {
-      hasResults = resultData.length > 0;
-    } else if (resultData && typeof resultData === "object") {
-      hasResults = true;
-    }
-
-    if (hasResults) {
-      const deleteRes = await axios.delete(
-        `${import.meta.env.VITE_API_URL}/api/results/delete/${id}`,
-        { headers: { Authorization: `Bearer ${branchToken}` } }
-      );
-
-      console.log("🗑 DELETE RESPONSE:", deleteRes.data);
-
-      if (!deleteRes.data.success) {
-        errorToast("Cannot update case: previous results could not be deleted.");
-        return;
-      }
-
-      console.log("Previous results deleted ✅");
-    }
-
-    // 2️⃣ Prepare updated case data
+    // 1️⃣ Prepare updated case data directly (NO result deletion)
     const caseData = {
       branchId,
       patient: formData,
-      tests: selectedTests,
-      payment,
+      tests: selectedTests,   // <-- updated test IDs 
       categories: activeCategories,
+      payment,
       createdAt: formData.registeredOn
         ? new Date(formData.registeredOn).toISOString()
         : undefined,
+
+      // WhatsApp triggers
       whatsappTriggers: selectedTemplates.map((templateId) => {
         const template = msgTemplates.find((t) => t._id === templateId);
         return {
@@ -254,7 +261,7 @@ const EditCase = () => {
       }),
     };
 
-    // 3️⃣ Update the case
+    // 2️⃣ Send update request
     const response = await axios.put(
       `${import.meta.env.VITE_API_URL}/api/cases/branch/edit/${id}`,
       caseData,
@@ -266,12 +273,14 @@ const EditCase = () => {
       }
     );
 
+    // 3️⃣ Success / error handling
     if (response.data.success) {
       successToast("Case updated successfully!");
       // navigate(`/${branchId}/all-cases`);
     } else {
       errorToast(response.data.message || "Failed to update case");
     }
+
   } catch (error) {
     console.error("Update Case Error:", error);
     errorToast(error.response?.data?.message || "Server error");
@@ -325,10 +334,10 @@ const EditCase = () => {
               placeholder="Select title..."
             />
             <datalist id="titles">
-  {Object.keys(titleToGender).map((t) => (
-    <option key={t} value={t} />
-  ))}
-</datalist>
+              {Object.keys(titleToGender).map((t) => (
+                <option key={t} value={t} />
+              ))}
+            </datalist>
 
           </div>
 
@@ -412,21 +421,21 @@ const EditCase = () => {
         </label>
       </div>
 
-       <div className="mb-4 mt-3">
-  <p className="font-medium mb-2">WhatsApp Templates</p>
-  <div className="flex  gap-3">
-    {msgTemplates.map((t) => (
-      <label key={t._id} className="flex items-center gap-2">
-        <input
-          type="checkbox"
-          checked={selectedTemplates.includes(t._id)}
-          onChange={() => handleTemplateToggle(t._id)}
-        />
-        {t.title} ({t.triggerType}),
-      </label>
-    ))}
-  </div>
-</div>
+      <div className="mb-4 mt-3">
+        <p className="font-medium mb-2">WhatsApp Templates</p>
+        <div className="flex  gap-3">
+          {msgTemplates.map((t) => (
+            <label key={t._id} className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={selectedTemplates.includes(t._id)}
+                onChange={() => handleTemplateToggle(t._id)}
+              />
+              {t.title} ({t.triggerType}),
+            </label>
+          ))}
+        </div>
+      </div>
 
       {/* Optional fields */}
       <div className="flex flex-wrap gap-4 mb-6 mt-6">
@@ -485,189 +494,198 @@ const EditCase = () => {
             </datalist>
           </div>
           <div
-  onClick={() => navigate(`/${branchId}/doctors`, { state: { openModal: true } })}
-  className="px-2 py-1 rounded border border-blue-500 w-30 md:mt-6 cursor-pointer"
->
-  <p className="text-blue-600 text-sm whitespace-nowrap cursor-pointer">+ Add new</p>
-</div>
+            onClick={() => navigate(`/${branchId}/doctors`, { state: { openModal: true } })}
+            className="px-2 py-1 rounded border border-blue-500 w-30 md:mt-6 cursor-pointer"
+          >
+            <p className="text-blue-600 text-sm whitespace-nowrap cursor-pointer">+ Add new</p>
+          </div>
         </div>
 
         <div className="flex flex-col md:flex-row gap-3">
-  {/* ✅ Collection Centre */}
-  <div>
-    <label className="block text-sm mb-1">* Collection Centre</label>
-    <select
-      name="center"
-      value={formData.center}
-      onChange={handleChange}
-      className="w-40 border border-gray-300 rounded-lg px-3 py-2"
-    >
-      <option value="">-</option>
-      <option value="Main">Main</option>
-      <option value="Home Visit">Home Visit</option>
-      <option value="Center Visit">Center Visit</option>
-    </select>
-  </div>
+          {/* ✅ Collection Centre */}
+          <div>
+            <label className="block text-sm mb-1">* Collection Centre</label>
+            <select
+              name="center"
+              value={formData.center}
+              onChange={handleChange}
+              className="w-40 border border-gray-300 rounded-lg px-3 py-2"
+            >
+              <option value="">-</option>
+              <option value="Main">Main</option>
+              <option value="Home Visit">Home Visit</option>
+              <option value="Center Visit">Center Visit</option>
+            </select>
+          </div>
 
-  {/* ✅ Sample Collection Technician */}
-  <div>
-    <label className="block text-sm mb-1">Sample Collection Technician</label>
-    <input
-      list="agents"
-      name="agent"
-      value={formData.agent}
-      onChange={handleChange}
-      className="w-full border border-gray-300 rounded-lg px-3 py-2"
-      placeholder="Select agent"
-    />
-    <datalist id="agents">
-      {agents.map((item) => (
-        <option key={item._id} value={`${item.name}`} />
-      ))}
-    </datalist>
-  </div>
+          {/* ✅ Sample Collection Technician */}
+          <div>
+            <label className="block text-sm mb-1">Sample Collection Technician</label>
+            <input
+              list="agents"
+              name="agent"
+              value={formData.agent}
+              onChange={handleChange}
+              className="w-full border border-gray-300 rounded-lg px-3 py-2"
+              placeholder="Select agent"
+            />
+            <datalist id="agents">
+              {agents.map((item) => (
+                <option key={item._id} value={`${item.name}`} />
+              ))}
+            </datalist>
+          </div>
 
-  {/* ✅ Registered On (Date & Time Picker) */}
-  {/* ✅ Editable Registered On */}
-<div>
-  <label className="block text-sm mb-1">Registered On*</label>
-  <input
-    type="datetime-local"
-    name="registeredOn"
-    value={formData.registeredOn}
-    onChange={handleChange}
-    className="w-52 border border-gray-300 rounded-lg px-3 py-2"
-  />
-</div>
+          {/* ✅ Registered On (Date & Time Picker) */}
+          {/* ✅ Editable Registered On */}
+          <div>
+            <label className="block text-sm mb-1">Registered On*</label>
+            <input
+              type="datetime-local"
+              name="registeredOn"
+              value={formData.registeredOn}
+              onChange={handleChange}
+              className="w-52 border border-gray-300 rounded-lg px-3 py-2"
+            />
+          </div>
 
 
-</div>
+        </div>
 
       </div>
 
       {/* Category Buttons */}
-<div className="flex flex-wrap gap-2 my-6">
-  {categories.map((tab) => (
-    <button
-      key={tab}
-      onClick={() => handleCategoryClick(tab)}
-      className={`px-4 py-2 rounded-md font-medium transition ${
-        activeCategories.includes(tab)
-          ? "bg-blue-600 text-white"
-          : "bg-blue-100 text-blue-700 hover:bg-blue-200"
-      }`}
-    >
-      {tab}
-    </button>
-  ))}
+      <div className="flex flex-wrap gap-2 my-6">
+        {categories.map((tab) => (
+          <button
+            key={tab}
+            onClick={() => handleCategoryClick(tab)}
+            className={`px-4 py-2 rounded-md font-medium transition ${activeCategories.includes(tab)
+                ? "bg-blue-600 text-white"
+                : "bg-blue-100 text-blue-700 hover:bg-blue-200"
+              }`}
+          >
+            {tab}
+          </button>
+        ))}
+      </div>
+
+      {/* Investigation Section with React Select */}
+      {/* Investigation Section with React Select */}
+      {/* Investigation Section with React Select */}
+      {activeCategories.map((cat) => {
+        let filteredTests = [];
+
+        // ✅ Filter tests by category type
+        if (cat === "LAB") {
+          filteredTests = dummyTests.filter((t) =>
+            [
+              "Haematology",
+              "Biochemistry",
+              "Serology & Immunology",
+              "Clinical Pathology",
+              "Endocrinology",
+              "Microbiology",
+              "Histopathology",
+            ].includes(t.category)
+          );
+        } else if (cat === "ECG") {
+          filteredTests = dummyTests.filter((t) => t.category === "Ecg");
+        } else if (cat === "TMT") {
+          filteredTests = dummyTests.filter((t) => t.category === "tmt");
+        } else if (cat === "ECHO") {
+          filteredTests = dummyTests.filter((t) => t.category === "Echo");
+        } else if (cat === "X - RAY") {
+          filteredTests = dummyTests.filter((t) => t.category === "X - ray");
+        } else if (cat === "USG") {
+          filteredTests = dummyTests.filter((t) => t.category === "USG");
+        } else if (cat === "OUTSOURCE LAB") {
+          filteredTests = dummyTests.filter((t) => t.category === "Outsource Lab");
+        } else if (cat === "OTHER TESTS") {
+          filteredTests = dummyTests.filter((t) => t.category === "Other");
+        } else {
+          filteredTests = dummyTests.filter((t) => t.category === cat);
+        }
+
+        // ✅ Combine both dummy tests and dummy panels together
+        const combinedOptions = [
+          ...filteredTests.map((test) => ({
+            value: test._id,
+            label: `🧪 ${test.name} (${test.shortName}) — ₹${test.price}`,
+            type: "test",
+          })),
+          ...dummyPanels.map((panel) => ({
+            value: panel._id,
+            label: `📋 ${panel.name} (Panel) — ₹${panel.price}`,
+            type: "panel",
+          })),
+        ];
+
+        // ✅ Get selected tests/panels for this category
+        // ✅ Get selected tests/panels for this category
+        const selectedForCat = (selectedTests[cat] || []).map((id) => {
+          return dummyTests.find((t) => t._id === id) || dummyPanels.find((p) => p._id === id);
+        });
+
+        // ✅ Format selected values for react-select
+        const selectedOptions = selectedForCat.map((t) => ({
+          value: t._id,
+          label:
+            t.type === "panel"
+              ? `📋 ${t.name} (Panel) — ₹${t.price}`
+              : `🧪 ${t.name} (${t.shortName}) — ₹${t.price}`,
+        }));
+
+
+        // ✅ Calculate subtotal for the category
+        const categoryTotal = selectedForCat.reduce((sum, t) => sum + (t.price || 0), 0);
+
+        return (
+          <div key={cat} className="bg-white p-4 rounded-xl shadow-sm mb-6 border">
+            <div className="flex items-center gap-3 mb-3">
+  {/* 🔥 DCN badge */}
+  <span className="px-3 py-1 bg-gray-200 text-gray-800 rounded text-xs font-semibold">
+    {categoryDcn[cat] || prefixMap[cat] + "00"}
+  </span>
+
+  <h2 className="font-semibold text-gray-700 text-lg">
+    {cat} Investigations
+  </h2>
 </div>
 
-{/* Investigation Section with React Select */}
-{/* Investigation Section with React Select */}
-{/* Investigation Section with React Select */}
-{activeCategories.map((cat) => {
-  let filteredTests = [];
 
-  // ✅ Filter tests by category type
-  if (cat === "LAB") {
-    filteredTests = dummyTests.filter((t) =>
-      [
-        "Haematology",
-        "Biochemistry",
-        "Serology & Immunology",
-        "Clinical Pathology",
-        "Endocrinology",
-        "Microbiology",
-        "Histopathology",
-      ].includes(t.category)
-    );
-   } else if (cat === "ECG") {
-  filteredTests = dummyTests.filter((t) => t.category === "Ecg");
-} else if (cat === "TMT") {
-  filteredTests = dummyTests.filter((t) => t.category === "tmt");
-} else if (cat === "ECHO") {
-  filteredTests = dummyTests.filter((t) => t.category === "Echo");
-} else if (cat === "X - RAY") {
-  filteredTests = dummyTests.filter((t) => t.category === "X - ray");
-} else if (cat === "USG") {
-  filteredTests = dummyTests.filter((t) => t.category === "USG");
-} else if (cat === "OUTSOURCE LAB") {
-  filteredTests = dummyTests.filter((t) => t.category === "Outsource Lab");
-} else if (cat === "OTHER TESTS") {
-  filteredTests = dummyTests.filter((t) => t.category === "Other");
-} else {
-  filteredTests = dummyTests.filter((t) => t.category === cat);
-}
+            {/* ✅ Multiselect input now correctly displays selected tests */}
+            <Select
+              isMulti
+              options={combinedOptions}
+              value={selectedOptions}
+              onChange={(selectedOptions) => handleSelectChange(cat, selectedOptions)}
+              placeholder="Search and select multiple tests..."
+              className="react-select-container mb-4"
+              classNamePrefix="react-select"
+            />
 
-  // ✅ Combine both dummy tests and dummy panels together
-  const combinedOptions = [
-    ...filteredTests.map((test) => ({
-      value: test._id,
-      label: `🧪 ${test.name} (${test.shortName}) — ₹${test.price}`,
-      type: "test",
-    })),
-    ...dummyPanels.map((panel) => ({
-      value: panel._id,
-      label: `📋 ${panel.name} (Panel) — ₹${panel.price}`,
-      type: "panel",
-    })),
-  ];
-
-  // ✅ Get selected tests/panels for this category
-  // ✅ Get selected tests/panels for this category
-const selectedForCat = (selectedTests[cat] || []).map((id) => {
-  return dummyTests.find((t) => t._id === id) || dummyPanels.find((p) => p._id === id);
-});
-
-// ✅ Format selected values for react-select
-const selectedOptions = selectedForCat.map((t) => ({
-  value: t._id,
-  label:
-    t.type === "panel"
-      ? `📋 ${t.name} (Panel) — ₹${t.price}`
-      : `🧪 ${t.name} (${t.shortName}) — ₹${t.price}`,
-}));
+            {selectedForCat.length > 0 && (
+              <div className="border-t pt-3 mt-3 text-sm">
+                <p className="font-medium mb-2 text-gray-700">Selected Tests:</p>
+                <ul className="list-disc ml-6 space-y-1 text-gray-600">
+                  {selectedForCat.map((test) => (
+                    <li key={test._id}>
+                      {test._id} — {test.name} ({test.shortName || test.short}) — ₹{test.price}
+                    </li>
+                  ))}
+                </ul>
 
 
-  // ✅ Calculate subtotal for the category
-  const categoryTotal = selectedForCat.reduce((sum, t) => sum + (t.price || 0), 0);
-
-  return (
-    <div key={cat} className="bg-white p-4 rounded-xl shadow-sm mb-6 border">
-      <h2 className="font-semibold mb-2 text-gray-700">{cat} Investigations</h2>
-
-      {/* ✅ Multiselect input now correctly displays selected tests */}
-      <Select
-        isMulti
-        options={combinedOptions}
-        value={selectedOptions}
-        onChange={(selectedOptions) => handleSelectChange(cat, selectedOptions)}
-        placeholder="Search and select multiple tests..."
-        className="react-select-container mb-4"
-        classNamePrefix="react-select"
-      />
-
-      {selectedForCat.length > 0 && (
-        <div className="border-t pt-3 mt-3 text-sm">
-          <p className="font-medium mb-2 text-gray-700">Selected Tests:</p>
-          <ul className="list-disc ml-6 space-y-1 text-gray-600">
-  {selectedForCat.map((test) => (
-    <li key={test._id}>
-      {test._id} — {test.name} ({test.shortName || test.short}) — ₹{test.price}
-    </li>
-  ))}
-</ul>
-
-
-          {/* ✅ Category-specific subtotal */}
-          <div className="mt-3 text-sm font-medium text-gray-700">
-            Category Total: ₹{categoryTotal.toFixed(2)}
+                {/* ✅ Category-specific subtotal */}
+                <div className="mt-3 text-sm font-medium text-gray-700">
+                  Category Total: ₹{categoryTotal.toFixed(2)}
+                </div>
+              </div>
+            )}
           </div>
-        </div>
-      )}
-    </div>
-  );
-})}
+        );
+      })}
 
 
 
@@ -681,18 +699,18 @@ const selectedOptions = selectedForCat.map((t) => ({
             { label: "Total (Rs)", key: "total" },
             { label: "Discount", key: "discount" },
             { label: "Amount Received", key: "received" },
-            
+
           ].map((item) => (
             <div key={item.key}>
               <label className="text-sm text-gray-600">{item.label}</label>
               <input
                 type="number"
-                 name={item.key}
+                name={item.key}
                 className="w-full border p-2 rounded-md"
                 value={payment[item.key]}
                 onChange={handlePaymentChange}
-                  // setPayment({ ...payment, [item.key]: +e.target.value })
-                disabled={item.key === "total"} 
+                // setPayment({ ...payment, [item.key]: +e.target.value })
+                disabled={item.key === "total"}
               />
             </div>
           ))}
@@ -730,7 +748,7 @@ const selectedOptions = selectedForCat.map((t) => ({
           <button onClick={handleUpdateCase} className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700">
             Update Case
           </button>
-          
+
         </div>
       </div>
     </div>

@@ -181,7 +181,7 @@ const AdminSidebar = () => {
             <MenuItem icon="/boxes.png" text="Test Panels" to="/admin/test-panels" />
             <MenuItem icon="/package-box.png" text="Test Packages" to="/admin/test-packages" />
             <MenuItem icon="/i.png" text="Interpretations" to="/admin/interpretations" />
-            <MenuItem icon="/behavior.png" text="Preferred tests" to="/admin/preferred-test" />
+            
             <MenuItem icon="/drugs.png" text="Approve Branch Tests" to="/admin/approve-branch-test" />
           </Section>
 

@@ -1,9 +1,9 @@
-import React, { useState, useEffect, useContext } from "react";
+import React, { useState, useEffect, useContext, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import axios from "axios";
 import { LabContext } from "../../context/LabContext";
 import Loader from "../../components/Loader";
-import {TriangleAlert} from 'lucide-react'
+import { TriangleAlert } from 'lucide-react'
 
 // 🔹 Convert age to years
 const ageToYears = (age, unit) => {
@@ -128,6 +128,12 @@ const fetchTestWithRefs = async (testId, reportData, branchToken) => {
     if (!testRes.data.success) return null;
     const test = testRes.data.data;
 
+    // 🚫 Skip DOCUMENT tests (do not show in enter results)
+    if (test.type === "document") {
+      return null; // completely ignore
+    }
+
+
     // Helper: fetch reference ranges for a test
     const fetchRefRanges = async (t) => {
       try {
@@ -218,39 +224,58 @@ const fetchTestWithRefs = async (testId, reportData, branchToken) => {
     };
 
     let allTests = [];
+
     if (test.tests?.length) {
       for (const child of test.tests) {
         const childId = extractId(child);
         if (!childId) continue;
 
+        // 🔹 Fetch the child test only ONCE
         const childRes = await axios.get(
           `${import.meta.env.VITE_API_URL}/api/test/database/test/${childId}`,
           { headers: { Authorization: `Bearer ${branchToken}` } }
         );
 
-        if (childRes.data.success) {
-          const t = childRes.data.data;
-          const refs = await fetchRefRanges(t);
-          const params = processTest(t, refs, reportData); // ✅ pass reportData
-          allTests.push({
-            testName: t.name,
-            category: t.category || test.category || "Other",
-            interpretation: t.interpretation || "",
-            params,
-            isFormula: t.isFormula || false, // Add this for formula check
-          });
+        if (!childRes.data.success) continue;
+
+        const childTest = childRes.data.data;
+
+        // 🚫 Skip DOCUMENT type tests
+        if (childTest.type === "document") {
+          console.log("⏭️ Skipping DOCUMENT test:", childTest.name);
+          continue;
         }
+
+        // 🔹 Fetch reference ranges
+        const refs = await fetchRefRanges(childTest);
+
+        // 🔹 Build processed params for result entry
+        const params = processTest(childTest, refs, reportData);
+
+        // 🔹 Push test to final array
+        allTests.push({
+          _id: childTest._id,          // ⭐ IMPORTANT – KEEP ORIGINAL TEST ID
+          testName: childTest.name,
+          category: childTest.category || test.category || "Other",
+          interpretation: childTest.interpretation || "",
+          params,
+          isFormula: childTest.isFormula || false,
+        });
+
       }
-    } else {
+    }
+    else {
       const refs = await fetchRefRanges(test);
       const params = processTest(test, refs, reportData); // ✅ pass reportData
       allTests.push({
+        _id: test._id,               // ⭐ IMPORTANT
         testName: test.name,
         category: test.category || "Other",
         interpretation: test.interpretation || "",
         params,
-        isFormula: test.isFormula || false, // Add this for formula check
+        isFormula: test.isFormula || false,
       });
+
     }
 
     // ✅ Attach formula details if applicable
@@ -284,6 +309,8 @@ const EnterResults = () => {
   const [testsByCategory, setTestsByCategory] = useState({});
   const [results, setResults] = useState({});
   const [references, setReferences] = useState({});
+  const [openMenu, setOpenMenu] = useState(false);
+
 
 
 
@@ -368,42 +395,55 @@ const EnterResults = () => {
         for (let item of validItems) {
           if (item.type === "TEST") {
             const testDataArray = Array.isArray(item.data) ? item.data : [item.data];
+
             testDataArray.forEach((testObj) => {
+
+              // ⭐ Only include tests whose ID is inside LAB array of the case
+              if (!reportData.tests?.LAB?.includes(testObj._id)) {
+                console.log("⏭ Skipping NON-LAB test:", testObj.name);
+                return;
+              }
+
+              // ⭐ Keep original category (Haematology, Clinical Pathology, etc.)
               const category = testObj.category || "Other";
+
               if (!categories[category]) categories[category] = [];
+
               if (Array.isArray(testObj.params)) processParams(testObj.params);
+
               if (testObj.params?.length > 0) categories[category].push(testObj);
             });
           }
 
+
           if (item.type === "PANEL") {
-  const panel = item.data;
+            const panel = item.data;
 
-  const panelObj = {
-    panelName: panel.name,
-    isPanel: true,
-    interpretation: panel.interpretation || "",
-    tests: [],
-  };
+            const panelObj = {
+              panelName: panel.name,
+              isPanel: true,
+              interpretation: panel.interpretation || "",
+              tests: [],
+            };
 
-  // Load tests of panel
-  for (let testItem of panel.tests || []) {
-    const testId = extractId(testItem);
-    const testObj = await fetchTestWithRefs(testId, reportData, branchToken);
-    if (testObj) panelObj.tests.push(...testObj);
-  }
+            // Load tests of panel
+            for (let testItem of panel.tests || []) {
+              const testId = extractId(testItem);
+              const testObj = await fetchTestWithRefs(testId, reportData, branchToken);
+              if (testObj) panelObj.tests.push(...testObj);
+            }
 
-  traverseTests(panelObj.tests);
+            traverseTests(panelObj.tests);
 
-  // ⭐ REAL CATEGORY of PANEL (from panel document)
-  const realCategory = panel.category?.trim() || "Other";
+            // ⭐ REAL CATEGORY of PANEL (from panel document)
+            const realCategory = panel.category?.trim() || "Other";
 
-  // Create category bucket if missing
-  if (!categories[realCategory]) categories[realCategory] = [];
+            // Create category bucket if missing
+            if (!categories[realCategory]) categories[realCategory] = [];
 
-  // Push panel into its real category
-  categories[realCategory].push(panelObj);
-}
+            // Push panel into its real category
+            categories[realCategory].push(panelObj);
+          }
 
 
 
@@ -520,19 +560,19 @@ const EnterResults = () => {
 
     // ✅ Flatten all tests
     // ✅ Extract ALL tests from ALL categories
-const allTests = [];
+    const allTests = [];
 
-Object.values(testsByCategory || {}).forEach((categoryItems) => {
-  categoryItems.forEach((item) => {
-    if (item.isPanel || item.isPackage) {
-      // inner tests
-      item.tests?.forEach((t) => allTests.push(t));
-    } else {
-      // normal test
-      allTests.push(item);
-    }
-  });
-});
+    Object.values(testsByCategory || {}).forEach((categoryItems) => {
+      categoryItems.forEach((item) => {
+        if (item.isPanel || item.isPackage) {
+          // inner tests
+          item.tests?.forEach((t) => allTests.push(t));
+        } else {
+          // normal test
+          allTests.push(item);
+        }
+      });
+    });
 
 
     console.log("🧩 Extracted all tests:", allTests.map((t) => t.testName));
@@ -764,6 +804,46 @@ Object.values(testsByCategory || {}).forEach((categoryItems) => {
     }
   };
 
+  const menuRef = useRef(null);
+
+
+  useEffect(() => {
+  function handleClickOutside(event) {
+    if (menuRef.current && !menuRef.current.contains(event.target)) {
+      setOpenMenu(false);   // 🔥 Close menu
+    }
+  }
+
+  document.addEventListener("mousedown", handleClickOutside);
+
+  return () => {
+    document.removeEventListener("mousedown", handleClickOutside);
+  };
+}, []);
+
+const [showBar, setShowBar] = useState(true);
+const [lastScrollY, setLastScrollY] = useState(0);
+
+useEffect(() => {
+  const handleScroll = () => {
+    if (window.scrollY > lastScrollY) {
+      // scrolling DOWN → hide
+      setShowBar(false);
+    } else {
+      // scrolling UP → show
+      setShowBar(true);
+    }
+    setLastScrollY(window.scrollY);
+  };
+
+  window.addEventListener("scroll", handleScroll);
+
+  return () => window.removeEventListener("scroll", handleScroll);
+}, [lastScrollY]);
+
+
+
+
 
 
 
@@ -772,7 +852,7 @@ Object.values(testsByCategory || {}).forEach((categoryItems) => {
   if (!report) return <p className="p-6 text-gray-500">Report not found</p>;
 
   return (
-    <div className="p-6 bg-gray-50 min-h-screen">
+    <div  className="p-6 bg-gray-50 min-h-screen ">
       {/* Header */}
       <div className="border rounded-lg bg-white shadow-sm p-4 mb-6">
         <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-sm">
@@ -802,28 +882,85 @@ Object.values(testsByCategory || {}).forEach((categoryItems) => {
         </div>
       ))}
 
-      <div className=" mt-6 flex  gap-4">
-        <button
-          onClick={() => handleSubmit("In Progress")}
-          className="bg-gray-500 hover:bg-gray-600 text-white px-6 py-2 rounded-md shadow-sm transition"
-        >
-          Save Only
-        </button>
+    <div
+  className={`fixed bottom-0 left-[225px] right-0 
+              bg-white border-t border-gray-300 shadow-lg z-50
+              transition-transform duration-300
+              ${showBar ? "translate-y-0" : "translate-y-full"}`}
+>
+  <div className="w-full max-w-[1200px] mx-auto px-4 py-3 
+                  flex items-start justify-start gap-3">
 
-        <button
-          onClick={() => handleSubmit("Signed Off")}
-          className="bg-primary-dark hover:bg-primary text-white px-6 py-2 rounded-md shadow-sm transition"
-        >
-          Sign Off
-        </button>
+    {/* SIGN OFF GROUP */}
+    <div ref={menuRef} className="relative flex">
 
-        <button
-          onClick={() => handleSubmit("Final")}
-          className="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-md shadow-sm transition"
-        >
-          Final
-        </button>
-      </div>
+      <button
+        onClick={() => handleSubmit("Signed Off")}
+        className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white
+                   px-5 h-10 rounded-l-md shadow transition border-r border-white"
+      >
+        <img src="/signature-w.png" className="w-4 h-4" />
+        <span className="font-medium">Sign off</span>
+      </button>
+
+      <button
+        onClick={() => setOpenMenu(!openMenu)}
+        className="bg-blue-600 hover:bg-blue-700 text-white w-10 h-10 
+                   flex items-center justify-center rounded-r-md shadow transition"
+      >
+        <img src="/down-arrow-w.png" className="w-3 h-3 opacity-80" />
+      </button>
+
+      {openMenu && (
+        <div className="absolute right-0 bottom-12 w-48 bg-white rounded-md shadow-lg border border-gray-300">
+
+          <div className="absolute -bottom-2 right-4 w-3 h-3 bg-white 
+                          rotate-45 border-l border-b"></div>
+
+          <ul className="py-2 text-sm">
+            <li
+              onClick={() => navigate(`/${branchId}/bill/${reportId}`)}
+              className="px-4 py-2 hover:bg-gray-100 cursor-pointer flex gap-2 items-center"
+            >
+              <img src="/eye.png" className="w-4 h-4" /> View bill
+            </li>
+
+            <li
+              onClick={() => navigate(`/${branchId}/edit-case/${reportId}`)}
+              className="px-4 py-2 hover:bg-gray-100 cursor-pointer flex gap-2 items-center"
+            >
+              <img src="/edit.png" className="w-4 h-4" /> Modify case
+            </li>
+          </ul>
+        </div>
+      )}
+    </div>
+
+    {/* FINAL BUTTON */}
+    <button
+      onClick={() => handleSubmit("Final")}
+      className="flex items-center gap-2 border border-gray-300 text-gray-700 
+                 px-5 h-10 rounded-md hover:bg-gray-100 transition"
+    >
+      <img src="/check.png" className="w-4 h-4" />
+      <span className="font-medium">Final</span>
+    </button>
+
+    {/* SAVE ONLY BUTTON */}
+    <button
+      onClick={() => handleSubmit("In Progress")}
+      className="flex items-center gap-2 border border-gray-300 text-gray-700 
+                 px-5 h-10 rounded-md hover:bg-gray-100 transition"
+    >
+      <img src="/save.png" className="w-4 h-4" />
+      <span className="font-medium">Save only</span>
+    </button>
+
+  </div>
+</div>
+
+
+
 
     </div>
   );
@@ -879,7 +1016,7 @@ const TestRow = ({ item, results, references, handleChange, handleReferenceChang
           </div>
         )}
 
-        
+
       </div>
 
       {/* GROUPS */}
@@ -929,27 +1066,27 @@ const TestRow = ({ item, results, references, handleChange, handleReferenceChang
 
                       {/* Param Name + High/Low marker */}
                       <td className="px-4 py-2 flex items-center gap-2">
-  {marker && (
-    <span className="text-red-600 font-bold text-xs">{marker}</span>
-  )}
+                        {marker && (
+                          <span className="text-red-600 font-bold text-xs">{marker}</span>
+                        )}
 
-  {param.name}
+                        {param.name}
 
-  {/* Formula Icon + Tooltip */}
-  {item.isFormula && item.formulaString && (
-    <div className="relative group inline-flex items-center">
-      <span className="text-blue-600 font-bold cursor-pointer border border-blue-500 px-1 rounded text-xs flex items-center justify-center">
-        ƒ
-      </span>
+                        {/* Formula Icon + Tooltip */}
+                        {item.isFormula && item.formulaString && (
+                          <div className="relative group inline-flex items-center">
+                            <span className="text-blue-600 font-bold cursor-pointer border border-blue-500 px-1 rounded text-xs flex items-center justify-center">
+                              ƒ
+                            </span>
 
-      {/* Tooltip */}
-      <div className="absolute hidden group-hover:block bg-gray-800 text-white text-xs rounded px-2 py-1 -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap shadow-lg">
-        Formula: {item.formulaString}
-        <div className="absolute bottom-[-5px] left-1/2 -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-l-transparent border-r-transparent border-t-gray-800"></div>
-      </div>
-    </div>
-  )}
-</td>
+                            {/* Tooltip */}
+                            <div className="absolute hidden group-hover:block bg-gray-800 text-white text-xs rounded px-2 py-1 -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap shadow-lg">
+                              Formula: {item.formulaString}
+                              <div className="absolute bottom-[-5px] left-1/2 -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-l-transparent border-r-transparent border-t-gray-800"></div>
+                            </div>
+                          </div>
+                        )}
+                      </td>
 
 
                       {/* Value Input */}

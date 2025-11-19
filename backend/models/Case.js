@@ -74,39 +74,61 @@ const CaseSchema = new Schema({
 CaseSchema.pre("save", async function (next) {
   const Case = mongoose.model("Case", CaseSchema);
 
-  // 🔹 Generate REG NO (if missing)
+  // ------- REG NO (same as before) -------
   if (!this.regNo) {
     let regNo;
     let exists = true;
 
-    // Keep generating until unique (per branch)
     while (exists) {
-      // Generate a random 9-digit number between 700000000 and 799999999
       const randomNum = Math.floor(700000000 + Math.random() * 100000000);
       regNo = randomNum.toString();
-
-      // Ensure uniqueness within the same branch
       exists = await Case.exists({ branchId: this.branchId, regNo });
     }
 
     this.regNo = regNo;
   }
 
-  // 🔹 Generate DCN (if missing)
+  // ------- DCN (NEW CATEGORY BASED LOGIC) -------
   if (!this.dcn) {
-    const counter = await Counter.findOneAndUpdate(
-      { name: "dcn" },
-      { $inc: { seq: 1 } },
-      { new: true, upsert: true }
-    );
+    const categories = this.categories || [];
 
-    const entryNum = counter.seq;
-    const labNum = entryNum + 5; // optional offset
-    this.dcn = `E${entryNum}, L${labNum}`;
+    const prefixMap = {
+  LAB: "L",
+  TMT: "T",
+  ECG: "E",      
+  ECHO: "EH",    
+  USG: "U",
+  XRAY: "X",
+  OUTSOURCE: "O",
+  OTHERS: "OT",
+};
+
+
+
+    const generatedDCNs = [];
+
+    for (let category of categories) {
+      const prefix = prefixMap[category];
+      if (!prefix) continue;
+
+      const counter = await Counter.findOneAndUpdate(
+        { name: `dcn_${category}` },
+        { $inc: { seq: 1 } },
+        { new: true, upsert: true }
+      );
+
+      const seq = String(counter.seq).padStart(2, "0");
+      const dcnCode = `${prefix}${seq}`;
+
+      generatedDCNs.push(dcnCode);
+    }
+
+    this.dcn = generatedDCNs.join(", ");  // Example: "L65, U01"
   }
 
   next();
 });
+
 
 
 export default model("Case", CaseSchema);

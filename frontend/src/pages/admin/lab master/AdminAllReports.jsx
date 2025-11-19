@@ -1,18 +1,35 @@
 import React, { useState, useEffect, useContext } from "react";
+
 import axios from "axios";
+
+import {
+  Eye,
+  Pencil,
+  MoreHorizontal,
+  ChevronDown,
+  Calendar,
+  Search,
+} from "lucide-react";
 import { LabContext } from "../../../context/LabContext";
 import Loader from "../../../components/Loader";
 
-const AdminAllReports = () => {
-  const { branchId, adminToken, navigate, errorToast } = useContext(LabContext);
+export default function AdminAllReports() {
+  const { branchId, branchToken, navigate, errorToast, doctors, dummyPanels, dummyTests, packages, adminToken } =
+    useContext(LabContext);
 
   const [allReports, setAllReports] = useState([]);
   const [filteredReports, setFilteredReports] = useState([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
-  const pageSize = 7;
+  const pageSize = 20;
+  const [testDetailsMap, setTestDetailsMap] = useState({});
 
-  const [testDetailsMap, setTestDetailsMap] = useState({}); // reportId => array of tests/panels/packages
+  const combinedTests = [
+    ...dummyTests.map(t => ({ type: "TEST", name: t.name })),
+    ...dummyPanels.map(p => ({ type: "PANEL", name: p.name })),
+    ...packages.map(pkg => ({ type: "PACKAGE", name: pkg.name }))
+  ];
+
 
   const [filters, setFilters] = useState({
     duration: "Past 7 days",
@@ -27,274 +44,502 @@ const AdminAllReports = () => {
     test: "",
   });
 
-  // ---------------- Safely extract ID ----------------
   const extractId = (item) => {
     if (!item) return null;
     if (typeof item === "string") return item;
     if (item._id) return item._id.toString();
-    if (item.testId) return item.testId.toString();
     return null;
   };
 
-  // ---------------- Fetch individual item (TEST / PANEL / PACKAGE) ----------------
+  // Fetch TEST / PANEL / PACKAGE
   const fetchItemDetails = async (id) => {
     const safeId = extractId(id);
     if (!safeId) return null;
 
     try {
-      // TEST
-      const testRes = await axios.get(
+      const res = await axios.get(
         `${import.meta.env.VITE_API_URL}/api/test/database/admin/test/${safeId}`,
         { headers: { Authorization: `Bearer ${adminToken}` } }
       );
-      if (testRes.data.success && testRes.data.data)
-        return { type: "TEST", data: { name: testRes.data.data.name, category: testRes.data.data.categoryName || "Other" } };
-    } catch {}
+      if (res.data.success && res.data.data)
+        return { type: "TEST", data: res.data.data };
+    } catch { }
 
     try {
-      // PANEL
-      const panelRes = await axios.get(
+      const res = await axios.get(
         `${import.meta.env.VITE_API_URL}/api/test/panels/admin/panel/${safeId}`,
         { headers: { Authorization: `Bearer ${adminToken}` } }
       );
-      if (panelRes.data.success && panelRes.data.data) return { type: "PANEL", data: panelRes.data.data };
-    } catch {}
+      if (res.data.success && res.data.data)
+        return { type: "PANEL", data: res.data.data };
+    } catch { }
 
     try {
-      // PACKAGE
-      const packageRes = await axios.get(
+      const res = await axios.get(
         `${import.meta.env.VITE_API_URL}/api/test/packages/admin/package/${safeId}`,
         { headers: { Authorization: `Bearer ${adminToken}` } }
       );
-      if (packageRes.data.success && packageRes.data.data) return { type: "PACKAGE", data: packageRes.data.data };
-    } catch {}
+      if (res.data.success && res.data.data)
+        return { type: "PACKAGE", data: res.data.data };
+    } catch { }
 
     return null;
   };
 
-  // ---------------- Fetch all items for a report ----------------
   const fetchTestsForReport = async (report) => {
-    const allIds = [
+    const ids = [
       ...(report.tests?.LAB || []),
       ...(report.tests?.PANELS || []),
       ...(report.tests?.PACKAGES || []),
     ];
 
-    const items = await Promise.all(allIds.map(fetchItemDetails));
-    setTestDetailsMap((prev) => ({ ...prev, [report._id]: items.filter(Boolean) }));
+    const details = await Promise.all(ids.map(fetchItemDetails));
+    setTestDetailsMap((prev) => ({
+      ...prev,
+      [report._id]: details.filter(Boolean),
+    }));
   };
 
-  // ---------------- Fetch all reports and dynamic status ----------------
+  // Fetch all reports
   const fetchReports = async () => {
     try {
       setLoading(true);
-      const config = { headers: { Authorization: `Bearer ${adminToken}` } };
       const res = await axios.get(
         `${import.meta.env.VITE_API_URL}/api/cases/admin/list`,
-        config
+        { headers: { Authorization: `Bearer ${adminToken}` } }
       );
 
-      if (res.data.success) {
-        const reports = res.data.data || [];
-
-        // Determine dynamic status
-        const reportsWithStatus = await Promise.all(
-          reports.map(async (r) => {
-            try {
-              const caseRes = await axios.get(
-                `${import.meta.env.VITE_API_URL}/api/results/admin/report/${r._id}`,
-                config
-              );
-
-              const today = new Date();
-              const createdAt = new Date(r.createdAt);
-              const diffInDays = (today - createdAt) / (1000 * 60 * 60 * 24);
-
-              let dynamicStatus = "In progress";
-              if (caseRes.data.success && caseRes.data.data) dynamicStatus = "Signed off";
-              else if (diffInDays < 1) dynamicStatus = "New";
-
-              return { ...r, dynamicStatus };
-            } catch {
-              return { ...r, dynamicStatus: "In progress" };
-            }
-          })
-        );
-
-        setAllReports(reportsWithStatus);
-        setFilteredReports(reportsWithStatus);
-
-        // Fetch tests/panels/packages for each report
-        reportsWithStatus.forEach(fetchTestsForReport);
-      } else {
-        errorToast(res.data.message || "Failed to fetch reports");
+      if (!res.data.success) {
+        errorToast("Failed to fetch reports");
+        return;
       }
+
+      const reports = res.data.data || [];
+
+      const withStatus = await Promise.all(
+        reports.map(async (r) => {
+          try {
+            const result = await axios.get(
+              `${import.meta.env.VITE_API_URL}/api/results/admin/report/${r._id}`,
+              { headers: { Authorization: `Bearer ${adminToken}` } }
+            );
+
+            const today = new Date();
+            const diff =
+              (today - new Date(r.createdAt)) / (1000 * 60 * 60 * 24);
+
+            if (result.data.success && result.data.data)
+              return { ...r, dynamicStatus: "Signed off" };
+            if (diff < 1) return { ...r, dynamicStatus: "New" };
+            return { ...r, dynamicStatus: "In progress" };
+          } catch {
+            return { ...r, dynamicStatus: "In progress" };
+          }
+        })
+      );
+
+      setAllReports(withStatus);
+      setFilteredReports(withStatus);
+
+      withStatus.forEach(fetchTestsForReport);
     } catch (err) {
-      console.error("Fetch Reports Error:", err);
-      errorToast(err.response?.data?.message || "Server error");
+      errorToast("Server error");
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    if (adminToken) fetchReports();
-  }, [adminToken]);
+    if (branchId) fetchReports();
+  }, [branchId]);
 
-  // ---------------- Filters ----------------
-  const handleFilterChange = (e) => {
-    const { name, value } = e.target;
-    setFilters((prev) => ({ ...prev, [name]: value }));
+  // TEST Column 2-line truncation
+  const testsToTwoLines = (items) => {
+    if (!items) return "Loading...";
+
+    const names = items.map((t) => t.data.name);
+    const full = names.join(", ");
+
+    // manual 2-line truncation
+    const approxChars = 90;
+    if (full.length <= approxChars) return full;
+
+    return full.substring(0, approxChars) + "...";
   };
 
-  const handleClear = () => {
-    setFilters({
-      duration: "Past 7 days",
-      from: "",
-      to: "",
-      patient: "",
-      status: "",
-      referredBy: "",
-      regNo: "",
-      dailyCase: "",
-      uhid: "",
-      test: "",
-    });
-    setFilteredReports(allReports);
-    setPage(1);
+  const handleFilterChange = (e) => {
+    setFilters({ ...filters, [e.target.name]: e.target.value });
   };
 
   const handleSearch = () => {
     let results = [...allReports];
 
-    if (filters.patient) results = results.filter(r => r.patient.firstName.toLowerCase().includes(filters.patient.toLowerCase()));
-    if (filters.status) results = results.filter(r => r.dynamicStatus === filters.status);
-    if (filters.referredBy) results = results.filter(r => r.referredBy === filters.referredBy);
-    if (filters.regNo) results = results.filter(r => r.regNo.includes(filters.regNo));
-    if (filters.dailyCase) results = results.filter(r => r.dailyCase.includes(filters.dailyCase));
-    if (filters.uhid) results = results.filter(r => r.uhid?.toLowerCase().includes(filters.uhid.toLowerCase()));
-    if (filters.test) {
+    if (filters.patient) {
+      const kw = filters.patient.toLowerCase();
       results = results.filter((r) =>
-        testDetailsMap[r._id]?.some(
-          (t) =>
-            (t.type === "TEST" && t.data.name === filters.test) ||
-            (t.type === "PANEL" && t.data.name === filters.test) ||
-            (t.type === "PACKAGE" && t.data.name === filters.test)
+        `${r.patient.firstName} ${r.patient.lastName}`
+          .toLowerCase()
+          .includes(kw)
+      );
+    }
+
+    if (filters.regNo)
+      results = results.filter((r) =>
+        r.regNo.toLowerCase().includes(filters.regNo.toLowerCase())
+      );
+
+    if (filters.uhid)
+      results = results.filter((r) =>
+        (r.uhid || "").toLowerCase().includes(filters.uhid.toLowerCase())
+      );
+
+    if (filters.status)
+      results = results.filter((r) => r.dynamicStatus === filters.status);
+
+    if (filters.referredBy)
+      results = results.filter((r) => r.patient.doctor === filters.referredBy);
+
+    if (filters.from)
+      results = results.filter(
+        (r) => new Date(r.createdAt) >= new Date(filters.from)
+      );
+
+    if (filters.to)
+      results = results.filter(
+        (r) => new Date(r.createdAt) <= new Date(filters.to)
+      );
+
+    if (filters.test) {
+      const tkw = filters.test.toLowerCase();
+      results = results.filter((r) =>
+        testDetailsMap[r._id]?.some((t) =>
+          t.data.name.toLowerCase().includes(tkw)
         )
       );
     }
-    if (filters.from) results = results.filter(r => new Date(r.date) >= new Date(filters.from));
-    if (filters.to) results = results.filter(r => new Date(r.date) <= new Date(filters.to));
 
     setFilteredReports(results);
     setPage(1);
   };
 
   const totalPages = Math.ceil(filteredReports.length / pageSize);
-  const paginatedReports = filteredReports.slice((page - 1) * pageSize, page * pageSize);
-
-  const getStatusStyle = (status) => {
-  const safeStatus = status || "Loading"; // default if status is undefined
-  switch (safeStatus) {
-    case "Signed off":
-      return "bg-green-100 text-green-700 border border-green-400 px-2 py-1 rounded-md text-xs font-medium whitespace-nowrap";
-    case "New":
-      return "bg-blue-100 text-blue-700 border border-blue-400 px-2 py-1 rounded-md text-xs font-medium whitespace-nowrap";
-    case "In progress":
-      return "bg-red-100 text-red-700 border border-red-400 px-2 py-1 rounded-md text-xs font-medium whitespace-nowrap";
-    case "Loading":
-      return "bg-gray-100 text-gray-500 border border-gray-300 px-2 py-1 rounded-md text-xs font-medium whitespace-nowrap";
-    default:
-      return "px-2 py-1 text-xs whitespace-nowrap";
-  }
-};
-
+  const paginated = filteredReports.slice(
+    (page - 1) * pageSize,
+    page * pageSize
+  );
 
   if (loading) return <Loader />;
 
   return (
-    <div className="p-6 bg-gray-50 min-h-screen ">
-      <h1 className="text-2xl font-bold mb-6">Search Lab Reports</h1>
+    <div className="p-6 bg-white">
+      <h1 className="text-3xl font-semibold mb-6">Search lab reports</h1>
 
-      {/* Filters */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mb-6">
-        <input type="text" name="patient" placeholder="Patient first name" value={filters.patient} onChange={handleFilterChange} className="border px-3 py-2 rounded-md text-sm" />
-        <input type="text" name="regNo" placeholder="Reg no" value={filters.regNo} onChange={handleFilterChange} className="border px-3 py-2 rounded-md text-sm" />
-        <input type="text" name="dailyCase" placeholder="Daily case" value={filters.dailyCase} onChange={handleFilterChange} className="border px-3 py-2 rounded-md text-sm" />
-        <input type="text" name="uhid" placeholder="UHID" value={filters.uhid} onChange={handleFilterChange} className="border px-3 py-2 rounded-md text-sm" />
+      {/* FILTER BAR */}
+      <div className="p-3 border rounded-lg bg-gray-50 grid grid-cols-4 gap-3">
 
-        <select name="status" value={filters.status} onChange={handleFilterChange} className="border px-3 py-2 rounded-md text-sm">
-          <option value="">Status</option>
-          <option>New</option>
-          <option>In progress</option>
-          <option>Signed off</option>
-        </select>
-
-        <select name="referredBy" value={filters.referredBy} onChange={handleFilterChange} className="border px-3 py-2 rounded-md text-sm">
-          <option value="">Select referrer</option>
-          <option>CALLMEDLIFE</option>
-          <option>MEDIBUDDY TPA</option>
-          <option>GOWNEXT TPA</option>
-          <option>HEALTHINDIA TPA</option>
-        </select>
-
-        <input type="text" name="test" placeholder="Search test/panel/package" value={filters.test} onChange={handleFilterChange} className="border px-3 py-2 rounded-md text-sm col-span-2" />
-
-        <div className="flex gap-2 col-span-2">
-          <button onClick={handleSearch} className="bg-blue-600 text-white px-4 py-2 rounded-md text-sm">Search</button>
-          <button onClick={handleClear} className="bg-gray-200 px-4 py-2 rounded-md text-sm">Clear</button>
+        {/* Duration */}
+        <div className="col-span-1">
+          <label className="text-gray-600 text-xs mb-1 block">Duration</label>
+          <div className="flex items-center border rounded-md px-2 py-1.5 bg-white">
+            <Calendar size={16} className="mr-2 text-gray-500" />
+            <select
+              name="duration"
+              value={filters.duration}
+              onChange={handleFilterChange}
+              className="w-full outline-none text-sm"
+            >
+              <option>Past 7 days</option>
+              <option>Past 30 days</option>
+              <option>Custom</option>
+            </select>
+          </div>
         </div>
+
+        {/* From */}
+        <div>
+          <label className="text-gray-600 text-xs mb-1 block">From</label>
+          <input
+            type="date"
+            name="from"
+            value={filters.from}
+            onChange={handleFilterChange}
+            className="border px-2 py-1.5 rounded-md w-full text-sm"
+          />
+        </div>
+
+        {/* To */}
+        <div>
+          <label className="text-gray-600 text-xs mb-1 block">To</label>
+          <input
+            type="date"
+            name="to"
+            value={filters.to}
+            onChange={handleFilterChange}
+            className="border px-2 py-1.5 rounded-md w-full text-sm"
+          />
+        </div>
+
+        {/* Patient name */}
+        <div>
+          <label className="text-gray-600 text-xs mb-1 block">Patient first name</label>
+          <input
+            type="text"
+            name="patient"
+            value={filters.patient}
+            onChange={handleFilterChange}
+            className="border px-2 py-1.5 rounded-md w-full text-sm"
+          />
+        </div>
+
+        {/* Status */}
+        <div>
+          <label className="text-gray-600 text-xs mb-1 block">Status</label>
+          <select
+            name="status"
+            value={filters.status}
+            onChange={handleFilterChange}
+            className="border px-2 py-1.5 rounded-md w-full text-sm"
+          >
+            <option value="">Select status</option>
+            <option>New</option>
+            <option>In progress</option>
+            <option>Signed off</option>
+          </select>
+        </div>
+
+        {/* Referred by */}
+        <div>
+          <label className="text-gray-600 text-xs mb-1 block">Referred by</label>
+          <select
+            name="referredBy"
+            value={filters.referredBy}
+            onChange={handleFilterChange}
+            className="border px-2 py-1.5 rounded-md w-full text-sm"
+          >
+            <option value="">Select referrer</option>
+
+            {doctors?.map((doc, i) => (
+              <option key={i} value={doc.name}>
+                {doc.name}
+              </option>
+            ))}
+          </select>
+        </div>
+
+
+        {/* Reg No */}
+        <div>
+          <label className="text-gray-600 text-xs mb-1 block">Reg no.</label>
+          <input
+            type="text"
+            name="regNo"
+            value={filters.regNo}
+            onChange={handleFilterChange}
+            className="border px-2 py-1.5 rounded-md w-full text-sm"
+          />
+        </div>
+
+        {/* Daily case */}
+        <div>
+          <label className="text-gray-600 text-xs mb-1 block">Daily case no.</label>
+          <input
+            type="text"
+            name="dailyCase"
+            value={filters.dailyCase}
+            onChange={handleFilterChange}
+            className="border px-2 py-1.5 rounded-md w-full text-sm"
+          />
+        </div>
+
+        {/* UHID */}
+        <div>
+          <label className="text-gray-600 text-xs mb-1 block">UHID</label>
+          <input
+            type="text"
+            name="uhid"
+            value={filters.uhid}
+            onChange={handleFilterChange}
+            className="border px-2 py-1.5 rounded-md w-full text-sm"
+          />
+        </div>
+
+        {/* Select test */}
+        <div>
+          <label className="text-gray-600 text-xs mb-1 block">Select test</label>
+          <select
+            name="test"
+            value={filters.test}
+            onChange={handleFilterChange}
+            className="border px-2 py-1.5 rounded-md w-full text-sm"
+          >
+            <option value="">Select test / panel / package</option>
+
+            {combinedTests.map((item, i) => (
+              <option key={i} value={item.name}>
+                {item.type === "TEST" && "🧪"}
+                {item.type === "PANEL" && "📋"}
+                {item.type === "PACKAGE" && "📦"}
+                {" "}
+                {item.name}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {/* Buttons */}
+        <div className="flex items-end gap-2 col-span-4 justify-end mt-1">
+          <button
+            onClick={handleSearch}
+            className="bg-blue-600 text-white px-4 py-1.5 rounded-md flex items-center gap-1 text-sm"
+          >
+            <Search size={16} /> Search
+          </button>
+
+          <button
+            onClick={() => window.location.reload()}
+            className="bg-gray-200 px-4 py-1.5 text-sm rounded-md"
+          >
+            Clear
+          </button>
+        </div>
+
       </div>
 
-      {/* Table */}
-      <div className="overflow-x-auto border rounded-lg shadow">
+
+      {/* TABLE */}
+      <div className="mt-6 border rounded-lg overflow-hidden shadow-sm">
         <table className="w-full text-sm">
           <thead className="bg-gray-100 text-gray-600">
             <tr>
-              <th className="p-3 text-left">PAT. ID</th>
-              <th className="p-3 text-left">DATE/TIME</th>
-              <th className="p-3 text-left">PATIENT</th>
-              <th className="p-3 text-left">REFERRED BY</th>
-              <th className="p-3 text-left">TESTS/PANELS/PACKAGES</th>
-              <th className="p-3 text-left">STATUS</th>
-              <th className="p-3 text-left">ACTIONS</th>
+              <th className="p-3">PAT. ID</th>
+              <th className="p-3">DATE/TIME</th>
+              <th className="p-3">PATIENT</th>
+              <th className="p-3">REFERRED BY</th>
+              <th className="p-3">TESTS</th>
+              <th className="p-3">CC</th>
+              <th className="p-3">STATUS</th>
+              <th className="p-3">ACTIONS</th>
             </tr>
           </thead>
+
           <tbody>
-            {paginatedReports.length === 0 ? (
+            {paginated.length === 0 ? (
               <tr>
-                <td colSpan="7" className="text-center py-4 text-gray-500">No results found</td>
+                <td
+                  colSpan="8"
+                  className="text-center text-gray-500 py-6"
+                >
+                  No results found
+                </td>
               </tr>
             ) : (
-              paginatedReports.map((r) => (
-                <tr key={r._id} className="border-b hover:bg-gray-50">
-                  <td className="p-3">{r.regNo}</td>
-                  <td className="p-3">{new Date(r.createdAt).toLocaleDateString("en-GB")}<br />{new Date(r.createdAt).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", hour12: true })}</td>
-                  <td className="p-3">{r.patient.firstName} {r.patient.lastName}</td>
-                  <td className="p-3">{r.patient.doctor}</td>
+              paginated.map((r, i) => (
+                <tr key={i} className="border-b hover:bg-gray-50">
+                  {/* PAT ID */}
                   <td className="p-3">
-                    {testDetailsMap[r._id]?.map((t) => {
-                      if (t.type === "TEST") return `${t.data.name} (${t.data.category})`;
-                      if (t.type === "PANEL") return `Panel: ${t.data.name}`;
-                      if (t.type === "PACKAGE") return `Package: ${t.data.name}`;
-                      return "Unknown";
-                    }).join(", ") || "Loading..."}
+                    <div className="font-medium text-blue-700">
+                      #{r.regNo}
+                    </div>
+                    <div className="text-xs text-gray-500">
+                      {r.caseNo}
+                    </div>
+                    <div className="text-xs text-gray-500">
+                      {r.dcn}
+                    </div>
+                    <div className="text-xs text-gray-500">
+                      UHID: {r.patient.uhid}
+                    </div>
                   </td>
+
+                  {/* DATE */}
                   <td className="p-3">
-                    <span className={getStatusStyle(r.dynamicStatus)}>{r.dynamicStatus}</span>
+                    {new Date(r.createdAt).toLocaleDateString("en-GB")}
+                    <br />
+                    {new Date(r.createdAt).toLocaleTimeString("en-IN", {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                      hour12: true,
+                    })}
                   </td>
+
+                  {/* PATIENT */}
+                  <td className="p-3">
+                    <div className="font-medium">
+                      {r.patient.firstName} {r.patient.lastName}
+                    </div>
+                    <div className="text-xs text-gray-500">
+                      {r.patient.age} YRS / {r.patient.sex}
+                    </div>
+                  </td>
+
+                  {/* REFERRED BY */}
+                  <td className="p-3">{r.patient.doctor || "-"}</td>
+
+                  {/* TESTS with tooltip */}
+                  <td className="p-3 relative group">
+
+                    <div className="line-clamp-2 max-w-xs cursor-pointer">
+                      {testsToTwoLines(testDetailsMap[r._id])}
+                    </div>
+
+                    {/* Tooltip */}
+                    <div className="absolute hidden group-hover:block left-0 mt-2 z-20 bg-black text-white p-3 rounded-md text-xs w-64 shadow-xl">
+                      {testDetailsMap[r._id]
+                        ?.map((t) => t.data.name)
+                        .join(", ")}
+                    </div>
+                  </td>
+
+                  {/* CC */}
+                  <td className="p-3">{r.collectionCentre || "Main"}</td>
+
+                  {/* STATUS */}
+                  <td className="p-3">
+                    <span
+                      className={`inline-block px-2 py-1 text-xs rounded-md whitespace-nowrap break-keep ${r.dynamicStatus === "Signed off"
+                        ? "bg-green-100 text-green-700"
+                        : r.dynamicStatus === "New"
+                          ? "bg-blue-100 text-blue-700"
+                          : "bg-yellow-100 text-yellow-700"
+                        }`}
+                    >
+                      {r.dynamicStatus}
+                    </span>
+
+                  </td>
+
+                  {/* ACTIONS */}
                   <td className="p-3 flex flex-col gap-1">
-                    <button onClick={() => navigate(`/admin/bill/${r._id}`)} className="text-blue-600 text-sm cursor-pointer">View bill</button>
                     <button
-    onClick={() =>
-      navigate(
-        `/admin/${r.dynamicStatus === "Signed off" ? "edit-result" : "enter-result"}/${r._id}`
-      )
-    }
-    className="text-gray-600 text-sm cursor-pointer"
-  >
-    {r.dynamicStatus === "Signed off" ? "Edit results" : "Enter results"}
-  </button>
+                      onClick={() =>
+                        navigate(`/admin/bill/${r._id}`)
+                      }
+                      className="text-blue-600 flex items-center gap-1"
+                    >
+                      <Eye size={15} /> View
+                    </button>
+
+                    <button
+                      onClick={() =>
+                        navigate(
+                          `/admin/${r.dynamicStatus === "Signed off"
+                            ? "edit-result"
+                            : "enter-result"
+                          }/${r._id}`
+                        )
+                      }
+                      className="text-gray-700 flex items-center gap-1"
+                    >
+                      <Pencil size={15} />
+                      {r.dynamicStatus === "Signed off"
+                        ? "Edit results"
+                        : "Enter results"}
+                    </button>
+
+                    <MoreHorizontal
+                      size={18}
+                      className="text-gray-500 cursor-pointer"
+                    />
                   </td>
                 </tr>
               ))
@@ -303,14 +548,28 @@ const AdminAllReports = () => {
         </table>
       </div>
 
-      {/* Pagination */}
-      <div className="flex justify-center items-center mt-6 gap-3">
-        <button onClick={() => setPage((p) => Math.max(p - 1, 1))} disabled={page === 1} className="px-3 py-1 border rounded-md text-sm disabled:opacity-50">Prev</button>
-        <span className="text-sm">Page {page} of {totalPages}</span>
-        <button onClick={() => setPage((p) => Math.min(p + 1, totalPages))} disabled={page === totalPages} className="px-3 py-1 border rounded-md text-sm disabled:opacity-50">Next</button>
+      {/* PAGINATION */}
+      <div className="flex justify-center items-center gap-3 mt-6">
+        <button
+          className="px-3 py-1 border rounded-md"
+          disabled={page === 1}
+          onClick={() => setPage((p) => p - 1)}
+        >
+          Prev
+        </button>
+
+        <span>
+          Page {page} of {totalPages}
+        </span>
+
+        <button
+          className="px-3 py-1 border rounded-md"
+          disabled={page === totalPages}
+          onClick={() => setPage((p) => p + 1)}
+        >
+          Next
+        </button>
       </div>
     </div>
   );
-};
-
-export default AdminAllReports;
+}
