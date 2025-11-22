@@ -64,49 +64,55 @@ const fetchFormula = async (testId) => {
   }
 };
 
+const normalize = (str) =>
+  str
+    ?.replace(/\u00A0/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+
 
 // 🔹 Formula calculation — fixed
 const calculateFormulaResult = (formula, dependencies, results) => {
   try {
-    let calculatedFormula = formula;
+    let workingFormula = formula;
 
-    console.log("🔢 Raw Formula:", formula);
-    console.log("🧩 Dependencies:", dependencies);
-    console.log("📊 Current Results (by name):", results);
+    // STEP 1 – First map each dependency to a placeholder
+    const placeholderMap = {};
+    dependencies.forEach((dep, index) => {
+      const depName = normalize(dep.testName);
+      if (!depName) return;
 
-    // Sort dependencies by name length (longest first)
-    // 👉 avoids partial replacements like "HDL" inside "HDL Cholesterol"
-    const sortedDeps = [...dependencies].sort(
-      (a, b) => b.testName.length - a.testName.length
-    );
+      const key = `__VAR${index}__`;
+      placeholderMap[key] = depName;
 
-    sortedDeps.forEach((dep) => {
-      const depName = dep.testName?.trim();
-      const value = parseFloat(results[depName]);
-      const safeValue = isNaN(value) ? 0 : value;
+      // Escape dep name for safe regex
+      const escaped = depName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
-      console.log(`🔗 Replacing ${depName} with value: ${safeValue}`);
-
-      // Escape special regex characters in the test name
-      const safeDepName = depName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-
-      // Replace all occurrences (case-insensitive)
-      const regex = new RegExp(`\\b${safeDepName}\\b`, "gi");
-      calculatedFormula = calculatedFormula.replace(regex, safeValue);
+      // Replace ONLY FULL NAME, no partial matches
+      workingFormula = workingFormula.replace(new RegExp(escaped, "gi"), key);
     });
 
-    console.log("🧮 Formula after replacement:", calculatedFormula);
+    console.log("STEP1:", workingFormula);
 
-    // Evaluate safely
-    const result = Function(`"use strict"; return (${calculatedFormula});`)();
+    // STEP 2 – Replace placeholders with actual numerical values
+    Object.entries(placeholderMap).forEach(([key, depName]) => {
+      const val = parseFloat(results[depName]);
+      const safe = isNaN(val) ? 0 : val;
+      workingFormula = workingFormula.replace(new RegExp(key, "g"), safe);
+    });
 
-    console.log("✅ Calculated result:", result);
-    return result;
+    console.log("STEP2 FINAL STRING:", workingFormula);
+
+    // Evaluate
+    return Function(`"use strict"; return (${workingFormula});`)();
+
   } catch (err) {
-    console.error("❌ Error evaluating formula:", err);
+    console.error("FORMULA ERR:", err);
     return null;
   }
 };
+
 
 
 
@@ -808,38 +814,38 @@ const EnterResults = () => {
 
 
   useEffect(() => {
-  function handleClickOutside(event) {
-    if (menuRef.current && !menuRef.current.contains(event.target)) {
-      setOpenMenu(false);   // 🔥 Close menu
+    function handleClickOutside(event) {
+      if (menuRef.current && !menuRef.current.contains(event.target)) {
+        setOpenMenu(false);   // 🔥 Close menu
+      }
     }
-  }
 
-  document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener("mousedown", handleClickOutside);
 
-  return () => {
-    document.removeEventListener("mousedown", handleClickOutside);
-  };
-}, []);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
 
-const [showBar, setShowBar] = useState(true);
-const [lastScrollY, setLastScrollY] = useState(0);
+  const [showBar, setShowBar] = useState(true);
+  const [lastScrollY, setLastScrollY] = useState(0);
 
-useEffect(() => {
-  const handleScroll = () => {
-    if (window.scrollY > lastScrollY) {
-      // scrolling DOWN → hide
-      setShowBar(false);
-    } else {
-      // scrolling UP → show
-      setShowBar(true);
-    }
-    setLastScrollY(window.scrollY);
-  };
+  useEffect(() => {
+    const handleScroll = () => {
+      if (window.scrollY > lastScrollY) {
+        // scrolling DOWN → hide
+        setShowBar(false);
+      } else {
+        // scrolling UP → show
+        setShowBar(true);
+      }
+      setLastScrollY(window.scrollY);
+    };
 
-  window.addEventListener("scroll", handleScroll);
+    window.addEventListener("scroll", handleScroll);
 
-  return () => window.removeEventListener("scroll", handleScroll);
-}, [lastScrollY]);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, [lastScrollY]);
 
 
 
@@ -852,7 +858,31 @@ useEffect(() => {
   if (!report) return <p className="p-6 text-gray-500">Report not found</p>;
 
   return (
-    <div  className="p-6 bg-gray-50 min-h-screen ">
+    <div className="p-6 bg-gray-50 min-h-screen ">
+
+      <div className="mb-4">
+        <h1 className="text-3xl font-semibold text-gray-800">Lab report</h1>
+
+        <div className="mt-2 inline-flex items-center gap-3">
+
+          {/* Reg No */}
+          <span className="bg-yellow-100 text-yellow-800 px-3 py-1 rounded-md text-xs font-medium">
+            Reg no. {report.regNo} | {report.dcn}
+          </span>
+
+
+
+        </div>
+
+        {/* Status */}
+        <div className="mt-3 flex items-center gap-2">
+          <span className="font-medium text-gray-800">Status:</span>
+
+          <span className="bg-blue-600 text-white px-3 py-1 rounded-md text-sm">
+            {report.status}
+          </span>
+        </div>
+      </div>
       {/* Header */}
       <div className="border rounded-lg bg-white shadow-sm p-4 mb-6">
         <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-sm">
@@ -882,82 +912,82 @@ useEffect(() => {
         </div>
       ))}
 
-    <div
-  className={`fixed bottom-0 left-[225px] right-0 
+      <div
+        className={`fixed bottom-0 left-[225px] right-0 
               bg-white border-t border-gray-300 shadow-lg z-50
               transition-transform duration-300
               ${showBar ? "translate-y-0" : "translate-y-full"}`}
->
-  <div className="w-full max-w-[1200px] mx-auto px-4 py-3 
+      >
+        <div className="w-full max-w-[1200px] mx-auto px-4 py-3 
                   flex items-start justify-start gap-3">
 
-    {/* SIGN OFF GROUP */}
-    <div ref={menuRef} className="relative flex">
+          {/* SIGN OFF GROUP */}
+          <div ref={menuRef} className="relative flex">
 
-      <button
-        onClick={() => handleSubmit("Signed Off")}
-        className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white
+            <button
+              onClick={() => handleSubmit("Signed Off")}
+              className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white
                    px-5 h-10 rounded-l-md shadow transition border-r border-white"
-      >
-        <img src="/signature-w.png" className="w-4 h-4" />
-        <span className="font-medium">Sign off</span>
-      </button>
+            >
+              <img src="/signature-w.png" className="w-4 h-4" />
+              <span className="font-medium">Sign off</span>
+            </button>
 
-      <button
-        onClick={() => setOpenMenu(!openMenu)}
-        className="bg-blue-600 hover:bg-blue-700 text-white w-10 h-10 
+            <button
+              onClick={() => setOpenMenu(!openMenu)}
+              className="bg-blue-600 hover:bg-blue-700 text-white w-10 h-10 
                    flex items-center justify-center rounded-r-md shadow transition"
-      >
-        <img src="/down-arrow-w.png" className="w-3 h-3 opacity-80" />
-      </button>
+            >
+              <img src="/down-arrow-w.png" className="w-3 h-3 opacity-80" />
+            </button>
 
-      {openMenu && (
-        <div className="absolute right-0 bottom-12 w-48 bg-white rounded-md shadow-lg border border-gray-300">
+            {openMenu && (
+              <div className="absolute right-0 bottom-12 w-48 bg-white rounded-md shadow-lg border border-gray-300">
 
-          <div className="absolute -bottom-2 right-4 w-3 h-3 bg-white 
+                <div className="absolute -bottom-2 right-4 w-3 h-3 bg-white 
                           rotate-45 border-l border-b"></div>
 
-          <ul className="py-2 text-sm">
-            <li
-              onClick={() => navigate(`/${branchId}/bill/${reportId}`)}
-              className="px-4 py-2 hover:bg-gray-100 cursor-pointer flex gap-2 items-center"
-            >
-              <img src="/eye.png" className="w-4 h-4" /> View bill
-            </li>
+                <ul className="py-2 text-sm">
+                  <li
+                    onClick={() => navigate(`/${branchId}/bill/${reportId}`)}
+                    className="px-4 py-2 hover:bg-gray-100 cursor-pointer flex gap-2 items-center"
+                  >
+                    <img src="/eye.png" className="w-4 h-4" /> View bill
+                  </li>
 
-            <li
-              onClick={() => navigate(`/${branchId}/edit-case/${reportId}`)}
-              className="px-4 py-2 hover:bg-gray-100 cursor-pointer flex gap-2 items-center"
-            >
-              <img src="/edit.png" className="w-4 h-4" /> Modify case
-            </li>
-          </ul>
+                  <li
+                    onClick={() => navigate(`/${branchId}/edit-case/${reportId}`)}
+                    className="px-4 py-2 hover:bg-gray-100 cursor-pointer flex gap-2 items-center"
+                  >
+                    <img src="/edit.png" className="w-4 h-4" /> Modify case
+                  </li>
+                </ul>
+              </div>
+            )}
+          </div>
+
+          {/* FINAL BUTTON */}
+          <button
+            onClick={() => handleSubmit("Final")}
+            className="flex items-center gap-2 border border-gray-300 text-gray-700 
+                 px-5 h-10 rounded-md hover:bg-gray-100 transition"
+          >
+            <img src="/check.png" className="w-4 h-4" />
+            <span className="font-medium">Final</span>
+          </button>
+
+          {/* SAVE ONLY BUTTON */}
+          <button
+            onClick={() => handleSubmit("In Progress")}
+            className="flex items-center gap-2 border border-gray-300 text-gray-700 
+                 px-5 h-10 rounded-md hover:bg-gray-100 transition"
+          >
+            <img src="/save.png" className="w-4 h-4" />
+            <span className="font-medium">Save only</span>
+          </button>
+
         </div>
-      )}
-    </div>
-
-    {/* FINAL BUTTON */}
-    <button
-      onClick={() => handleSubmit("Final")}
-      className="flex items-center gap-2 border border-gray-300 text-gray-700 
-                 px-5 h-10 rounded-md hover:bg-gray-100 transition"
-    >
-      <img src="/check.png" className="w-4 h-4" />
-      <span className="font-medium">Final</span>
-    </button>
-
-    {/* SAVE ONLY BUTTON */}
-    <button
-      onClick={() => handleSubmit("In Progress")}
-      className="flex items-center gap-2 border border-gray-300 text-gray-700 
-                 px-5 h-10 rounded-md hover:bg-gray-100 transition"
-    >
-      <img src="/save.png" className="w-4 h-4" />
-      <span className="font-medium">Save only</span>
-    </button>
-
-  </div>
-</div>
+      </div>
 
 
 
@@ -969,6 +999,18 @@ useEffect(() => {
 const TestRow = ({ item, results, references, handleChange, handleReferenceChange }) => {
   const params = Array.isArray(item.params) ? item.params : [];
   const groups = [...new Set(params.map((p) => p.groupBy || "Ungrouped"))];
+
+  const storageKey = `remarks_${item._id}`;
+  const [remarks, setRemarks] = useState([]);
+  const [showRemarkInput, setShowRemarkInput] = useState(false);
+  const [newRemark, setNewRemark] = useState("");
+
+  useEffect(() => {
+    const saved = JSON.parse(localStorage.getItem(storageKey) || "[]");
+    setRemarks(saved);
+  }, [storageKey]);
+
+
 
   // Detect DLC test
   const isDLC = item.testName?.trim().toLowerCase() === "differential leucocyte count";
@@ -1090,24 +1132,91 @@ const TestRow = ({ item, results, references, handleChange, handleReferenceChang
 
 
                       {/* Value Input */}
-                      <td className="px-3 py-2 relative">
+                      <td className="px-3 py-2 relative ">
+
+                        <div className="flex items-center gap-2 w-full">
+
+
+                          <button
+                          onClick={() => setShowRemarkInput(true)}
+                          className="ml-2 w-6 h-6 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center"
+                        >
+                          +
+                        </button>
+
+                        {showRemarkInput && (
+                          <div className="flex items-center gap-2 mt-2 ml-7">
+                            <input
+                              type="text"
+                              placeholder="Enter remark"
+                              value={newRemark}
+                              onChange={(e) => setNewRemark(e.target.value)}
+                              className="border px-2 py-1 rounded w-60"
+                            />
+
+                            <button
+                              onClick={() => {
+                                if (!newRemark.trim()) return;
+                                const updated = [...remarks, newRemark.trim()];
+                                setRemarks(updated);
+                                localStorage.setItem(storageKey, JSON.stringify(updated));
+                                setNewRemark("");
+                                setShowRemarkInput(false);
+                              }}
+                              className="px-3 py-1 bg-green-600 text-white rounded"
+                            >
+                              Save
+                            </button>
+
+                            <button
+                              onClick={() => setShowRemarkInput(false)}
+                              className="px-3 py-1 bg-gray-300 rounded"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        )}
+
+
+
+
                         <input
                           type="text"
                           value={value}
                           onChange={(e) => handleChange(param.name?.trim(), e.target.value)}
-                          className={`w-full border rounded px-2 py-1 ${textStyle} ${item.isFormula ? "border-amber-500" : ""} focus:ring-1 outline-none`}
+                          className={`w-full rounded px-2 py-1 ${textStyle} 
+  ${item.isFormula ? "border border-amber-500" : "border border-gray-400"} 
+  focus:ring-1 outline-none`}
+
                         />
 
-                        {/* Tooltip */}
+                        {/* REMARK DROPDOWN (appears when clicking input) */}
+                        {remarks.length > 0 && (
+                          <select
+                            onChange={(e) => handleChange(param.name?.trim(), e.target.value)}
+                            className="absolute right-0 top-0 h-full bg-transparent  outline-none text-gray-500 cursor-pointer px-2"
+                          >
+                            <option value=""></option>
+                            {remarks.map((r, i) => (
+                              <option key={i} value={r}>
+                                {r}
+                              </option>
+                            ))}
+                          </select>
+                        )}
+
+                        {/* EXISTING TOOLTIP (keep this) */}
                         {check && (
                           <div className="absolute right-2 top-1/2 -translate-y-1/2 group cursor-pointer mr-2">
                             <TriangleAlert className="text-red-600 w-4 h-4" />
-
                             <div className="hidden group-hover:block absolute right-6 top-1/2 -translate-y-1/2 bg-white border border-red-500 text-red-500 text-xs p-2 rounded shadow-lg w-[200px] font-bold">
                               {tooltip}
                             </div>
                           </div>
                         )}
+                        
+
+                          </div>
                       </td>
 
                       <td className="px-3 py-2 text-gray-600">{param.unit}</td>

@@ -7,6 +7,7 @@ import { createCase,
   getCasesByBranch,
   getCaseById,
   deleteCase,
+  cancelCase,
  } from "../controllers/caseController.js";
 
 
@@ -31,11 +32,15 @@ caseRouter.get("/branch/:id", verifyBranchToken, getCaseById);
 
 // Branch updates a case
 caseRouter.put("/branch/edit/:id", verifyBranchToken, updateCase);
+caseRouter.put("/branch/cancel/:id", verifyBranchToken, cancelCase);
 
 // ------------------ Admin Routes ------------------
 
 // Admin creates a new case globally
 caseRouter.post("/admin/add", verifyAdminToken, createCase);
+
+
+caseRouter.put("/admin/cancel/:id", verifyAdminToken, cancelCase);
 
 // Admin lists all cases
 caseRouter.get("/admin/list", verifyAdminToken, getAllCases);

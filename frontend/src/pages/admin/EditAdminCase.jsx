@@ -111,6 +111,8 @@ const handleTemplateToggle = (id) => {
   OTHER: "OT",
 };
 
+const [caseData, setCaseData] = useState(null);
+
   // ---------------- Handlers ----------------
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -149,7 +151,14 @@ const handleTemplateToggle = (id) => {
       .flat()
       .map((id) => dummyTests.find((t) => t._id === id) || dummyPanels.find((p) => p._id === id));
     const total = allSelectedTests.reduce((sum, t) => sum + (t?.price || 0), 0);
-    setPayment((prev) => updateBalance({ ...prev, total }));
+    setPayment((prev) =>
+  updateBalance({
+    ...prev,
+    total,
+    received: total,   // 👈 auto-fill received
+  })
+);
+
   };
 
   // ---------------- Fetch case data ----------------
@@ -162,6 +171,7 @@ const handleTemplateToggle = (id) => {
 
         if (res.data.success && res.data.data) {
           const c = res.data.data;
+          setCaseData(c); 
           setFormData({
   mobile: c.patient?.mobile || "",
   title: c.patient?.title || "",
@@ -224,44 +234,135 @@ const handleTemplateToggle = (id) => {
     fetchCase();
   }, [id, adminToken]);
 
-  // ---------------- Update Case ----------------
-  const handleUpdateCase = async () => {
-    try {
-      const caseData = {
-  branchId: selectedBranch,
-  patient: formData,
-  tests: selectedTests,
-  payment,
-  categories: activeCategories,
-  createdAt: formData.registeredOn
-    ? new Date(formData.registeredOn).toISOString()
-    : undefined, // ✅ include registration datetime
-  whatsappTriggers: selectedTemplates.map((id) => {
-    const template = msgTemplates.find((t) => t._id === id);
-    return {
-      templateId: id,
-      enabled: false,
-      triggerType: template?.triggerType || "custom",
-    };
-  }),
-};
-      const config = {
-        headers: { Authorization: `Bearer ${adminToken}`, "Content-Type": "application/json" },
-      };
+ const handleUpdateCase = async () => {
+  try {
+    /* ------------------------------------------
+        🔥 1) Detect ALL changes for Activity Log
+    ------------------------------------------- */
 
-      const response = await axios.put(`${import.meta.env.VITE_API_URL}/api/cases/admin/edit/${id}`, caseData, config);
+    const original = caseData; 
+    let summaryParts = [];
 
-      if (response.data.success) {
-        successToast("Case updated successfully!");
-        navigate("/admin/all-cases"); // go back to cases list
-      } else {
-        errorToast(response.data.message || "Failed to update case");
+    /* -------- Compare Patient Fields -------- */
+    const patientFields = [
+      "mobile", "title", "firstName", "lastName", "age",
+      "sex", "uhid", "doctor", "agent", "center",
+      "onlineReport", "email", "address", "aadhaar", "history"
+    ];
+
+    let patientChanged = false;
+    patientFields.forEach(f => {
+      if ((original.patient?.[f] || "") !== (formData?.[f] || "")) {
+        patientChanged = true;
       }
-    } catch (error) {
-      console.error("Update Case Error:", error);
-      errorToast(error.response?.data?.message || "Server error");
+    });
+
+    if (patientChanged) summaryParts.push("Patient details updated");
+
+
+    /* -------- Compare Payment -------- */
+    let paymentChanged = false;
+
+    ["discount", "received", "mode", "remarks"].forEach(f => {
+      if ((original.payment?.[f] || "") !== (payment?.[f] || "")) {
+        paymentChanged = true;
+      }
+    });
+
+    if (paymentChanged) summaryParts.push("Payment updated");
+
+
+    /* -------- Compare Categories -------- */
+    if (JSON.stringify(original.categories || []) !== JSON.stringify(activeCategories || [])) {
+      summaryParts.push("Test categories updated");
     }
-  };
+
+
+    /* -------- Compare Tests -------- */
+    const oldTests = Object.values(original.tests || {}).flat();
+    const newTests = Object.values(selectedTests || {}).flat();
+
+    const added = newTests.filter(id => !oldTests.includes(id));
+    const removed = oldTests.filter(id => !newTests.includes(id));
+
+    if (added.length > 0) summaryParts.push(`Added tests: ${added.length}`);
+    if (removed.length > 0) summaryParts.push(`Removed tests: ${removed.length}`);
+
+
+    /* -------- If nothing changed -------- */
+    if (summaryParts.length === 0) summaryParts.push("Case updated");
+
+    const summary = summaryParts.join(". ") + ".";
+
+
+    /* -------- Save activity (BillPage reads it) -------- */
+    sessionStorage.setItem(
+  `caseActivity_${id}`,   // <-- store activity per caseId
+  JSON.stringify({
+    summary,
+    date: new Date(),
+    by: "Admin",
+  })
+);
+
+
+
+    /* ------------------------------------------
+        🔥 2) Prepare Updated Case Payload
+    ------------------------------------------- */
+
+    const updatedCaseData = {
+      branchId: selectedBranch,
+      patient: formData,
+      tests: selectedTests,
+      categories: activeCategories,
+      payment,
+      createdAt: formData.registeredOn
+        ? new Date(formData.registeredOn).toISOString()
+        : undefined,
+
+      whatsappTriggers: selectedTemplates.map((templateId) => {
+        const template = msgTemplates.find((t) => t._id === templateId);
+        return {
+          templateId,
+          enabled: false,
+          triggerType: template?.triggerType || "custom",
+        };
+      }),
+    };
+
+
+    /* ------------------------------------------
+        🔥 3) Send Update Request
+    ------------------------------------------- */
+
+    const response = await axios.put(
+      `${import.meta.env.VITE_API_URL}/api/cases/admin/edit/${id}`,
+      updatedCaseData,
+      {
+        headers: {
+          Authorization: `Bearer ${adminToken}`,
+          "Content-Type": "application/json",
+        },
+      }
+    );
+
+
+    /* ------------------------------------------
+        🔥 4) Handle Response
+    ------------------------------------------- */
+
+    if (response.data.success) {
+      successToast("Case updated successfully!");
+    } else {
+      errorToast(response.data.message || "Failed to update case");
+    }
+
+  } catch (error) {
+    console.error("Update Case Error:", error);
+    errorToast(error.response?.data?.message || "Server error");
+  }
+};
 
 
   return (

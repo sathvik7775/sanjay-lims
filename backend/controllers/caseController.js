@@ -135,6 +135,49 @@ export const updateCase = async (req, res) => {
 };
 
 /**
+ * @desc Cancel case + Refund
+ */
+export const cancelCase = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { refund = true, reason = "Cancelled by admin" } = req.body;
+
+    // 1️⃣ Find case
+    const caseData = await Case.findById(id);
+    if (!caseData)
+      return res.status(404).json({ success: false, message: "Case not found" });
+
+    // Case already cancelled?
+    if (caseData.status === "cancelled") {
+      return res.status(400).json({ success: false, message: "Case is already cancelled" });
+    }
+
+    // 2️⃣ Update status
+    caseData.status = "cancelled";
+
+    // 3️⃣ Optional: reset payment / set refund flag
+    caseData.payment = {
+      ...caseData.payment,
+      refund: refund,
+      refundDate: new Date(),
+    };
+
+    // 4️⃣ Save
+    await caseData.save();
+
+    return res.status(200).json({
+      success: true,
+      message: "Case cancelled successfully",
+      data: caseData,
+    });
+  } catch (error) {
+    console.error("Cancel Case Error:", error);
+    return res.status(500).json({ success: false, message: "Server Error" });
+  }
+};
+
+
+/**
  * @desc Get all cases (Admin)
  */
 export const getAllCases = async (req, res) => {

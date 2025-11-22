@@ -1,9 +1,24 @@
 // backend/pdfGenerator.js
-import puppeteer from "puppeteer-core";
-import chromium from "@sparticuz/chromium";
+
+import { chromium } from "playwright-core";
+
 import fs from "fs";
 import path from "path";
 import { generateBarcodeBase64 } from "./utils/barcode.js";
+
+
+let browser;
+
+async function getBrowser() {
+  if (!browser) {
+    browser = await chromium.launch({
+      headless: true,
+      args: ["--no-sandbox", "--disable-setuid-sandbox"]
+    });
+  }
+  return browser;
+}
+
 
 /**
  * Convert local image to base64
@@ -26,28 +41,14 @@ export const generatePDF = async (
   printSetting = {}
 ) => {
   // ✅ Use Chromium binary path compatible with Render
-const executablePath =
-  (await chromium.executablePath()) || "/usr/bin/google-chrome-stable";
-
-
-  const browser = await puppeteer.launch({
-  args: [...chromium.args, "--no-sandbox", "--disable-setuid-sandbox"],
-  defaultViewport: chromium.defaultViewport,
-  executablePath,
-  headless: chromium.headless,
-});
+const browser = await getBrowser();
 
 const page = await browser.newPage();
 
 // ✅ Allow remote image/network loading (important for Cloudinary)
-await page.setRequestInterception(false);
-await page.setJavaScriptEnabled(true);
-await page.setCacheEnabled(true);
-
-// ✅ Optional: log failed image loads for debugging
-page.on("requestfailed", req => {
-  console.log("❌ Failed to load:", req.url());
-});
+// Playwright automatically loads images, scripts, fonts
+// await page.setJavaScriptEnabled(true);
+ // optional – safe to keep
 
 
   
@@ -103,17 +104,46 @@ page.on("requestfailed", req => {
     ${groups.map(group => {
       const groupParams = params.filter(p => (p.groupBy || "Ungrouped") === group);
       return `
+
+      ${
+  group &&
+  group.length > 0 &&
+  groups[0] === group &&
+  params.length > 1
+    ? `
+      <tr>
+        <td colspan="4" 
+            style="padding:4px 8px; 
+                   font-weight:600; 
+                   font-size:13px;">
+          ${test.testName}
+        </td>
+      </tr>
+    `
+    : ""
+}
+
         ${group && group !== "Ungrouped" ? `<tr><td colspan="4" style="font-weight:600;">${group}</td></tr>` : ''}
 
         ${groupParams.map(p => {
           const hl = useHLMarkers ? isOutOfRange(p.value, p.reference) : false;
-          const color = hl && design.redAbnormal ? 'red' : 'black';
-          const weight = hl && design.boldAbnormal ? 'bold' : 'normal';
+          const color = hl ? (design.redAbnormal !== false ? 'red' : 'black') : 'black';
+const weight = hl ? (design.boldAbnormal !== false ? 'bold' : 'normal') : 'normal';
+
           const marker = hl === 'high' ? ' ↑' : hl === 'low' ? ' ↓' : '';
+
+          const showBullet =
+  group && 
+  group !== "Ungrouped" && 
+  group.length > 0 && 
+  params.length > 1;
+
 
           return `
             <tr>
-              <td style="padding:3px 5px;">${p.name}</td>
+              <td style="padding:3px 5px; padding-left:${showBullet ? "12px" : "5px"};">
+      ${showBullet ? "✦ " : ""}${p.name}
+    </td>
               <td style="padding:3px 5px; font-weight:${weight}; color:${color};">${p.value || '-'}${marker}</td>
               <td style="padding:3px 5px;">${p.unit || '-'}</td>
               <td style="padding:3px 5px;">${p.reference || '-'}</td>
@@ -165,7 +195,7 @@ const renderPanelPage = (item, design, spacing, fontSize, fontFamily, useHLMarke
 
 const renderCategorySection = (category, design, spacing = 1, fontSize = 12, fontFamily = 'Inter', useHLMarkers = true) => {
   return `
-    <div style="page-break-before: always; margin-bottom:10px;">
+    <div style=" margin-bottom:10px;">
       <div style="text-align:center; font-weight:600; text-transform:uppercase; margin:6px 0;">
         ${category.categoryName}
       </div>
@@ -251,59 +281,81 @@ table {
                 
 
 
-                <div style="display:flex; justify-content:space-between; align-items:flex-start; width:100%; border:1px solid #000; padding:6px;
-                margin:4px;">
-      
-      <!-- Left section -->
-      <div style="display:flex; flex-direction:column; justify-content:start;">
-        <p style="margin:2px 0; font-weight:600; font-size:${printSetting?.design?.fontSize || 12}px;">
-          Patient: ${patient.firstName} ${patient.lastName}
-        </p>
-        <p style="margin:2px 0; font-weight:600; font-size:${printSetting?.design?.fontSize || 12}px;">
-          Age/Sex: ${patient.age} ${patient.ageUnit || "Yrs"} / ${patient.sex}
-        </p>
-        <p style="margin:2px 0; font-weight:600; font-size:${printSetting?.design?.fontSize || 12}px;">
-          Referred By: ${patient.doctor || "—"}
-        </p>
+                <div style="
+  margin-top:6px;
+  border:1px solid #000;
+  padding:6px;
+  margin:4px;
+  background:#fff;
+  font-size:${printSetting?.design?.fontSize || 12}px;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+">
+
+  <!-- LEFT COLUMN -->
+  <div style="display:flex; flex-direction:column;">
+    <p style="margin:2px 0; font-weight:600;">
+      Patient: ${patient.firstName} ${patient.lastName}
+    </p>
+    <p style="margin:2px 0; font-weight:600;">
+      Age/Sex: ${patient.age} ${patient.ageUnit || "Yrs"} / ${patient.sex}
+    </p>
+    <p style="margin:2px 0; font-weight:600;">
+      Referred By: ${patient.doctor || "—"}
+    </p>
+  </div>
+
+  <!-- RIGHT COLUMN -->
+  <div style="display:flex; flex-direction:column; text-align:right;">
+    <p style="margin:2px 0; font-weight:600;">
+      Date: ${new Date(reportData.createdAt).toLocaleDateString("en-GB")}
+    </p>
+
+    <p style="margin:2px 0; font-weight:600;">
+      Time: ${new Date(reportData.createdAt).toLocaleTimeString("en-GB", {
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: true
+      })}
+    </p>
+
+    <p style="margin:2px 0; font-weight:600;">
+      PAT ID: ${patient.regNo}
+    </p>
+
+    <p style="margin:2px 0; font-weight:600;">
+      UHID: ${patient.uhid}
+    </p>
+  </div>
+
+  <!-- BARCODE -->
+  ${
+    printSetting?.showHide?.showQRCode
+      ? `
+      <div style="margin-left:10px;">
+        <img 
+          src="data:image/png;base64,${barcodeBase64}" 
+          style="height:40px; width:auto;" 
+        />
       </div>
+      `
+      : ""
+  }
 
-      <!-- Right section -->
-      <div style="display:flex; flex-direction:column; text-align:right;">
-      <div style="display:flex; flex-direction:row; gap:3px; justify-content:start;>
-        <p style="margin:2px 0; font-weight:600; font-size:${printSetting?.design?.fontSize || 12}px;">
-          Date: ${new Date(reportData.createdAt).toLocaleDateString("en-GB")}
-        </p>
-        <p style="margin:2px 0; font-weight:600; font-size:${printSetting?.design?.fontSize || 12}px;">
-          Time: ${new Date(reportData.createdAt).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", hour12: true })}
-        </p>
-        </div>
-        <p style="margin:2px 0; font-weight:600; font-size:${printSetting?.design?.fontSize || 12}px;">
-          PAT ID: ${patient.regNo}
-        </p>
-        <p style="margin:2px 0; font-weight:600; font-size:${printSetting?.design?.fontSize || 12}px;">
-          UHID: ${patient.uhid}
-        </p>
-      </div>
+  <!-- TAT -->
+  ${
+    printSetting?.showHide?.showTATTime
+      ? `
+      <p style="margin-left:10px; font-weight:600;">
+        TAT: ${calculateTAT(patient.createdAt, report.updatedAt)}
+      </p>
+      `
+      : ""
+  }
 
-      ${
-  printSetting?.showHide?.showQRCode
-    ? `<div style="margin-left:8px;">
-         <img src="data:image/png;base64,${barcodeBase64}" alt="Barcode"
-              style="height:40px; width:auto;" />
-       </div>`
-    : ""
-}
+</div>
 
-      <!-- TAT Time (conditional) -->
-      ${
-        printSetting?.showHide?.showTATTime
-          ? `<p style="margin:2px 0; font-weight:600; font-size:${printSetting?.design?.fontSize || 12}px;">
-              TAT: ${calculateTAT(patient.createdAt, report.updatedAt)}
-            </p>`
-          : ""
-      }
-
-    </div>
 
 
               </th>
@@ -346,14 +398,18 @@ table {
   `;
 
   await page.setContent(html, {
-  waitUntil: ["networkidle0", "domcontentloaded"], // Wait for images & resources
-  timeout: 60000, // 60 seconds
+  waitUntil: "load"
 });
 
 
-  const pdfBufferRaw = await page.pdf({ format: "A4", printBackground: true });
-const pdfBuffer = Buffer.from(pdfBufferRaw); // ensure it's a Node Buffer
-await browser.close();
+
+  const pdfBuffer = await page.pdf({
+  format: "A4",
+  printBackground: true
+});
+
+await page.close();
+
 
 console.log("Type of pdfBuffer:", typeof pdfBuffer);     // object
 console.log("Is Buffer:", Buffer.isBuffer(pdfBuffer));   // true

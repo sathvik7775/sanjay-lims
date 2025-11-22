@@ -27,7 +27,7 @@ function numberToWords(num) {
 
 export default function BillPage() {
   const { id } = useParams();
-  const { branchToken, errorToast, navigate, branchId, branchData } = useContext(LabContext);
+  const { branchToken, errorToast, navigate, branchId, branchData, successToast } = useContext(LabContext);
   const [caseData, setCaseData] = useState(null);
   const [testDetails, setTestDetails] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -79,11 +79,8 @@ export default function BillPage() {
         if (!res.data.success) throw new Error(res.data.message || "Failed to fetch case");
         setCaseData(res.data.data);
 
-        const allIds = [
-          ...(res.data.data.tests?.LAB || []),
-          ...(res.data.data.tests?.PANELS || []),
-          ...(res.data.data.tests?.PACKAGES || []),
-        ];
+        const allIds = Object.values(res.data.data.tests || {}).flat();
+
         const items = await Promise.all(allIds.map(fetchItemDetails));
         setTestDetails(items.flat().filter(Boolean));
       } catch (err) {
@@ -140,6 +137,143 @@ export default function BillPage() {
   }
 };
 
+const [activities, setActivities] = useState([]);
+
+
+
+useEffect(() => {
+  if (!caseData?._id) return;   // wait until case is loaded
+
+  const act = sessionStorage.getItem(`caseActivity_${caseData._id}`);
+  if (act) {
+    setActivities([JSON.parse(act)]);
+  } else {
+    setActivities([]); // no activity found for this case
+  }
+}, [caseData?._id]);
+
+
+const handleCancelCase = async (caseId) => {
+  if (!window.confirm("Are you sure you want to cancel this case and refund?")) return;
+
+  try {
+    // 🔥 Activity Log
+    sessionStorage.setItem(
+  `caseActivity_${caseId}`,   // ← store using case ID
+  JSON.stringify({
+    summary: "Case cancelled and refund initiated.",
+    date: new Date(),
+    by: "Branch",
+  })
+);
+
+
+    // 🔥 Axios request
+    const response = await axios.put(
+      `${import.meta.env.VITE_API_URL}/api/cases/branch/cancel/${caseId}`,
+      {
+        status: "cancelled",
+        refund: true,   // if you want refund logic
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${branchToken}`,
+          "Content-Type": "application/json",
+        },
+      }
+    );
+
+    if (response.data.success) {
+      successToast("Case cancelled and refund processed!");
+      navigate(-1); // Go back
+    } else {
+      errorToast(response.data.message || "Failed to cancel case");
+    }
+  } catch (err) {
+    console.error("Cancel Case Error:", err);
+    errorToast("Server error while cancelling case");
+  }
+};
+
+
+const [openMenu, setOpenMenu] = useState(false);
+
+const menuRef = useRef(null);
+  
+  
+    useEffect(() => {
+    function handleClickOutside(event) {
+      if (menuRef.current && !menuRef.current.contains(event.target)) {
+        setOpenMenu(false);   // 🔥 Close menu
+      }
+    }
+  
+    document.addEventListener("mousedown", handleClickOutside);
+  
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
+  
+  const [showBar, setShowBar] = useState(true);
+  const [lastScrollY, setLastScrollY] = useState(0);
+  
+  useEffect(() => {
+    const handleScroll = () => {
+      if (window.scrollY > lastScrollY) {
+        // scrolling DOWN → hide
+        setShowBar(false);
+      } else {
+        // scrolling UP → show
+        setShowBar(true);
+      }
+      setLastScrollY(window.scrollY);
+    };
+  
+    window.addEventListener("scroll", handleScroll);
+  
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, [lastScrollY]);
+
+
+
+  const [hasResults, setHasResults] = useState(false);
+
+useEffect(() => {
+  if (!caseData?._id) return;
+
+  const checkResults = async () => {
+    try {
+      const res = await axios.get(
+        `${import.meta.env.VITE_API_URL}/api/results/report/${caseData._id}`,
+        {
+          headers: {
+            Authorization: `Bearer ${branchToken}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      console.log("RESULT RESPONSE:", res.data);
+
+      // ✔ If "data" is an object → results exist
+      if (res.data?.success && res.data?.data) {
+        setHasResults(true);
+      } else {
+        setHasResults(false);
+      }
+    } catch (err) {
+      console.error("Check results error:", err);
+      setHasResults(false);
+    }
+  };
+
+  checkResults();
+}, [caseData?._id, branchToken]);
+
+
+
+
 
 
   if (loading || !caseData) return <Loader />;
@@ -150,6 +284,9 @@ export default function BillPage() {
   const mode = c.payment?.mode || "cash";
   const paid = c.payment?.received || 0;
   const amountWords = numberToWords(paid);
+
+
+  
 
   return (
     <>
@@ -187,6 +324,17 @@ export default function BillPage() {
       <div className="flex flex-col lg:flex-row gap-6 max-w-8xl mx-auto p-4">
         {/* ---------------- Bill Section ---------------- */}
         <div ref={printRef} id="printableBill" className="w-full lg:w-1/2 bg-white border rounded-lg shadow p-6 text-sm">
+
+        {c.status === "cancelled" && (
+  <img
+    src="/cancelled.png"
+    alt="cancelled"
+    className="absolute top-1/2 left-1/3 
+               -translate-x-1/2 -translate-y-1/2 
+               w-[300px] opacity-40 pointer-events-none"
+  />
+)}
+
           <div className="flex justify-between w-full items-start border-b pb-2">
             <div className="flex items-center gap-3">
               <img src={lab?.logo ? `/logos/${lab.logo}` : '/sanjay.png'} alt="Lab Logo" className="h-20 w-auto mb-2"/>
@@ -275,7 +423,7 @@ export default function BillPage() {
                 <tr>
                   <td className="border px-2 py-1">{new Date(c.createdAt || c.date).toLocaleDateString("en-GB")}</td>
                   <td className="border px-2 py-1">{new Date(c.createdAt || c.date).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", hour12: true })}</td>
-                  <td className="border px-2 py-1 text-right text-green-500 border-black">+ Rs.{total}</td>
+                  <td className={`border px-2 py-1 text-right  border-black ${c.status === "cancelled" ? 'text-red-600' : 'text-green-500'}`}>{c.status === "cancelled" ? "-" : "+"} Rs.{total}</td>
                   <td className="border px-2 py-1">SD Labs</td>
                   <td className="border px-2 py-1">{mode}</td>
                 </tr>
@@ -283,16 +431,193 @@ export default function BillPage() {
             </table>
           </div>
 
+          {/* Activities Section */}
+<div className="border rounded-lg bg-white p-4 shadow mt-4">
+  <div className="flex items-center gap-2 mb-2">
+    <h3 className="font-semibold">Activities</h3>
+    
+  </div>
+
+  <table className="w-full text-xs">
+    <thead>
+      <tr className="bg-gray-100">
+        <th className="border px-2 py-1">Date</th>
+        <th className="border px-2 py-1">Time</th>
+        <th className="border px-2 py-1">Summary</th>
+        <th className="border px-2 py-1">By</th>
+      </tr>
+    </thead>
+
+    <tbody>
+      {activities?.length > 0 ? (
+        activities.map((act, idx) => (
+          <tr key={idx}>
+            <td className="border px-2 py-1">
+              {new Date(act.date).toLocaleDateString("en-GB")}
+            </td>
+            <td className="border px-2 py-1">
+              {new Date(act.date).toLocaleTimeString("en-GB", {
+                hour: "2-digit",
+                minute: "2-digit",
+                hour12: true,
+              })}
+            </td>
+            <td className="border px-2 py-1">{act.summary}</td>
+            <td className="border px-2 py-1">{act.by}</td>
+          </tr>
+        ))
+      ) : (
+        <tr>
+          <td colSpan="4" className="border px-2 py-2 text-center text-gray-500">
+            No activities found
+          </td>
+        </tr>
+      )}
+    </tbody>
+  </table>
+</div>
+
           <div className="border rounded-lg bg-white p-4 shadow text-center">
             <p className="text-sm mb-2">Request a review from the patient</p>
             <button className="bg-green-600 text-white px-4 py-1 rounded-md text-sm">Ask review 💬</button>
           </div>
 
-          <div className="flex justify-center gap-2 mt-3">
-            <button onClick={()=> window.print()} className="bg-blue-600 text-white px-4 py-1 rounded-md text-sm">🖨️ Print</button>
-            <button onClick={handlePDFDownload} className="border border-blue-600 text-blue-600 px-4 py-1 rounded-md text-sm">Print PDF</button>
-            <button onClick={() => navigate(`/${branchId}/view-report/${c._id}`)} className="bg-green-600 text-white px-4 py-1 rounded-md text-sm">📄 View Lab Report</button>
-          </div>
+          <div className="flex flex-wrap w-full items-center gap-3 mt-3">
+
+  {/* 🔵 Print Dropdown */}
+  <div className="relative group">
+     <div ref={menuRef} className="relative flex">
+
+      <button
+        onClick={() => window.print()}
+        className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white
+                   px-5 h-10 rounded-l-md shadow transition border-r border-white"
+      >
+        <img src="/signature-w.png" className="w-4 h-4" />
+        <span className="font-medium">Print</span>
+      </button>
+
+      <button
+        onClick={() => setOpenMenu(!openMenu)}
+        className="bg-blue-600 hover:bg-blue-700 text-white w-10 h-10 
+                   flex items-center justify-center rounded-r-md shadow transition"
+      >
+        <img src="/down-arrow-w.png" className="w-3 h-3 opacity-80" />
+      </button>
+
+      {openMenu && (
+        <div className="absolute right-0 bottom-12 w-48 bg-white rounded-md shadow-lg border border-gray-300">
+
+          <div className="absolute -bottom-2 right-4 w-3 h-3 bg-white 
+                          rotate-45 border-l border-b"></div>
+
+          <ul className="py-2 text-sm">
+
+  {/* View Bill */}
+  
+
+  {/* Modify Case */}
+  <li
+    onClick={() => navigate(`/${branchId}/edit-case/${c._id}`)}
+    className={`px-4 py-2 hover:bg-gray-100  flex gap-2 items-center ${c.status === "cancelled" ? 'cursor-not-allowed text-gray-400' : 'cursor-pointer text-black'}`}
+  >
+    <img src="/edit.png" className="w-4 h-4" />
+    Modify case
+  </li>
+
+  {/* Add Another Case */}
+  <li
+  onClick={() =>
+    navigate(`/${branchId}/new-case`, {
+      state: {
+        mobile: c.patient.mobile,
+        title: c.patient.title,
+        firstName: c.patient.firstName,
+        lastName: c.patient.lastName,
+        sex: c.patient.sex,
+        uhid: c.patient.uhid,
+        age: c.patient.age,
+      },
+    })
+  }
+  className="px-4 py-2 hover:bg-gray-100 cursor-pointer flex gap-2 items-center"
+>
+  <img src="/add.png" className="w-4 h-4" />
+  Add another case
+</li>
+  {/* Cancel Case */}
+  <li
+    onClick={() => handleCancelCase(c._id)}
+    className={`px-4 py-2 hover:bg-gray-100  flex gap-2 items-center ${c.status === "cancelled" ? 'cursor-not-allowed text-gray-400' : 'cursor-pointer text-black'}`}
+  >
+    <img src="/cancel.png" className="w-4 h-4" />
+    Cancel case and Refund
+  </li>
+
+  
+
+</ul>
+
+        </div>
+      )}
+    </div>
+
+    {/* Dropdown */}
+    
+  </div>
+
+  {/* 🔵 Print PDF Button */}
+  <button
+    onClick={handlePDFDownload}
+    className="border border-blue-600 text-blue-600 px-4 py-1.5 rounded-md text-sm flex items-center gap-2"
+  >
+    📄 Print PDF
+  </button>
+
+  {/* ✏️ Enter Results */}
+  {hasResults ? (
+  <button
+    onClick={() => navigate(`/${branchId}/view-report/${caseData._id}`)}
+    className="border px-4 py-1.5 rounded-md text-sm flex items-center gap-2"
+  >
+    📄 View Lab Report
+  </button>
+) : (
+  <button
+    onClick={() => navigate(`/${branchId}/enter-result/${caseData._id}`)}
+    className="border px-4 py-1.5 rounded-md text-sm flex items-center gap-2"
+  >
+    ✏️ Enter results
+  </button>
+)}
+
+
+
+  {/* 🟢 Whatsapp Bill Dropdown */}
+  <div className="relative group">
+    <button className="bg-green-600 text-white px-4 py-1.5 rounded-md text-sm flex items-center gap-2">
+      🟢 Whatsapp bill ▼
+    </button>
+
+    <div className="absolute hidden group-hover:block bg-white shadow-md border rounded-md mt-1 w-40 z-20">
+      <button
+        onClick={() => sendWhatsApp("bill")}
+        className="block w-full text-left px-3 py-1 hover:bg-gray-100 text-sm"
+      >
+        Send Bill
+      </button>
+      <button
+        onClick={() => sendWhatsApp("report")}
+        className="block w-full text-left px-3 py-1 hover:bg-gray-100 text-sm"
+      >
+        Send Report
+      </button>
+    </div>
+  </div>
+
+ 
+</div>
+
         </div>
       </div>
     </>

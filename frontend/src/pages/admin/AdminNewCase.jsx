@@ -1,6 +1,8 @@
 import React, { useContext, useEffect, useState } from "react";
 import { Search } from "lucide-react";
 import Select from "react-select";
+import { useLocation } from "react-router-dom";
+
 
 import axios from "axios";
 import { LabContext } from "../../context/LabContext";
@@ -12,6 +14,11 @@ const AdminNewCase = () => {
 
      const [msgTemplates, setMsgTemplates] = useState([]); // fetched templates
     const [selectedTemplates, setSelectedTemplates] = useState([]); // array of selected template IDs
+
+
+    const location = useLocation();
+const prefill = location.state || {};
+
     
     
     useEffect(() => {
@@ -41,13 +48,13 @@ const AdminNewCase = () => {
     };
 
   const [formData, setFormData] = useState({
-    mobile: "",
-    title: "",
-    firstName: "",
-    lastName: "",
-    age: "",
-    sex: "",
-    uhid: "",
+    mobile: prefill.mobile || "",
+    title: prefill.title || "",
+    firstName: prefill.firstName || "",
+    lastName: prefill.lastName || "",
+    age: prefill.age || "",
+    sex: prefill.sex || "",
+    uhid: prefill.uhid || "",
     doctor: "",
     agent: "",
     center: "Main",
@@ -57,6 +64,7 @@ const AdminNewCase = () => {
     aadhaar: "",
     history: "",
   });
+  
 
   const [payment, setPayment] = useState({
     total: 0,
@@ -137,7 +145,14 @@ const AdminNewCase = () => {
       .flat()
       .map((id) => dummyTests.find((t) => t._id === id) || dummyPanels.find((p) => p._id === id));
     const total = allSelectedTests.reduce((sum, t) => sum + (t?.price || 0), 0);
-    setPayment((prev) => updateBalance({ ...prev, total }));
+    setPayment((prev) =>
+  updateBalance({
+    ...prev,
+    total,
+    received: total,   // 👈 auto-fill received
+  })
+);
+
   };
 
   // ---------------- API Call ----------------

@@ -3,6 +3,8 @@ import { Search } from "lucide-react";
 import Select from "react-select";
 import { LabContext } from "../context/LabContext";
 import axios from "axios";
+import { useLocation } from "react-router-dom";
+
 
 const NewCase = () => {
   const { doctors, agents, dummyTests, dummyPanels, branchId, branchToken, successToast, errorToast, packages, navigate } =
@@ -10,6 +12,10 @@ const NewCase = () => {
 
     const [msgTemplates, setMsgTemplates] = useState([]); // fetched templates
 const [selectedTemplates, setSelectedTemplates] = useState([]); // array of selected template IDs
+
+const location = useLocation();
+const prefill = location.state || {};
+
 
 
 useEffect(() => {
@@ -41,22 +47,23 @@ const handleTemplateToggle = (id) => {
 
 
   const [formData, setFormData] = useState({
-    mobile: "",
-    title: "",
-    firstName: "",
-    lastName: "",
-    age: "",
-    sex: "",
-    uhid: "",
-    doctor: "",
-    agent: "",
-    center: "Main",
-    onlineReport: false,
-    email: "",
-    address: "",
-    aadhaar: "",
-    history: "",
-  });
+  mobile: prefill.mobile || "",
+  title: prefill.title || "",
+  firstName: prefill.firstName || "",
+  lastName: prefill.lastName || "",
+  age: prefill.age || "",
+  sex: prefill.sex || "",
+  uhid: prefill.uhid || "",
+  doctor: "",
+  agent: "",
+  center: "Main",
+  onlineReport: false,
+  email: "",
+  address: "",
+  aadhaar: "",
+  history: "",
+});
+
 
   const [payment, setPayment] = useState({
     total: 0,
@@ -147,7 +154,14 @@ const handleSelectChange = (cat, selectedOptions) => {
     0
   );
 
-  setPayment((prev) => updateBalance({ ...prev, total }));
+  setPayment((prev) =>
+  updateBalance({
+    ...prev,
+    total,
+    received: total,   // 👈 auto-fill received
+  })
+);
+
 }; // <-- close handleSelectChange here
 
 // ---------------- API Call ----------------
