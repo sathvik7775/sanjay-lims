@@ -5,6 +5,7 @@ import { LabContext } from "../../context/LabContext";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import Loader from "../../components/Loader";
 import { Document, Page, pdfjs } from "react-pdf";
+import { useRef } from "react";
 
 // Set workerSrc for react-pdf
 pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.js`;
@@ -28,10 +29,27 @@ const AdminPrintSetting = () => {
   const { reportId } = useParams();
   console.log(reportId);
 
-  const branchId = selectedBranch;
+ 
+
+
+  const [branchId, setBranchId] = useState(null);
+
+  
   
 
   const [loading, setLoading] = useState(true);
+  const [report, setReport] = useState(null);
+const [letterhead, setLetterhead] = useState(null);
+const [signatures, setSignatures] = useState([]);
+
+const reportRef = useRef(null);
+const patientRef = useRef(null);
+const letterheadRef = useRef(null);
+const signaturesRef = useRef(null);
+
+
+
+
   const [pdfUrl, setPdfUrl] = useState(null);
   const [numPages, setNumPages] = useState(null);
   const [active, setActive] = useState("Letterhead");
@@ -83,20 +101,125 @@ const AdminPrintSetting = () => {
     fetchPDF();
   }, [reportId, adminToken, errorToast]);
 
-  // ------------------ Save Print Settings ------------------
-  const handleSave = async () => {
+
+ useEffect(() => {
+  const fetchData = async () => {
     try {
-      const res = await axios.put(
-        `${import.meta.env.VITE_API_URL}/api/print/${branchId}`,
-        printSettings,
+      setLoading(true);
+
+      // 1) Case
+      const caseRes = await axios.get(
+        `${import.meta.env.VITE_API_URL}/api/cases/admin/${reportId}`,
         { headers: { Authorization: `Bearer ${adminToken}` } }
       );
-      if (res.data.success) alert("✅ Print settings updated successfully!");
+
+      if (!caseRes.data.success) return errorToast("Failed to fetch report case");
+
+      const caseData = caseRes.data.data;
+      const fetchedBranchId = caseData.branchId;
+      setBranchId(fetchedBranchId);
+
+      // 2) Results
+      const resultsRes = await axios.get(
+        `${import.meta.env.VITE_API_URL}/api/results/admin/report/${reportId}`,
+        { headers: { Authorization: `Bearer ${adminToken}` } }
+      );
+
+      const resultData = resultsRes.data.success ? resultsRes.data.data : {};
+
+      // 3) Final report object
+      const finalReportData = {
+        ...caseData,
+        ...resultData,
+        createdAt: caseData.createdAt,
+        updatedAt: resultData.updatedAt || caseData.updatedAt,
+        categories: resultData.categories || caseData.categories || []
+      };
+
+      // Store to state + refs
+      setReport(finalReportData);
+      reportRef.current = finalReportData;
+      patientRef.current = finalReportData.patient;
+
+      // 4) Letterhead
+      const lhRes = await axios.get(
+        `${import.meta.env.VITE_API_URL}/api/report/letterhead/branch/${fetchedBranchId}`
+      );
+
+      setLetterhead(lhRes.data?.data || null);
+      letterheadRef.current = lhRes.data?.data || null;
+
+      // 5) Signatures
+      const sigRes = await axios.get(
+        `${import.meta.env.VITE_API_URL}/api/report/signature/branch/${fetchedBranchId}`
+      );
+
+      setSignatures(sigRes.data?.data || []);
+      signaturesRef.current = sigRes.data?.data || [];
+
     } catch (err) {
       console.error(err);
-      errorToast("Failed to update print settings");
+      errorToast("Failed to fetch report data");
+    } finally {
+      setLoading(false);
     }
   };
+
+  fetchData();
+}, [reportId, adminToken]);
+
+
+
+
+  // ------------------ Save Print Settings ------------------
+ const handleSave = async () => {
+  try {
+    // 1️⃣ Save new settings to DB
+    const saveRes = await axios.put(
+      `${import.meta.env.VITE_API_URL}/api/print/${branchId}`,
+      printSettings,
+      { headers: { Authorization: `Bearer ${adminToken}` } }
+    );
+
+    if (!saveRes.data.success) {
+      return errorToast("Failed to update print settings");
+    }
+
+    // 2️⃣ Fetch updated settings again from DB
+    const psRes = await axios.get(
+      `${import.meta.env.VITE_API_URL}/api/print/${branchId}`,
+      { headers: { Authorization: `Bearer ${adminToken}` } }
+    );
+
+    const updatedSettings = psRes.data.data;
+    setPrintSettings(updatedSettings);
+
+    // 3️⃣ Send updated settings directly to preview API
+    const previewRes = await axios.post(
+      `${import.meta.env.VITE_API_URL}/api/pdf/preview`,
+      {
+    reportData: reportRef.current,
+    patient: patientRef.current,
+    letterhead: letterheadRef.current,
+    signatures: signaturesRef.current,
+    printSetting: updatedSettings
+  },
+      { responseType: "arraybuffer" }
+    );
+
+    const blob = new Blob([previewRes.data], { type: "application/pdf" });
+    const url = URL.createObjectURL(blob);
+
+    // 4️⃣ Update IFRAME
+    setPdfUrl(url);
+
+    alert("✅ Settings saved & preview updated!");
+
+  } catch (err) {
+    console.error(err);
+    errorToast("Failed to update print settings");
+  }
+};
 
   if (loading) return <Loader />;
 
@@ -228,15 +351,34 @@ const AdminPrintSetting = () => {
       {/* 🧾 RIGHT: PDF Viewer */}
       <div className="lg:w-2/3 bg-white border rounded-lg shadow-sm p-4 overflow-auto">
   {pdfUrl ? (
-    <iframe
-      src={`${pdfUrl}?dl=1`} // Dropbox direct download
-      title="Report PDF"
-      style={{ width: "100%", height: "1000px", border: "none" }}
-    />
+    <div className="flex justify-center py-4">
+      <div
+        style={{
+          width: "80%",            // shrink the PDF width
+          background: "#f8f8f8",   // light background
+          padding: "20px",
+          borderRadius: "10px",
+          boxShadow: "0 0 10px rgba(0,0,0,0.1)"
+        }}
+      >
+        <iframe
+          src={pdfUrl}
+          title="Report PDF"
+          style={{
+            width: "100%",
+            height: "900px",
+            border: "1px solid #ccc",
+            borderRadius: "8px",
+            background: "white"
+          }}
+        />
+      </div>
+    </div>
   ) : (
     <p className="text-gray-500">PDF not available</p>
   )}
 </div>
+
 
     </div>
   );

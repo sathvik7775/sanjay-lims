@@ -227,7 +227,7 @@ const PrintSettings = () => {
       <div className="lg:w-2/3 bg-white border rounded-lg shadow-sm p-4 overflow-auto">
   {pdfUrl ? (
     <iframe
-      src={`${pdfUrl}?dl=1`} // Dropbox direct download
+      src={pdfUrl} // ← REMOVE ?dl=1
       title="Report PDF"
       style={{ width: "100%", height: "1000px", border: "none" }}
     />
@@ -235,6 +235,7 @@ const PrintSettings = () => {
     <p className="text-gray-500">PDF not available</p>
   )}
 </div>
+
 
     </div>
   );

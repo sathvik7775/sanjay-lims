@@ -2,7 +2,8 @@ import express from "express";
 import {
   addPDF,
   getPDFByReportId,
-  listAllPDFs
+  listAllPDFs,
+  previewPDF
 } from "../controllers/pdfController.js";
 
 const pdfRouter = express.Router();
@@ -10,10 +11,13 @@ const pdfRouter = express.Router();
 // ➕ Add (Generate + Upload) new PDF
 pdfRouter.post("/add", addPDF);
 
-// 🔍 Get PDF by Report ID & Branch ID
+// 🔍 Get PDF by Report ID
 pdfRouter.get("/get/:reportId", getPDFByReportId);
 
-// 📜 List all PDFs (optional branch filter)
+// 🟣 LIVE PDF PREVIEW (No upload, No DB save)
+pdfRouter.post("/preview", previewPDF);
+
+// 📜 List all PDFs
 pdfRouter.get("/list", listAllPDFs);
 
 export default pdfRouter;

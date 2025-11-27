@@ -62,6 +62,8 @@ const page = await browser.newPage();
   const fontFamily = design.fontFamily || "Arial";
   const fontSize = design.fontSize || 12;
   const spacing = design.spacing || 1;
+  const useHLMarkers = general.useHLMarkers === true;
+
 
 
   const barcodeBase64 = await generateBarcodeBase64(patient.regNo);
@@ -85,142 +87,282 @@ const page = await browser.newPage();
     `;
   }).join('');
 
-  const renderTestRow = (test, design = {}, spacing = 1, fontSize = 12, fontFamily = 'Inter', useHLMarkers = true) => {
-  const params = test.params || [];
-  const groups = [...new Set(params.map(p => p.groupBy || "Ungrouped"))];
+  // --- normalize settings into boolean flags ---
+  const redAbFlag = !!design.redAbnormal;
+  const boldAbFlag = !!design.boldAbnormal;
+  const boldValuesFlag = !!design.boldValues;
+  const indentNestedFlag = !!design.indentNested;
+  const useHLMarkersFlag = general.useHLMarkers === true;
+  const categoryNewFlag = general.categoryNewPage === true;
 
+  console.log({ redAbFlag, boldAbFlag, boldValuesFlag, indentNestedFlag, useHLMarkersFlag });
+
+
+  // Helper: detect out-of-range
   const isOutOfRange = (value, reference) => {
     if (!value || !reference) return false;
-    const match = reference.match(/([\d.]+)\s*-\s*([\d.]+)/);
+    const match = String(reference).match(/([\d.]+)\s*-\s*([\d.]+)/);
     if (!match) return false;
-    const [_, min, max] = match;
+    const [, min, max] = match;
     const num = parseFloat(value);
-    if (num < parseFloat(min)) return 'low';
-    if (num > parseFloat(max)) return 'high';
+    if (Number.isNaN(num)) return false;
+    if (num < parseFloat(min)) return "low";
+    if (num > parseFloat(max)) return "high";
     return false;
   };
 
-  return `
-    ${groups.map(group => {
-      const groupParams = params.filter(p => (p.groupBy || "Ungrouped") === group);
-      return `
+  // Render a single test (may contain params)
+  const renderTestRow = (
+    test,
+    design = {},
+    spacing = 1,
+    fontSize = 12,
+    fontFamily = "Inter",
+    useHL = true,
+    redAb = true,
+    boldAb = true,
+    boldValues = false,
+    indentNested = false
+  ) => {
+    const params = test.params || [];
+    const groups = [...new Set(params.map((p) => p.groupBy || "Ungrouped"))];
 
-      ${
-  group &&
-  group.length > 0 &&
-  groups[0] === group &&
-  params.length > 1
-    ? `
-      <tr>
-        <td colspan="4" 
-            style="padding:4px 8px; 
-                   font-weight:600; 
-                   font-size:13px;">
-          ${test.testName}
-        </td>
-      </tr>
-    `
-    : ""
-}
-
-        ${group && group !== "Ungrouped" ? `<tr><td colspan="4" style="font-weight:600;">${group}</td></tr>` : ''}
-
-        ${groupParams.map(p => {
-          const hl = useHLMarkers ? isOutOfRange(p.value, p.reference) : false;
-          const color = hl ? (design.redAbnormal !== false ? 'red' : 'black') : 'black';
-const weight = hl ? (design.boldAbnormal !== false ? 'bold' : 'normal') : 'normal';
-
-          const marker = hl === 'high' ? ' ↑' : hl === 'low' ? ' ↓' : '';
-
-          const showBullet =
-  group && 
-  group !== "Ungrouped" && 
-  group.length > 0 && 
-  params.length > 1;
-
+    return `
+      ${groups
+        .map((group) => {
+          const groupParams = params.filter(
+            (p) => (p.groupBy || "Ungrouped") === group
+          );
 
           return `
-            <tr>
-              <td style="padding:3px 5px; padding-left:${showBullet ? "12px" : "5px"};">
-      ${showBullet ? "✦ " : ""}${p.name}
-    </td>
-              <td style="padding:3px 5px; font-weight:${weight}; color:${color};">${p.value || '-'}${marker}</td>
-              <td style="padding:3px 5px;">${p.unit || '-'}</td>
-              <td style="padding:3px 5px;">${p.reference || '-'}</td>
-            </tr>
+            ${
+              group &&
+              group.length > 0 &&
+              groups[0] === group &&
+              params.length > 1
+                ? `<tr>
+                    <td colspan="4" style="padding:4px 8px; font-weight:600; font-size:13px;">
+                      ${test.testName}
+                    </td>
+                  </tr>`
+                : ""
+            }
+
+            ${group && group !== "Ungrouped" ? `<tr><td colspan="4" style="font-weight:600;">${group}</td></tr>` : ""}
+
+            ${groupParams
+              .map((p) => {
+                // HL / abnormal detection only when useHL true
+                const hl = useHL ? isOutOfRange(p.value, p.reference) : false;
+
+                // color & weight rules:
+                // - if hl and redAb true => red, otherwise black
+                // - value weight: if hl and boldAb true => bold
+                //               else if boldValues true => bold
+                //               else normal
+                const color = hl ? (redAb ? "red" : "black") : "black";
+                const valueWeight = hl
+                  ? boldAb
+                    ? "bold"
+                    : "normal"
+                  : boldValues
+                  ? "bold"
+                  : "normal";
+
+                // marker arrows
+                const marker = hl === "high" ? " ↑" : hl === "low" ? " ↓" : "";
+
+                // indent nested/grouped items if flag set
+                const paddingLeft =
+                  indentNested && group && group !== "Ungrouped" && params.length > 1
+                    ? "12px"
+                    : "5px";
+
+                return `
+                  <tr>
+                    <td style="padding:3px 5px; padding-left:${paddingLeft};">
+                      ${indentNested && group && group !== "Ungrouped" && params.length > 1 ? "✦ " : ""}${p.name}
+                    </td>
+                    <td style="padding:3px 5px; font-weight:${valueWeight}; color:${color};">${p.value || "-"}${marker}</td>
+                    <td style="padding:3px 5px;">${p.unit || "-"}</td>
+                    <td style="padding:3px 5px;">${p.reference || "-"}</td>
+                  </tr>
+                `;
+              })
+              .join("")}
           `;
-        }).join('')}
-      `;
-    }).join('')}
-    ${test.interpretation ? `
-  <tr>
-    <td colspan="4" style="padding:4px; color:#374151;">
-      <strong>Interpretation:</strong>
-      <div style="margin-top:4px; margin-left:12px; line-height:1.5;">
-        ${test.interpretation || ''}
+        })
+        .join("")}
+      ${test.interpretation ? `
+        <tr>
+          <td colspan="4" style="padding:4px; color:#374151;">
+            <strong>Interpretation:</strong>
+            <div style="margin-top:4px; margin-left:12px; line-height:1.5;">
+              ${test.interpretation || ""}
+            </div>
+          </td>
+        </tr>
+      ` : ""}
+    `;
+  };
+
+  // Render panel (recursively)
+  const renderPanelPage = (
+    item,
+    design,
+    spacing,
+    fontSize,
+    fontFamily,
+    useHL,
+    redAb,
+    boldAb,
+    boldValues,
+    indentNested
+  ) => {
+    if (!item) return "";
+    return `
+      <tr>
+        <td colspan="4" style="text-align:center; font-weight:600; background:#fff; padding:4px;">
+          ${item.panelOrPackageName || item.testName}
+        </td>
+      </tr>
+      ${
+        (item.tests || [])
+          .map((sub) =>
+            sub.isPanel || sub.isPackage
+              ? renderPanelPage(
+                  sub,
+                  design,
+                  spacing,
+                  fontSize,
+                  fontFamily,
+                  useHL,
+                  redAb,
+                  boldAb,
+                  boldValues,
+                  indentNested
+                )
+              : renderTestRow(
+                  sub,
+                  design,
+                  spacing,
+                  fontSize,
+                  fontFamily,
+                  useHL,
+                  redAb,
+                  boldAb,
+                  boldValues,
+                  indentNested
+                )
+          )
+          .join("")
+      }
+      ${
+        item.interpretation
+          ? `<tr>
+              <td colspan="4" style="padding:4px; color:#374151;">
+                <strong>Interpretation:</strong>
+                <div style="margin-top:4px; margin-left:12px; line-height:1.5;">
+                  ${item.interpretation || ""}
+                </div>
+              </td>
+            </tr>`
+          : ""
+      }
+    `;
+  };
+
+  // Calculate Turn Around Time (TAT)
+function calculateTAT(start, end) {
+  try {
+    const s = new Date(start);
+    const e = new Date(end);
+
+    if (!s || !e) return "--";
+
+    const diffMs = e - s;
+    if (diffMs < 0) return "--";
+
+    const diffMinutes = Math.floor(diffMs / 60000);
+    const hours = Math.floor(diffMinutes / 60);
+    const minutes = diffMinutes % 60;
+
+    if (hours > 0) return `${hours}h ${minutes}m`;
+    return `${minutes}m`;
+  } catch {
+    return "--";
+  }
+}
+
+
+  // Render category — ensure we pass flags to nested renders
+  const renderCategorySection = (
+    category,
+    design,
+    spacing = 1,
+    fontSize = 12,
+    fontFamily = "Inter",
+    useHL,
+    categoryNewPage
+  ) => {
+
+   const categoryStyle = categoryNewPage
+  ? "page-break-before: always; margin-bottom: 10px;"
+  : "margin-bottom: 10px;";
+
+    return `
+      <div style="${categoryStyle}">
+        <div style="text-align:center; font-weight:600; text-transform:uppercase; margin:6px 0;">
+          ${category.categoryName}
+        </div>
+
+        <table style="width:100%; border-collapse:collapse; font-size:${fontSize}px;">
+          <thead>
+            <tr style="border-top:1px solid #000; border-bottom:1px solid #000;">
+              <th style="text-align:left; width:40%;">TEST</th>
+              <th style="text-align:left; width:20%;">VALUE</th>
+              <th style="text-align:left; width:20%;">UNIT</th>
+              <th style="text-align:left; width:20%;">REFERENCE</th>
+            </tr>
+          </thead>
+
+          <tbody>
+            ${
+              (category.items || [])
+                .map((item) =>
+                  item.isPanel || item.isPackage
+                    ? renderPanelPage(
+                        item,
+                        design,
+                        spacing,
+                        fontSize,
+                        fontFamily,
+                        useHL,
+                        redAbFlag,
+                        boldAbFlag,
+                        boldValuesFlag,
+                        indentNestedFlag
+                      )
+                    : renderTestRow(
+                        item,
+                        design,
+                        spacing,
+                        fontSize,
+                        fontFamily,
+                        useHL,
+                        redAbFlag,
+                        boldAbFlag,
+                        boldValuesFlag,
+                        indentNestedFlag
+                      )
+                )
+                .join("")
+            }
+          </tbody>
+        </table>
       </div>
-    </td>
-  </tr>
-` : ''}
-
-  `;
-};
-
-
-const renderPanelPage = (item, design, spacing, fontSize, fontFamily, useHLMarkers) => {
-  if (!item) return '';
-  return `
-    <tr>
-      <td colspan="4" style="text-align:center; font-weight:600; background:#fff; padding:4px;">${item.panelOrPackageName || item.testName}</td>
-    </tr>
-    ${item.tests?.map(sub =>
-      sub.isPanel || sub.isPackage
-        ? renderPanelPage(sub, design, spacing, fontSize, fontFamily, useHLMarkers)
-        : renderTestRow(sub, design, spacing, fontSize, fontFamily, useHLMarkers)
-    ).join('')}
-    ${item.interpretation ? `
-  <tr>
-    <td colspan="4" style="padding:4px; color:#374151;">
-      <strong>Interpretation:</strong>
-      <div style="margin-top:4px; margin-left:12px; line-height:1.5;">
-        ${item.interpretation || ''}
-      </div>
-    </td>
-  </tr>
-` : ''}
-
-  `;
-};
-
-
-const renderCategorySection = (category, design, spacing = 1, fontSize = 12, fontFamily = 'Inter', useHLMarkers = true) => {
-  return `
-    <div style=" margin-bottom:10px;">
-      <div style="text-align:center; font-weight:600; text-transform:uppercase; margin:6px 0;">
-        ${category.categoryName}
-      </div>
-
-      <table style="width:100%; border-collapse:collapse; font-size:${fontSize}px;">
-        <thead>
-          <tr style="border-top:1px solid #000; border-bottom:1px solid #000;">
-            <th style="text-align:left; width:40%;">TEST</th>
-            <th style="text-align:left; width:20%;">VALUE</th>
-            <th style="text-align:left; width:20%;">UNIT</th>
-            <th style="text-align:left; width:20%;">REFERENCE</th>
-          </tr>
-        </thead>
-
-        <tbody>
-          ${category.items?.map(item =>
-            item.isPanel || item.isPackage
-              ? renderPanelPage(item, design, spacing, fontSize, fontFamily, useHLMarkers)
-              : renderTestRow(item, design, spacing, fontSize, fontFamily, useHLMarkers)
-          ).join('')}
-        </tbody>
-      </table>
-    </div>
-  `;
-};
+    `;
+  };
 
 
 const headerImageSrc = letterhead.headerImage
@@ -243,24 +385,46 @@ const footerImageSrc = letterhead.footerImage
     <html>
       <head>
         <meta charset="UTF-8"/>
-        <style>
-          @page { margin: 0; }
-body {
-  margin: 0;
-  padding: 0;
-  font-family: ${fontFamily};
-  font-size: ${fontSize}px;
-  color: #000;
-  line-height: ${spacing};
-}
-table {
-  width: 100%;
-  border-collapse: collapse;
-  margin: 0;
-  padding: 0;
+       <style>
+ @page {
+  size: A4;
+  margin: 0mm;
+
+  /* Create a bottom margin box */
+  @bottom-center {
+    content: "Page " counter(page) " of " counter(pages);
+    font-size: 11px;
+    color: #444;
+  }
 }
 
-        </style>
+/* Hide the margin-box visually */
+.page-number-placeholder {
+  height: 0;
+  visibility: hidden;
+}
+
+
+
+  
+
+  body {
+    margin: 0;
+    padding: 0;
+    font-family: ${fontFamily};
+    font-size: ${fontSize}px;
+    color: #000;
+    line-height: ${spacing};
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 0;
+    padding: 0;
+  }
+</style>
+
       </head>
       <body>
         <table style="width:100%; min-height:297mm;">
@@ -348,7 +512,7 @@ table {
     printSetting?.showHide?.showTATTime
       ? `
       <p style="margin-left:10px; font-weight:600;">
-        TAT: ${calculateTAT(patient.createdAt, report.updatedAt)}
+        TAT: ${calculateTAT(reportData.createdAt, reportData.updatedAt)}
       </p>
       `
       : ""
@@ -366,34 +530,57 @@ table {
           <tbody>
             <tr>
               <td style="padding:${letterheadSettings.caseInfoHeight || 3}mm;">
-                ${reportData.categories?.map(renderCategorySection).join('')}
+                ${reportData.categories
+  ?.map(cat => renderCategorySection(
+      cat,
+      design,        // pass design settings
+      spacing,       // pass spacing
+      fontSize,      // pass fontsize
+      fontFamily,    // pass font family
+      useHLMarkers,
+      categoryNewFlag,
+  ))
+  .join('')}
+
               </td>
             </tr>
           </tbody>
 
           ${printSetting.withLetterhead ? `
           <tfoot style="display: table-footer-group;">
-            <tr>
-              <td style=" border-top:1px solid #d1d5db;">
-                <div style="display:flex; flex-wrap:wrap; justify-content:space-between;">${signatureHTML}</div>
-                <!-- Contact Info: 75/25 -->
-                <div style="display:flex; justify-content:center; align-items:center; width:100%; margin-top:8px;">
-  <img 
-  src="${footerImageSrc}" 
-  alt="Footer" 
-  style="width:100%; height:auto; object-fit:cover; margin:0; padding:0; display:block;" 
-/>
+  <tr>
+    <td style="border-top:1px solid #d1d5db; position: relative;">
 
-</div>
+      
+
+      <!-- Signatures -->
+      <div style="display:flex; flex-wrap:wrap; justify-content:space-between; margin-top:6px;">
+        ${signatureHTML}
+      </div>
+
+     
 
 
-              </td>
-            </tr>
-          </tfoot>
+      <!-- Footer Image -->
+      <div style="display:flex; justify-content:center; align-items:center; width:100%; margin-top:8px;">
+        <img 
+          src="${footerImageSrc}" 
+          alt="Footer" 
+          style="width:100%; height:auto; object-fit:cover; margin:0; padding:0;" 
+        />
+      </div>
+
+    </td>
+  </tr>
+</tfoot>
+
           ` : ''}
 
         </table>
       </body>
+
+      
+
     </html>
   `;
 
@@ -402,11 +589,36 @@ table {
 });
 
 
-
-  const pdfBuffer = await page.pdf({
+const pdfBuffer = await page.pdf({
   format: "A4",
-  printBackground: true
+  printBackground: true,
+  displayHeaderFooter: true,
+
+  headerTemplate: `<div></div>`,  // no header
+
+  footerTemplate: `
+    <div style="
+      font-size:11px;
+      color:#444;
+      width:100%;
+      text-align:right;
+      padding-right:20px;
+      margin-top:-40px;   /* move upward (above footer image) */
+    ">
+      Page <span class="pageNumber"></span> of <span class="totalPages"></span>
+    </div>
+  `,
+
+  margin: {
+    top: "0mm",
+    bottom: "20mm"   // allow page number area to exist
+  }
 });
+
+
+
+
+
 
 await page.close();
 

@@ -204,7 +204,49 @@ const handleGeneratePDF = async () => {
     }, 500);
   };
 
-  console.log(letterhead);
+  const [openMenu, setOpenMenu] = useState(false);
+
+  
+
+
+  const menuRef = useRef(null);
+  
+  
+    useEffect(() => {
+      function handleClickOutside(event) {
+        if (menuRef.current && !menuRef.current.contains(event.target)) {
+          setOpenMenu(false);   // 🔥 Close menu
+        }
+      }
+  
+      document.addEventListener("mousedown", handleClickOutside);
+  
+      return () => {
+        document.removeEventListener("mousedown", handleClickOutside);
+      };
+    }, []);
+  
+    const [showBar, setShowBar] = useState(true);
+    const [lastScrollY, setLastScrollY] = useState(0);
+  
+    useEffect(() => {
+      const handleScroll = () => {
+        if (window.scrollY > lastScrollY) {
+          // scrolling DOWN → hide
+          setShowBar(false);
+        } else {
+          // scrolling UP → show
+          setShowBar(true);
+        }
+        setLastScrollY(window.scrollY);
+      };
+  
+      window.addEventListener("scroll", handleScroll);
+  
+      return () => window.removeEventListener("scroll", handleScroll);
+    }, [lastScrollY]);
+  
+  
   
   
 
@@ -215,8 +257,125 @@ const handleGeneratePDF = async () => {
 
   return (
     <div className="bg-white min-h-screen py-6">
+
+      <div className="mb-4 px-8">
+        <h1 className="text-3xl font-semibold text-gray-800">Lab report</h1>
+
+        <div className="mt-2 inline-flex items-center gap-3">
+
+          {/* Reg No */}
+          <span className="bg-yellow-100 text-yellow-800 px-3 py-1 rounded-md text-xs font-medium">
+            Reg no. {report.regNo} | {report.dcn}
+          </span>
+
+
+
+        </div>
+
+        {/* Status */}
+        <div className="mt-3">
+        <p className="flex items-center gap-2">
+  <span className="font-semibold">Status:</span>
+  <span
+    className={`px-3 py-1 rounded-full text-sm font-medium border
+      ${report.status === "In Progress"
+        ? "bg-red-50 text-red-600 border-red-400"
+        : report.status === "Signed Off"
+        ? "bg-green-50 text-green-600 border-green-400"
+        : report.status === "Final"
+        ? "bg-blue-50 text-blue-600 border-blue-400"
+        : "bg-gray-100 text-gray-600 border-gray-300"
+      }`}
+  >
+    {report.status || "—"}
+  </span>
+</p>
+
+      </div>
+      </div>
+
+
+
+      <div
+        className={`fixed bottom-0 left-[225px] right-0 
+              bg-white border-t border-gray-300 shadow-lg z-50
+              transition-transform duration-300
+              ${showBar ? "translate-y-0" : "translate-y-full"}`}
+      >
+        <div className="w-full max-w-[1200px] mx-auto px-4 py-3 
+                  flex items-start justify-start gap-3">
+
+          {/* SIGN OFF GROUP */}
+          <div ref={menuRef} className="relative flex">
+
+            <button
+              onClick={() => handleSubmit("Signed Off")}
+              className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white
+                   px-5 h-10 rounded-l-md shadow transition border-r border-white"
+            >
+              <img src="/signature-w.png" className="w-4 h-4" />
+              <span className="font-medium">Sign off</span>
+            </button>
+
+            <button
+              onClick={() => setOpenMenu(!openMenu)}
+              className="bg-blue-600 hover:bg-blue-700 text-white w-10 h-10 
+                   flex items-center justify-center rounded-r-md shadow transition"
+            >
+              <img src="/down-arrow-w.png" className="w-3 h-3 opacity-80" />
+            </button>
+
+            {openMenu && (
+              <div className="absolute right-0 bottom-12 w-48 bg-white rounded-md shadow-lg border border-gray-300">
+
+                <div className="absolute -bottom-2 right-4 w-3 h-3 bg-white 
+                          rotate-45 border-l border-b"></div>
+
+                <ul className="py-2 text-sm">
+                  <li
+                    onClick={() => navigate(`/${branchId}/bill/${reportId}`)}
+                    className="px-4 py-2 hover:bg-gray-100 cursor-pointer flex gap-2 items-center"
+                  >
+                    <img src="/eye.png" className="w-4 h-4" /> View bill
+                  </li>
+
+                  <li
+                    onClick={() => navigate(`/${branchId}/edit-case/${reportId}`)}
+                    className="px-4 py-2 hover:bg-gray-100 cursor-pointer flex gap-2 items-center"
+                  >
+                    <img src="/edit.png" className="w-4 h-4" /> Modify case
+                  </li>
+                </ul>
+              </div>
+            )}
+          </div>
+
+          {/* FINAL BUTTON */}
+          <button
+            onClick={() => handleSubmit("Final")}
+            className="flex items-center gap-2 border border-gray-300 text-gray-700 
+                 px-5 h-10 rounded-md hover:bg-gray-100 transition"
+          >
+            <img src="/check.png" className="w-4 h-4" />
+            <span className="font-medium">Final</span>
+          </button>
+
+          {/* SAVE ONLY BUTTON */}
+          <button
+            onClick={() => handleSubmit("In Progress")}
+            className="flex items-center gap-2 border border-gray-300 text-gray-700 
+                 px-5 h-10 rounded-md hover:bg-gray-100 transition"
+          >
+            <img src="/save.png" className="w-4 h-4" />
+            <span className="font-medium">Save only</span>
+          </button>
+
+        </div>
+      </div>
+
+
       {/* Action Buttons */}
-      <div className="flex justify-center gap-4 mb-6 print:hidden">
+      {/* <div className="flex justify-center gap-4 mb-6 print:hidden">
         <button onClick={handlePrint} className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-md shadow-sm">
           Print Report
         </button>
@@ -257,7 +416,7 @@ const handleGeneratePDF = async () => {
         </button>
 
         
-      </div>
+      </div> */}
 
       {/* Web-Friendly Report */}
       <div className="block print:hidden">
@@ -307,25 +466,7 @@ const WebReport = ({ report, printSetting, signatures }) => {
         </div>
       )}
 
-      <div>
-        <p className="flex items-center gap-2">
-  <span className="font-semibold">Status:</span>
-  <span
-    className={`px-3 py-1 rounded-full text-sm font-medium border
-      ${report.status === "In Progress"
-        ? "bg-red-50 text-red-600 border-red-400"
-        : report.status === "Signed Off"
-        ? "bg-green-50 text-green-600 border-green-400"
-        : report.status === "Final"
-        ? "bg-blue-50 text-blue-600 border-blue-400"
-        : "bg-gray-100 text-gray-600 border-gray-300"
-      }`}
-  >
-    {report.status || "—"}
-  </span>
-</p>
-
-      </div>
+      
       <div className="space-y-6">
         {categories?.map((category, idx) => <CategorySection key={idx} category={category} printSetting={printSetting} />)}
       </div>
@@ -582,15 +723,24 @@ const TestRow = ({ test, printSetting }) => {
   const useHLMarkers = printSetting?.general?.useHLMarkers;
 
   const isOutOfRange = (value, reference) => {
-    if (!value || !reference) return false;
-    const rangeMatch = reference.match(/([\d.]+)\s*-\s*([\d.]+)/);
-    if (!rangeMatch) return null;
-    const [, min, max] = rangeMatch;
-    const numValue = parseFloat(value);
-    if (numValue < parseFloat(min)) return "low";
-    if (numValue > parseFloat(max)) return "high";
-    return false;
-  };
+  if (!value || !reference) return false;
+
+  // If value contains letters (Negative, Positive, Trace, etc) → skip range check
+  if (isNaN(parseFloat(value))) return false;
+
+  const rangeMatch = reference.match(/([\d.]+)\s*-\s*([\d.]+)/);
+  if (!rangeMatch) return false;
+
+  const [, min, max] = rangeMatch;
+  const numValue = parseFloat(value);
+
+  if (numValue < parseFloat(min)) return "low";
+  if (numValue > parseFloat(max)) return "high";
+
+  return false;
+};
+
+  
 
   return (
     <>
@@ -632,9 +782,15 @@ const TestRow = ({ test, printSetting }) => {
               };
               const marker = hl === "high" ? " ↑" : hl === "low" ? " ↓" : "";
 
+              const showBullet =
+  group && 
+  group !== "Ungrouped" && 
+  group.length > 0 && 
+  params.length > 1;
+
               return (
                 <tr key={p.paramId} className="">
-                  <td className=" px-2 text-left w-[40%] break-words">{p.name}</td>
+                  <td className={`px-2 text-left w-[40%] break-words ${showBullet ? "pl-5" : "pl-2"}`}>{showBullet ? "✦ " : ""} {p.name}</td>
                   <td className=" px-2 text-left w-[20%]" style={style}>
                     {p.value || "-"}
                     {marker}

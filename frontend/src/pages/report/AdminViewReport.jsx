@@ -217,7 +217,8 @@ const handleGeneratePDF = async () => {
         {pdfUrl ? (
     // ✅ If PDF exists → show Print PDF button
     <button
-      onClick={() => window.open(pdfUrl.replace("?dl=0", "?dl=1"), "_blank")}
+      onClick={() => window.open(pdfUrl, "_blank")
+}
       className="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-md shadow-sm"
     >
       Print PDF
