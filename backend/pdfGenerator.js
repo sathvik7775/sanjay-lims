@@ -1,6 +1,7 @@
 // backend/pdfGenerator.js
 
-import { chromium } from "playwright-core";
+import { chromium } from "playwright";
+
 import QRCode from "qrcode";   // <-- install: npm i qrcode
 
 
