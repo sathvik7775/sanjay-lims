@@ -4,6 +4,8 @@ import axios from "axios";
 import { LabContext } from "../../context/LabContext";
 import Loader from "../../components/Loader";
 import { TriangleAlert } from 'lucide-react'
+import { useLocation } from "react-router-dom";
+
 
 
 // 🔹 Convert age to years
@@ -119,6 +121,11 @@ const AdminEditResult = () => {
   const { branchId, branchToken, errorToast, successToast, adminToken } = useContext(LabContext);
   const { reportId } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
+
+  const query = new URLSearchParams(location.search);
+const autoFinal = query.get("autoFinal");
+
 
   const [loading, setLoading] = useState(true);
   const [openMenu, setOpenMenu] = useState(false);
@@ -128,6 +135,57 @@ const AdminEditResult = () => {
   const [testsByCategory, setTestsByCategory] = useState({});
 
   const [resultStructure, setResultStructure] = useState([]); // ✅ stores fetched structure
+
+
+  const [branches, setBranches] = useState([]);
+    const [labDetails, setLabDetails] = useState(null);
+
+    useEffect(() => {
+  if (!loading && autoFinal === "true") {
+    console.log("🔥 Auto-final triggered");
+
+    setTimeout(() => {
+      const btn = document.getElementById("finalSubmitButton");
+      if (btn) btn.click();
+    }, 300);
+  }
+}, [loading, autoFinal]);
+
+
+
+    const fetchBranches = async () => {
+    try {
+      
+      const res = await axios.get( `${import.meta.env.VITE_API_URL}/api/admin/branch/list`, {
+        headers: { Authorization: `Bearer ${adminToken}` },
+      });
+      
+      
+      
+      setBranches(res.data.branches || []);
+    } catch (err) {
+      errorToast("Failed to load branches", "error");
+    } 
+  };
+
+  useEffect(() => {
+  fetchBranches();
+}, []);
+
+
+useEffect(() => {
+  if (!branchId || branches.length === 0) return;
+
+  const selected = branches.find(b => b._id === branchId);
+
+  if (selected) {
+    setLabDetails({
+      name: selected.branchName,
+      address: selected.address || selected.fullAddress || ""
+    });
+  }
+
+}, [branchId, branches]);
 
   const fetchTestWithRefs = async (testId, reportData, adminToken) => {
     try {
@@ -600,6 +658,14 @@ const AdminEditResult = () => {
     loadEditData();
   }, [reportId]);
 
+  useEffect(() => {
+  if (!loading && report && location.state?.autoSignOff) {
+    console.log("🔥 Auto Sign Off triggered AFTER data loaded");
+    handleSubmit("Signed Off");
+  }
+}, [loading, report, location.state]);
+
+
 
   /* ----------------------------- 🔹 Input Handler ----------------------------- */
 
@@ -705,6 +771,114 @@ const AdminEditResult = () => {
     console.log("🧾 FINAL CLEAN RESULTS:", cleanedResults);
   };
 
+  const autoGeneratePDFFull = async () => {
+  try {
+    console.log("⚡ Auto PDF generation started...");
+
+    /* ---------------------------------------------------
+       0️⃣ CHECK IF PDF EXISTS → IF YES, DELETE IT
+    ----------------------------------------------------*/
+    try {
+      const existingPdf = await axios.get(
+        `${import.meta.env.VITE_API_URL}/api/pdf/get/${reportId}`,
+        { headers: { Authorization: `Bearer ${adminToken}` } }
+      );
+
+      if (existingPdf.data?.success && existingPdf.data?.data) {
+        console.log("🗑️ Existing PDF found → deleting...");
+
+        await axios.delete(
+          `${import.meta.env.VITE_API_URL}/api/pdf/delete/${reportId}`,
+          { headers: { Authorization: `Bearer ${adminToken}` } }
+        );
+
+        console.log("✅ Old PDF deleted");
+      } else {
+        console.log("ℹ️ No existing PDF found, generating new...");
+      }
+    } catch (e) {
+      console.log("⚠️ PDF fetch failed OR no PDF exists, continuing...");
+      // Continue even if error — do NOT stop generation
+    }
+
+    /* ---------------------------------------------------
+       1️⃣ FETCH REPORT
+    ----------------------------------------------------*/
+    const reportRes = await axios.get(
+      `${import.meta.env.VITE_API_URL}/api/cases/admin/${reportId}`,
+      { headers: { Authorization: `Bearer ${adminToken}` } }
+    );
+
+    if (!reportRes.data.success) {
+      console.error("❌ Report fetch failed");
+      return;
+    }
+
+    let reportData = reportRes.data.data;
+
+    /* ---------------------------------------------------
+       2️⃣ FETCH RESULTS
+    ----------------------------------------------------*/
+    const resultsRes = await axios.get(
+      `${import.meta.env.VITE_API_URL}/api/results/admin/report/${reportId}`,
+      { headers: { Authorization: `Bearer ${adminToken}` } }
+    );
+
+    if (resultsRes.data?.success && resultsRes.data?.data) {
+      reportData = { ...reportData, ...resultsRes.data.data };
+    }
+
+    /* ---------------------------------------------------
+       3️⃣ FETCH LETTERHEAD
+    ----------------------------------------------------*/
+    const lhRes = await axios.get(
+      `${import.meta.env.VITE_API_URL}/api/report/letterhead/branch/${branchId}`
+    );
+    const letterheadData = lhRes.data?.data || null;
+
+    /* ---------------------------------------------------
+       4️⃣ FETCH SIGNATURES
+    ----------------------------------------------------*/
+    const sigRes = await axios.get(
+      `${import.meta.env.VITE_API_URL}/api/report/signature/branch/${branchId}`
+    );
+    const signatureData = sigRes.data?.data || [];
+
+    /* ---------------------------------------------------
+       5️⃣ FETCH PRINT SETTINGS
+    ----------------------------------------------------*/
+    const psRes = await axios.get(
+      `${import.meta.env.VITE_API_URL}/api/print/${branchId}`,
+      { headers: { Authorization: `Bearer ${adminToken}` } }
+    );
+    const printSettingData = psRes.data?.data || {};
+
+    /* ---------------------------------------------------
+       6️⃣ GENERATE NEW PDF
+    ----------------------------------------------------*/
+    await axios.post(
+      `${import.meta.env.VITE_API_URL}/api/pdf/add`,
+      {
+        reportId,
+        branchId,
+        reportData,
+        patient: reportData.patient,
+        letterhead: letterheadData,
+        signatures: signatureData,
+        printSetting: printSettingData,
+        lab: labDetails,
+      },
+      { headers: { Authorization: `Bearer ${branchToken}` } }
+    );
+
+    console.log("✅ New PDF generated successfully!");
+
+  } catch (err) {
+    console.error("❌ Auto PDF generation failed:", err);
+  }
+};
+
+
 
   /* ----------------------------- 🔹 Submit ----------------------------- */
   const handleSubmit = async (status) => {
@@ -781,10 +955,15 @@ const AdminEditResult = () => {
         { headers: { Authorization: `Bearer ${adminToken}` } }
       );
 
-      if (res.data.success) {
-        successToast("Report updated successfully");
-        navigate(`/admin/view-report/${reportId}`);
-      } else {
+       if (res.data.success) {
+  successToast("Report updated Successfully");
+
+  if (status === "Signed Off") {
+    autoGeneratePDFFull();   // 🔥 FULL BACKGROUND PDF GENERATION
+  }
+
+  navigate(`/admin/view-report/${reportId}`);
+} else {
         errorToast(res.data.message || "Failed to update");
       }
     } catch (err) {
@@ -836,7 +1015,7 @@ const AdminEditResult = () => {
 
 
   /* ----------------------------- 🔹 UI ----------------------------- */
-  if (loading) return <Loader />;
+  if (loading) return <Loader text="Processing" />;
   if (!report) return <p className="p-6 text-gray-500">Report not found</p>;
 
   return (
@@ -933,13 +1112,15 @@ const AdminEditResult = () => {
 
           {/* FINAL BUTTON */}
           <button
-            onClick={() => handleSubmit("Final")}
-            className="flex items-center gap-2 border border-gray-300 text-gray-700 
-                 px-5 h-10 rounded-md hover:bg-gray-100 transition"
-          >
-            <img src="/check.png" className="w-4 h-4" />
-            <span className="font-medium">Final</span>
-          </button>
+  id="finalSubmitButton"
+  onClick={() => handleSubmit("Final")}
+  className="flex items-center gap-2 border border-gray-300 text-gray-700 
+       px-5 h-10 rounded-md hover:bg-gray-100 transition"
+>
+  <img src="/check.png" className="w-4 h-4" />
+  <span className="font-medium">Final</span>
+</button>
+
 
           {/* SAVE ONLY BUTTON */}
           <button

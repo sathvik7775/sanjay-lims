@@ -1,9 +1,13 @@
 import React, { useContext, useEffect, useState } from "react";
 import { Search } from "lucide-react";
-import Select from "react-select";
+import Select, { components } from "react-select";
+
 import { LabContext } from "../context/LabContext";
 import axios from "axios";
 import { useLocation } from "react-router-dom";
+
+
+
 
 
 const NewCase = () => {
@@ -33,6 +37,28 @@ useEffect(() => {
   };
   fetchTemplates();
 }, []);
+
+
+const CustomMenuList = (props) => {
+  return (
+    <>
+      <components.MenuList {...props}>
+        {props.children}
+      </components.MenuList>
+
+      {/* Bottom fixed buttons inside dropdown */}
+      <div>
+        <button
+          className="text-green-600 text-sm font-medium hover:underline"
+          onClick={() => navigate(`/${branchId}/rate-list`)}
+        >
+          Rate List
+        </button>
+      </div>
+    </>
+  );
+};
+
 
 
 
@@ -514,26 +540,36 @@ const handleCreateCase = async () => {
 
 
   // ✅ Combine both dummy tests and dummy panels together
-  const combinedOptions = [
-  // Tests
+  let combinedOptions = [];
+
+// Always include category tests
+combinedOptions = [
   ...filteredTests.map((test) => ({
     value: test._id,
     label: `🧪 ${test.name} (${test.shortName || test.short}) — ₹${test.price}`,
     type: "test",
   })),
-  // Panels
-  ...dummyPanels.map((panel) => ({
-    value: panel._id,
-    label: `📋 ${panel.name} (Panel) — ₹${panel.price}`,
-    type: "panel",
-  })),
-  // Packages
-  ...packages.map((pkg) => ({
-    value: pkg._id,
-    label: `📦 ${pkg.name} (Package) — ₹${pkg.fee}`,
-    type: "package",
-  })),
 ];
+
+// Add panels & packages ONLY for LAB
+if (cat === "LAB") {
+  combinedOptions.push(
+    ...dummyPanels.map((panel) => ({
+      value: panel._id,
+      label: `📋 ${panel.name} (Panel) — ₹${panel.price}`,
+      type: "panel",
+    }))
+  );
+
+  combinedOptions.push(
+    ...packages.map((pkg) => ({
+      value: pkg._id,
+      label: `📦 ${pkg.name} (Package) — ₹${pkg.fee}`,
+      type: "package",
+    }))
+  );
+}
+
 
   // ✅ Get selected tests/panels for this category
   // ✅ Get selected tests/panels for this category
@@ -578,6 +614,7 @@ const selectedOptions = selectedForCat.map((t) => ({
         placeholder="Search and select multiple tests..."
         className="react-select-container mb-4"
         classNamePrefix="react-select"
+        components={{ MenuList: CustomMenuList }}
       />
 
       {selectedForCat.length > 0 && (

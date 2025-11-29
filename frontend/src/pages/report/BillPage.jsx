@@ -30,6 +30,8 @@ export default function BillPage() {
   const { branchToken, errorToast, navigate, branchId, branchData, successToast } = useContext(LabContext);
   const [caseData, setCaseData] = useState(null);
   const [testDetails, setTestDetails] = useState([]);
+  const [resultTestIds, setResultTestIds] = useState([]);
+
   const [loading, setLoading] = useState(false);
 
   const printRef = useRef();
@@ -246,22 +248,16 @@ useEffect(() => {
     try {
       const res = await axios.get(
         `${import.meta.env.VITE_API_URL}/api/results/report/${caseData._id}`,
-        {
-          headers: {
-            Authorization: `Bearer ${branchToken}`,
-            "Content-Type": "application/json",
-          },
-        }
+        { headers: { Authorization: `Bearer ${branchToken}` } }
       );
 
-      console.log("RESULT RESPONSE:", res.data);
-
-      // ✔ If "data" is an object → results exist
+      // If any result exists → true
       if (res.data?.success && res.data?.data) {
         setHasResults(true);
       } else {
         setHasResults(false);
       }
+
     } catch (err) {
       console.error("Check results error:", err);
       setHasResults(false);
@@ -284,6 +280,18 @@ useEffect(() => {
   const mode = c.payment?.mode || "cash";
   const paid = c.payment?.received || 0;
   const amountWords = numberToWords(paid);
+
+
+  const getDefaultLogo = (labName) => {
+  if (!labName) return "/default.png";
+
+  const name = labName.toLowerCase();
+
+  if (name.includes("sanjay diagnostic")) return "/sanjay.png";
+
+  return "/default.png";  // fallback logo
+};
+
 
 
   
@@ -337,7 +345,19 @@ useEffect(() => {
 
           <div className="flex justify-between w-full items-start border-b pb-2">
             <div className="flex items-center gap-3">
-              <img src={lab?.logo ? `/logos/${lab.logo}` : '/sanjay.png'} alt="Lab Logo" className="h-20 w-auto mb-2"/>
+              {lab?.logo ? (
+  <img
+    src={`/logos/${lab.logo}`}
+    className="h-20 w-auto mb-2"
+    alt="Lab Logo"
+  />
+) : lab?.name === "SANJAY DIAGNOSTIC LABORATORIES" ? (
+  <img
+    src="/sanjay.png"
+    className="h-20 w-auto mb-2"
+    alt="Sanjay Lab Logo"
+  />
+) : ""}
               <div className="mt-2">
                 <h2 className="text-2xl font-semibold ">{lab?.name || "Lab Name"}</h2>
                 
@@ -574,22 +594,32 @@ useEffect(() => {
     📄 Print PDF
   </button>
 
-  {/* ✏️ Enter Results */}
-  {hasResults ? (
-  <button
-    onClick={() => navigate(`/${branchId}/view-report/${caseData._id}`)}
-    className="border px-4 py-1.5 rounded-md text-sm flex items-center gap-2"
-  >
-    📄 View Lab Report
-  </button>
-) : (
-  <button
-    onClick={() => navigate(`/${branchId}/enter-result/${caseData._id}`)}
-    className="border px-4 py-1.5 rounded-md text-sm flex items-center gap-2"
-  >
-    ✏️ Enter results
-  </button>
-)}
+ {(() => {
+  // If result exists → show VIEW REPORT
+  if (hasResults) {
+    return (
+      <button
+        onClick={() => navigate(`/${branchId}/view-report/${c._id}`)}
+        className="border px-4 py-1.5 rounded-md text-sm flex items-center gap-2"
+      >
+        📄 View Report
+      </button>
+    );
+  }
+
+  // If no result → show ENTER RESULTS
+  return (
+    <button
+      onClick={() => navigate(`/${branchId}/enter-result/${c._id}`)}
+      className="border px-4 py-1.5 rounded-md text-sm flex items-center gap-2"
+    >
+      ✏️ Enter results
+    </button>
+  );
+})()}
+
+
+
 
 
 

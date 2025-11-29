@@ -74,6 +74,7 @@ import AddTestManually from '../lab/AddTestManually'
 import WhatsappTemplates from '../report/WhatsappTemplates'
 import RateList from '../lab/RateList'
 import TodaysAdminreports from './lab master/TodaysAdminReports'
+import AdminProfile from './AdminProfile'
 
 
 const AdminHome = () => {
@@ -165,9 +166,10 @@ const AdminHome = () => {
             <Route path="add-signature" element={<AddSignature selectedBranch={selectedBranch} />} />
             <Route path="enter-result/:reportId" element={<AdminEnterResults selectedBranch={selectedBranch} />} />
             <Route path="edit-result/:reportId" element={<AdminEditResult selectedBranch={selectedBranch} />} />
-            <Route path="print-settings/:reportId" element={<AdminPrintSetting selectedBranch={selectedBranch} />} />
+            
             <Route path="msg-temp" element={<WhatsappTemplates selectedBranch={selectedBranch} />} />
             <Route path="rate-list" element={<RateList selectedBranch={selectedBranch} />} />
+            <Route path="profile" element={<AdminProfile selectedBranch={selectedBranch} />} />
             
           </Routes>
         </div>

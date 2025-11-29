@@ -40,9 +40,14 @@ const EditBranch = () => {
         );
 
         setFormData({
-          ...res.data,
-          logo: null, // reset logo to prevent object reference issues
-        });
+  ...res.data,
+  
+  // ❗ Do NOT show hashed password
+  loginPassword: "",   
+
+  logo: null,
+});
+
       } catch (error) {
         console.error("Error fetching branch:", error);
         errorToast("Failed to load branch data!");

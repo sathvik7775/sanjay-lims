@@ -147,7 +147,7 @@ const Sidebar = ({branchId}) => {
                         <div className={`mx-3 mt-3 ${sixth ? 'flex' : 'hidden'} flex-col transition w-full`}>
                             <Link to={`/${branchId}/report-temp`} className='flex gap-2 items-center cursor-pointer hover:bg-[#E5E7EB] px-3 rounded py-2'>
                                 <img src="/report.png" className='w-5 h-5' alt="" />
-                                <p className='text-secondary roboto-third text-[15px] whitespace-nowrap'>Report templates</p>
+                                <p className='text-secondary roboto-third text-[15px] whitespace-nowrap'>Proofread</p>
                             </Link>
                             
                             <Link to={`/${branchId}/letter`} className='flex gap-2 items-center cursor-pointer hover:bg-[#E5E7EB] px-3 rounded py-2'>
@@ -306,7 +306,7 @@ const Sidebar = ({branchId}) => {
                             <div className={`mx-3 mt-3 ${sixth ? 'flex' : 'hidden'} flex-col transition w-full`}>
                             <Link to={`/${branchId}/report-temp`} onClick={()=> setvisible(false)} className='flex gap-2 items-center cursor-pointer hover:bg-[#E5E7EB] px-3 rounded py-2'>
                                 <img src="/report.png" className='w-5 h-5' alt="" />
-                                <p className='text-secondary roboto-third text-[15px] whitespace-nowrap'>Report templates</p>
+                                <p className='text-secondary roboto-third text-[15px] whitespace-nowrap'>Proofread</p>
                             </Link>
                             
                             <Link to={`/${branchId}/letter`} onClick={()=> setvisible(false)} className='flex gap-2 items-center cursor-pointer hover:bg-[#E5E7EB] px-3 rounded py-2'>

@@ -8,6 +8,9 @@ import { LabContext } from './context/LabContext'
 import Dashboard from './pages/Dashboard'
 import AdminHome from './pages/admin/AdminHome'
 import { Toaster } from 'react-hot-toast'
+import AdminPrintSetting from './pages/report/AdminPrintSetting'
+import PrintSettings from './pages/report/PrintSettings'
+
 
 const App = () => {
   const {branchId, setBranchId, navigate} = useContext(LabContext)
@@ -21,7 +24,8 @@ const App = () => {
         <Route path='/admin-login' element={<AdminLogin/>}/>
         <Route path='/:branchId/*' element={<MainHome/>}/>
         <Route path='/admin/*' element={<AdminHome/>}/>
-        <Route path='/' element={<Home/>}/>
+        <Route path="/admin/print-settings/:reportId" element={<AdminPrintSetting />} />
+        <Route path='/:branchId/print-settings/:reportId' element={<PrintSettings />}/>
         <Route path='/' element={<Home/>}/>
         <Route path='/' element={<Home/>}/>
         <Route path='/' element={<Home/>}/>

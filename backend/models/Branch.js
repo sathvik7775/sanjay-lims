@@ -15,24 +15,15 @@ const branchSchema = new mongoose.Schema(
 
     // Login credentials
     loginEmail: { type: String, required: true },
-    loginPassword: { type: String, required: true  },
+    loginPassword: { type: String, required: true },
   },
   { timestamps: true }
 );
 
-// 🔒 Hash password before save
-branchSchema.pre("save", async function (next) {
-  if (!this.isModified("loginPassword")) return next();
-  try {
-    const salt = await bcrypt.genSalt(10);
-    this.loginPassword = await bcrypt.hash(this.loginPassword, salt);
-    next();
-  } catch (err) {
-    next(err);
-  }
-});
+// ❌ REMOVED PASSWORD HASHING FROM SCHEMA
+// ❌ NO pre("save") hook here
 
-// 🔍 Compare password method
+// 🔍 Compare password method (KEEP THIS)
 branchSchema.methods.comparePassword = async function (enteredPassword) {
   return bcrypt.compare(enteredPassword, this.loginPassword);
 };

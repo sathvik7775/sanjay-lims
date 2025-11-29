@@ -1,7 +1,8 @@
 import cloudinary from "../config/cloudinary.js";
 import { generatePDF } from "../pdfGenerator.js";
 import { PDF } from "../models/PdfModel.js";
-
+import Report from "../models/Report.js";       // ⬅ public model
+import crypto from "crypto";
 
 // 🔵 1️⃣ GET PDF by Report ID
 export const getPDFByReportId = async (req, res) => {
@@ -27,29 +28,47 @@ export const getPDFByReportId = async (req, res) => {
 
 
 // 🟣 4️⃣ LIVE PDF PREVIEW (no Cloudinary, no DB save)
+// 🟣 4️⃣ LIVE PDF PREVIEW (with QR)
 export const previewPDF = async (req, res) => {
   try {
-    const { reportData, patient, letterhead, signatures = [], printSetting = {} } = req.body;
+    const { reportId, branchId, reportData, patient, letterhead, signatures = [], printSetting = {} } = req.body;
 
-    // Validate
     if (!reportData || !letterhead) {
       return res.status(400).json({ success: false, message: "Missing data" });
     }
 
-    // Generate fresh PDF
+    let qrUrl = null;
+
+    // 🔍 1️⃣ Fetch existing publicToken if available
+    if (reportId && branchId) {
+      const existing = await PDF.findOne({ reportId, branchId });
+
+      if (existing) {
+        const publicRecord = await Report.findOne({ reportId });
+
+        if (publicRecord?.publicToken) {
+          qrUrl = `https://slh.org.in/public/report/${publicRecord.publicToken}`;
+        }
+      }
+    }
+
+    // 🟦 If no publicToken found → still generate PDF without QR
+    // (or create a temp token if you want)
+    // qrUrl will be null
+    // generatePDF() should handle null safely
+
+    // 2️⃣ Generate PDF with SAME QR as addPDF
     const pdfBuffer = await generatePDF(
       reportData,
       patient,
       letterhead,
       signatures,
-      printSetting
+      printSetting,
+      qrUrl   // <--- FINAL FIX
     );
 
-    if (!Buffer.isBuffer(pdfBuffer)) {
-      throw new Error("generatePDF did not return a buffer");
-    }
+    if (!Buffer.isBuffer(pdfBuffer)) throw new Error("generatePDF returned non-buffer");
 
-    // Return PDF buffer without saving
     res.set({
       "Content-Type": "application/pdf",
       "Content-Length": pdfBuffer.length
@@ -66,57 +85,103 @@ export const previewPDF = async (req, res) => {
 
 
 
-// 🟢 2️⃣ UPLOAD PDF TO CLOUDINARY
 export const addPDF = async (req, res) => {
   try {
-    const { reportId, branchId, patient, reportData, letterhead, signatures = [], printSetting = {} } = req.body;
+    const { 
+      reportId, 
+      branchId, 
+      patient, 
+      reportData, 
+      letterhead, 
+      signatures = [], 
+      printSetting = {},
+      lab
+    } = req.body;
 
     if (!reportId || !branchId || !reportData || !letterhead) {
       return res.status(400).json({ success: false, message: "Missing required data" });
     }
 
-    // Generate PDF Buffer
-    const pdfBuffer = await generatePDF(reportData, patient, letterhead, signatures, printSetting);
-    if (!Buffer.isBuffer(pdfBuffer)) throw new Error("generatePDF did not return a Buffer");
+    // 1️⃣ Create Public Token
+    const publicToken = crypto.randomBytes(8).toString("hex");
+    const publicPdfUrl = `https://slh.org.in/public/report/${publicToken}`;
+
+    // 2️⃣ Generate PDF Buffer WITH QR URL
+    const pdfBuffer = await generatePDF(
+      reportData,
+      patient,
+      letterhead,
+      signatures,
+      printSetting,
+      publicPdfUrl       // <--- QR code link passed here
+    );
+
+    if (!Buffer.isBuffer(pdfBuffer)) 
+      throw new Error("generatePDF did not return a buffer");
 
     const fileName = `Report_${reportId}.pdf`;
 
-    // Upload to Cloudinary with auto type (allows inline PDF)
-    const uploadPromise = new Promise((resolve, reject) => {
-      const uploadStream = cloudinary.uploader.upload_stream(
-  {
-    resource_type: "raw",     // <— REQUIRED for PDFs
-    folder: "lims_reports",
-    public_id: fileName,
-    type: "upload",
-    flags: "attachment:false" // <— Prevents fl_attachment from generating
-  },
-  (error, result) => {
-    if (error) return reject(error);
-    resolve(result);
-  }
-);
-
-
-      uploadStream.end(pdfBuffer);
+    // 3️⃣ Upload PDF to Cloudinary
+    const uploadResult = await new Promise((resolve, reject) => {
+      cloudinary.uploader.upload_stream(
+        {
+          resource_type: "raw",
+          folder: "lims_reports",
+          public_id: fileName,
+          type: "upload",
+          flags: "attachment:false"
+        },
+        (error, result) => {
+          if (error) reject(error);
+          else resolve(result);
+        }
+      ).end(pdfBuffer);
     });
 
-    const uploadResult = await uploadPromise;
-
-    // Use Cloudinary URL as-is (no attachment flag)
     const pdfUrl = uploadResult.secure_url;
 
-    // Save to DB
+    // 4️⃣ Save to internal PDF table
     const savedPDF = await PDF.findOneAndUpdate(
       { reportId, branchId },
       { pdfUrl },
       { upsert: true, new: true }
     );
 
+    // 5️⃣ Save public report info (Report.js)
+    await Report.findOneAndUpdate(
+      { publicToken },   // each token unique
+      {
+        publicToken,
+        publicPdfUrl,
+        publicActive: true,
+
+        patient: {
+          name: `${patient.firstName} ${patient.lastName}`,
+          age: `${patient.age} ${patient.ageUnit}`,
+          gender: patient.sex
+        },
+
+        reportDate: new Date(reportData.createdAt).toLocaleDateString("en-GB"),
+        reportTime: new Date(reportData.createdAt).toLocaleTimeString("en-GB", {
+          hour: "2-digit",
+          minute: "2-digit",
+          hour12: true
+        }),
+
+        lab: {
+          name: lab?.name || "",
+          address: lab?.address || ""
+        }
+      },
+      { upsert: true, new: true }
+    );
+
     return res.json({
       success: true,
       message: "PDF uploaded successfully",
-      pdfUrl: savedPDF.pdfUrl
+      pdfUrl: savedPDF.pdfUrl,
+      publicPdfUrl,
+      publicToken
     });
 
   } catch (err) {
@@ -124,7 +189,6 @@ export const addPDF = async (req, res) => {
     return res.status(500).json({ success: false, message: err.message });
   }
 };
-
 
 
 // 🧾 3️⃣ LIST ALL PDFs
@@ -143,6 +207,68 @@ export const listAllPDFs = async (req, res) => {
   } catch (err) {
     console.error("❌ listAllPDFs failed:", err);
     return res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+// 🗑️ DELETE PDF (Cloudinary + DB)
+export const deletePDF = async (req, res) => {
+  try {
+    const { reportId } = req.params;
+
+    if (!reportId) {
+      return res.status(400).json({
+        success: false,
+        message: "Missing reportId"
+      });
+    }
+
+    // 1️⃣ Find PDF record
+    const pdfDoc = await PDF.findOne({ reportId });
+
+    if (!pdfDoc) {
+      return res.json({
+        success: true,
+        message: "No PDF found — nothing to delete"
+      });
+    }
+
+    const pdfUrl = pdfDoc.pdfUrl;
+
+    // Extract public_id from Cloudinary URL
+    // Example: https://res.cloudinary.com/.../lims_reports/Report_123.pdf
+    const parts = pdfUrl.split("/");
+    const publicIdWithExt = parts[parts.length - 1];     // Report_123.pdf
+    const publicId = "lims_reports/" + publicIdWithExt.replace(".pdf", "");
+
+    // 2️⃣ Delete from Cloudinary
+    try {
+      await cloudinary.uploader.destroy(publicId, {
+        resource_type: "raw"
+      });
+      console.log("🗑️ Cloudinary PDF deleted:", publicId);
+    } catch (err) {
+      console.log("⚠️ Cloudinary delete failed (continuing):", err.message);
+    }
+
+    // 3️⃣ Delete DB entry
+    await PDF.deleteOne({ reportId });
+    console.log("🗑️ PDF table entry deleted");
+
+    // 4️⃣ Delete from Public Report DB
+    await Report.deleteOne({ publicToken: pdfDoc.publicToken });
+    console.log("🗑️ Public report data deleted");
+
+    return res.json({
+      success: true,
+      message: "PDF deleted successfully"
+    });
+
+  } catch (err) {
+    console.error("❌ deletePDF failed:", err);
+    return res.status(500).json({
+      success: false,
+      message: err.message
+    });
   }
 };
 

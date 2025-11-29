@@ -1,6 +1,8 @@
 // backend/pdfGenerator.js
 
 import { chromium } from "playwright-core";
+import QRCode from "qrcode";   // <-- install: npm i qrcode
+
 
 import fs from "fs";
 import path from "path";
@@ -38,20 +40,29 @@ export const generatePDF = async (
   patient,
   letterhead,
   signatures = [],
-  printSetting = {}
+  printSetting = {},
+  publicPdfUrl = null
 ) => {
   // ✅ Use Chromium binary path compatible with Render
-const browser = await getBrowser();
+  const browser = await getBrowser();
 
-const page = await browser.newPage();
+  const page = await browser.newPage();
 
-// ✅ Allow remote image/network loading (important for Cloudinary)
-// Playwright automatically loads images, scripts, fonts
-// await page.setJavaScriptEnabled(true);
- // optional – safe to keep
+  // ✅ Allow remote image/network loading (important for Cloudinary)
+  // Playwright automatically loads images, scripts, fonts
+  // await page.setJavaScriptEnabled(true);
+  // optional – safe to keep
 
 
-  
+  let qrBase64 = "";
+if (publicPdfUrl) {
+  qrBase64 = await QRCode.toDataURL(publicPdfUrl, {
+    margin: 0,
+    width: 130
+  });
+}
+
+
 
   // Extract settings from backend PrintSetting
   const design = printSetting.design || {};
@@ -73,7 +84,7 @@ const page = await browser.newPage();
 
 
   // Logo
- 
+
 
   // Signatures
   const signatureHTML = signatures.map(sig => {
@@ -90,12 +101,14 @@ const page = await browser.newPage();
   // --- normalize settings into boolean flags ---
   const redAbFlag = !!design.redAbnormal;
   const boldAbFlag = !!design.boldAbnormal;
+
   const boldValuesFlag = !!design.boldValues;
   const indentNestedFlag = !!design.indentNested;
   const useHLMarkersFlag = general.useHLMarkers === true;
   const categoryNewFlag = general.categoryNewPage === true;
+  const capetalizeTestFlag = general.capitalizeTests === true;
 
-  console.log({ redAbFlag, boldAbFlag, boldValuesFlag, indentNestedFlag, useHLMarkersFlag });
+  console.log({ redAbFlag, boldAbFlag, boldValuesFlag, indentNestedFlag, useHLMarkersFlag, capetalizeTestFlag });
 
 
   // Helper: detect out-of-range
@@ -111,6 +124,20 @@ const page = await browser.newPage();
     return false;
   };
 
+  function capitalizeText(str) {
+    if (!str) return "";
+
+    return str
+      .split(" ")
+      .map(word => {
+        if (/^[A-Z]+$/.test(word)) return word;
+        if (/^[0-9.:-]+$/.test(word)) return word;
+        return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+      })
+      .join(" ");
+  }
+
+
   // Render a single test (may contain params)
   const renderTestRow = (
     test,
@@ -122,7 +149,9 @@ const page = await browser.newPage();
     redAb = true,
     boldAb = true,
     boldValues = false,
-    indentNested = false
+    indentNested = false,
+    capetalizeTestFlag = false
+
   ) => {
     const params = test.params || [];
     const groups = [...new Set(params.map((p) => p.groupBy || "Ungrouped"))];
@@ -135,18 +164,19 @@ const page = await browser.newPage();
           );
 
           return `
-            ${
-              group &&
+            ${group &&
               group.length > 0 &&
               groups[0] === group &&
               params.length > 1
-                ? `<tr>
+              ? `<tr>
                     <td colspan="4" style="padding:4px 8px; font-weight:600; font-size:13px;">
-                      ${test.testName}
+                      ${capetalizeTestFlag ? capitalizeText(test.testName) : test.testName}
+
                     </td>
                   </tr>`
-                : ""
+              : ""
             }
+
 
             ${group && group !== "Ungrouped" ? `<tr><td colspan="4" style="font-weight:600;">${group}</td></tr>` : ""}
 
@@ -166,8 +196,8 @@ const page = await browser.newPage();
                     ? "bold"
                     : "normal"
                   : boldValues
-                  ? "bold"
-                  : "normal";
+                    ? "bold"
+                    : "normal";
 
                 // marker arrows
                 const marker = hl === "high" ? " ↑" : hl === "low" ? " ↓" : "";
@@ -180,9 +210,15 @@ const page = await browser.newPage();
 
                 return `
                   <tr>
-                    <td style="padding:3px 5px; padding-left:${paddingLeft};">
-                      ${indentNested && group && group !== "Ungrouped" && params.length > 1 ? "✦ " : ""}${p.name}
-                    </td>
+                    <td 
+  style="padding:3px 5px; padding-left:${paddingLeft}; padding-bottom:${spacing};"
+>
+  ${indentNested && group && group !== "Ungrouped" && params.length > 1 ? "✦ " : ""}${capetalizeTestFlag ? capitalizeText(p.name) : p.name}
+
+
+</td>
+
+
                     <td style="padding:3px 5px; font-weight:${valueWeight}; color:${color};">${p.value || "-"}${marker}</td>
                     <td style="padding:3px 5px;">${p.unit || "-"}</td>
                     <td style="padding:3px 5px;">${p.reference || "-"}</td>
@@ -217,7 +253,8 @@ const page = await browser.newPage();
     redAb,
     boldAb,
     boldValues,
-    indentNested
+    indentNested,
+    capetalizeTestFlag = false
   ) => {
     if (!item) return "";
     return `
@@ -226,40 +263,40 @@ const page = await browser.newPage();
           ${item.panelOrPackageName || item.testName}
         </td>
       </tr>
-      ${
-        (item.tests || [])
-          .map((sub) =>
-            sub.isPanel || sub.isPackage
-              ? renderPanelPage(
-                  sub,
-                  design,
-                  spacing,
-                  fontSize,
-                  fontFamily,
-                  useHL,
-                  redAb,
-                  boldAb,
-                  boldValues,
-                  indentNested
-                )
-              : renderTestRow(
-                  sub,
-                  design,
-                  spacing,
-                  fontSize,
-                  fontFamily,
-                  useHL,
-                  redAb,
-                  boldAb,
-                  boldValues,
-                  indentNested
-                )
-          )
-          .join("")
+      ${(item.tests || [])
+        .map((sub) =>
+          sub.isPanel || sub.isPackage
+            ? renderPanelPage(
+              sub,
+              design,
+              spacing,
+              fontSize,
+              fontFamily,
+              useHL,
+              redAb,
+              boldAb,
+              boldValues,
+              indentNested,
+              capetalizeTestFlag
+            )
+            : renderTestRow(
+              sub,
+              design,
+              spacing,
+              fontSize,
+              fontFamily,
+              useHL,
+              redAb,
+              boldAb,
+              boldValues,
+              indentNested,
+              capetalizeTestFlag
+            )
+        )
+        .join("")
       }
-      ${
-        item.interpretation
-          ? `<tr>
+      ${item.interpretation
+        ? `<tr>
               <td colspan="4" style="padding:4px; color:#374151;">
                 <strong>Interpretation:</strong>
                 <div style="margin-top:4px; margin-left:12px; line-height:1.5;">
@@ -267,32 +304,32 @@ const page = await browser.newPage();
                 </div>
               </td>
             </tr>`
-          : ""
+        : ""
       }
     `;
   };
 
   // Calculate Turn Around Time (TAT)
-function calculateTAT(start, end) {
-  try {
-    const s = new Date(start);
-    const e = new Date(end);
+  function calculateTAT(start, end) {
+    try {
+      const s = new Date(start);
+      const e = new Date(end);
 
-    if (!s || !e) return "--";
+      if (!s || !e) return "--";
 
-    const diffMs = e - s;
-    if (diffMs < 0) return "--";
+      const diffMs = e - s;
+      if (diffMs < 0) return "--";
 
-    const diffMinutes = Math.floor(diffMs / 60000);
-    const hours = Math.floor(diffMinutes / 60);
-    const minutes = diffMinutes % 60;
+      const diffMinutes = Math.floor(diffMs / 60000);
+      const hours = Math.floor(diffMinutes / 60);
+      const minutes = diffMinutes % 60;
 
-    if (hours > 0) return `${hours}h ${minutes}m`;
-    return `${minutes}m`;
-  } catch {
-    return "--";
+      if (hours > 0) return `${hours}h ${minutes}m`;
+      return `${minutes}m`;
+    } catch {
+      return "--";
+    }
   }
-}
 
 
   // Render category — ensure we pass flags to nested renders
@@ -303,12 +340,19 @@ function calculateTAT(start, end) {
     fontSize = 12,
     fontFamily = "Inter",
     useHL,
-    categoryNewPage
+    categoryNewPage,
+    capetalizeTestFlag
   ) => {
 
-   const categoryStyle = categoryNewPage
-  ? "page-break-before: always; margin-bottom: 10px;"
-  : "margin-bottom: 10px;";
+
+    const categoryStyle =
+  category.categoryName &&
+  category.categoryName.trim().toLowerCase() === "clinical pathology"
+    ? "page-break-before: always; margin-bottom: 10px;"
+    : categoryNewPage
+        ? "page-break-before: always; margin-bottom: 10px;"
+        : "margin-bottom: 10px;";
+
 
     return `
       <div style="${categoryStyle}">
@@ -327,37 +371,38 @@ function calculateTAT(start, end) {
           </thead>
 
           <tbody>
-            ${
-              (category.items || [])
-                .map((item) =>
-                  item.isPanel || item.isPackage
-                    ? renderPanelPage(
-                        item,
-                        design,
-                        spacing,
-                        fontSize,
-                        fontFamily,
-                        useHL,
-                        redAbFlag,
-                        boldAbFlag,
-                        boldValuesFlag,
-                        indentNestedFlag
-                      )
-                    : renderTestRow(
-                        item,
-                        design,
-                        spacing,
-                        fontSize,
-                        fontFamily,
-                        useHL,
-                        redAbFlag,
-                        boldAbFlag,
-                        boldValuesFlag,
-                        indentNestedFlag
-                      )
-                )
-                .join("")
-            }
+            ${(category.items || [])
+        .map((item) =>
+          item.isPanel || item.isPackage
+            ? renderPanelPage(
+              item,
+              design,
+              spacing,
+              fontSize,
+              fontFamily,
+              useHL,
+              redAbFlag,
+              boldAbFlag,
+              boldValuesFlag,
+              indentNestedFlag,
+              capetalizeTestFlag
+            )
+            : renderTestRow(
+              item,
+              design,
+              spacing,
+              fontSize,
+              fontFamily,
+              useHL,
+              redAbFlag,
+              boldAbFlag,
+              boldValuesFlag,
+              indentNestedFlag,
+              capetalizeTestFlag
+            )
+        )
+        .join("")
+      }
           </tbody>
         </table>
       </div>
@@ -365,17 +410,17 @@ function calculateTAT(start, end) {
   };
 
 
-const headerImageSrc = letterhead.headerImage
-  ? (letterhead.headerImage.startsWith("http")
+  const headerImageSrc = letterhead.headerImage
+    ? (letterhead.headerImage.startsWith("http")
       ? letterhead.headerImage
       : imageToBase64(letterhead.headerImage))
-  : logoURL;
+    : logoURL;
 
-const footerImageSrc = letterhead.footerImage
-  ? (letterhead.footerImage.startsWith("http")
+  const footerImageSrc = letterhead.footerImage
+    ? (letterhead.footerImage.startsWith("http")
       ? letterhead.footerImage
       : imageToBase64(letterhead.footerImage))
-  : "";
+    : "";
 
 
 
@@ -404,6 +449,11 @@ const footerImageSrc = letterhead.footerImage
   visibility: hidden;
 }
 
+.cap-text {
+  text-transform: capitalize;
+}
+
+
 
 
   
@@ -423,17 +473,37 @@ const footerImageSrc = letterhead.footerImage
     margin: 0;
     padding: 0;
   }
+
+  tfoot {
+  display: table-footer-group;
+}
+
+tfoot tr td {
+  vertical-align: bottom !important;
+}
+
+/* FIXED footer for single-page PDF */
+
+
+
 </style>
 
       </head>
       <body>
-        <table style="width:100%; min-height:297mm;">
-          ${printSetting.withLetterhead ? `
+      <div id="page-height-detector" style="visibility:hidden; position:absolute; top:0;">
+</div>
+
+        <table style="width:100%; border-collapse:collapse; margin-top:0; padding-top:0;">
+
+          
           <thead>
             <tr>
               <th style=" background:#fff; border-bottom:1px solid #d1d5db;">
                 <!-- Header -->
-                <div style="display:flex; justify-content:center; align-items:center; width:100%;">
+                ${printSetting.withLetterhead ? `
+                  <div style="display:flex; justify-content:center; align-items:center; width:100%;
+                 ${letterheadSettings.setAsDefault ? "" : `height:${letterheadSettings.headerHeight || 30}cm;`}
+                ">
   <img 
   src="${headerImageSrc}" 
   alt="Header" 
@@ -441,6 +511,8 @@ const footerImageSrc = letterhead.footerImage
 />
 
 </div>
+                 ` : "" }
+                
 
                 
 
@@ -458,7 +530,7 @@ const footerImageSrc = letterhead.footerImage
 ">
 
   <!-- LEFT COLUMN -->
-  <div style="display:flex; flex-direction:column;">
+  <div style="display:flex; flex-direction:column; align-items:flex-start;">
     <p style="margin:2px 0; font-weight:600;">
       Patient: ${patient.firstName} ${patient.lastName}
     </p>
@@ -471,52 +543,51 @@ const footerImageSrc = letterhead.footerImage
   </div>
 
   <!-- RIGHT COLUMN -->
-  <div style="display:flex; flex-direction:column; text-align:right;">
+  <div style="display:flex; flex-direction:column; text-align:right; align-items:flex-start;">
     <p style="margin:2px 0; font-weight:600;">
       Date: ${new Date(reportData.createdAt).toLocaleDateString("en-GB")}
     </p>
 
     <p style="margin:2px 0; font-weight:600;">
       Time: ${new Date(reportData.createdAt).toLocaleTimeString("en-GB", {
-        hour: "2-digit",
-        minute: "2-digit",
-        hour12: true
-      })}
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: true
+  })}
     </p>
 
     <p style="margin:2px 0; font-weight:600;">
-      PAT ID: ${patient.regNo}
+      PAT ID /UHID: ${patient.regNo} / ${patient.uhid}
     </p>
 
-    <p style="margin:2px 0; font-weight:600;">
-      UHID: ${patient.uhid}
-    </p>
+    
+  </div>
+  <div style="display:flex; flex-direction:column; text-align:right; align-items:flex-start;">
+    ${printSetting?.showHide?.showTATTime
+        ? `
+      <p style="margin-left:10px; font-weight:600;">
+        TAT: ${calculateTAT(reportData.createdAt, reportData.updatedAt)}
+      </p>
+      `
+        : ""
+      }
+
+    
   </div>
 
   <!-- BARCODE -->
-  ${
-    printSetting?.showHide?.showQRCode
-      ? `
+  
+        
       <div style="margin-left:10px;">
         <img 
           src="data:image/png;base64,${barcodeBase64}" 
           style="height:40px; width:auto;" 
         />
       </div>
-      `
-      : ""
-  }
+      
 
   <!-- TAT -->
-  ${
-    printSetting?.showHide?.showTATTime
-      ? `
-      <p style="margin-left:10px; font-weight:600;">
-        TAT: ${calculateTAT(reportData.createdAt, reportData.updatedAt)}
-      </p>
-      `
-      : ""
-  }
+  
 
 </div>
 
@@ -525,56 +596,110 @@ const footerImageSrc = letterhead.footerImage
               </th>
             </tr>
           </thead>
-          ` : ''}
+          
 
           <tbody>
             <tr>
               <td style="padding:${letterheadSettings.caseInfoHeight || 3}mm;">
-                ${reportData.categories
-  ?.map(cat => renderCategorySection(
-      cat,
-      design,        // pass design settings
-      spacing,       // pass spacing
-      fontSize,      // pass fontsize
-      fontFamily,    // pass font family
-      useHLMarkers,
-      categoryNewFlag,
-  ))
-  .join('')}
 
-              </td>
+  ${reportData.categories
+    ?.map(cat => `
+        <div class="result-page">
+            ${renderCategorySection(
+              cat,
+              design,
+              spacing,
+              fontSize,
+              fontFamily,
+              useHLMarkers,
+              categoryNewFlag,
+              capetalizeTestFlag
+            )}
+        </div>
+    `)
+    .join('')}
+
+</td>
+
             </tr>
           </tbody>
 
-          ${printSetting.withLetterhead ? `
-          <tfoot style="display: table-footer-group;">
+          
+         <tfoot style="display: table-footer-group;">
   <tr>
-    <td style="border-top:1px solid #d1d5db; position: relative;">
+    <td style="border-top:1px solid #d1d5db; padding:0;">
 
-      
-
-      <!-- Signatures -->
-      <div style="display:flex; flex-wrap:wrap; justify-content:space-between; margin-top:6px;">
-        ${signatureHTML}
-      </div>
-
-     
+      <div class="{{FOOTER_CLASS}}">
 
 
-      <!-- Footer Image -->
-      <div style="display:flex; justify-content:center; align-items:center; width:100%; margin-top:8px;">
-        <img 
-          src="${footerImageSrc}" 
-          alt="Footer" 
-          style="width:100%; height:auto; object-fit:cover; margin:0; padding:0;" 
-        />
+        <!-- SIGNATURE + QR SECTION -->
+        <div style="
+          width:100%;
+          display:flex;
+          align-items:flex-end;
+          justify-content:space-between;
+          ${letterheadSettings.setAsDefault ? "height:90px;" : `height:${letterheadSettings.signatureHeight || 30}cm;`}
+        ">
+
+          <!-- LEFT SIGNATURE -->
+          <div style="width:33%; text-align:center;">
+            ${
+              signatures[0]
+                ? `
+                  <img src="${signatures[0].imageUrl}" style="height:55px;" />
+                  <div style="font-size:10px; font-weight:600;">${signatures[0].name}</div>
+                  <div style="font-size:9px; color:#444;">${signatures[0].designation}</div>
+                `
+                : ""
+            }
+          </div>
+
+          <!-- CENTER QR -->
+          <div style="width:34%; text-align:center;">
+            ${
+              printSetting?.showHide?.showQRCode && qrBase64
+                ? `
+                  <img src="${qrBase64}" style="height:70px; width:70px;" />
+                  <p style="font-size:10px; margin:0; color:#444;">Scan to view report</p>
+                `
+                : ""
+            }
+          </div>
+
+          <!-- RIGHT SIGNATURE -->
+          <div style="width:33%; text-align:center;">
+            ${
+              signatures[1]
+                ? `
+                  <img src="${signatures[1].imageUrl}" style="height:55px;" />
+                  <div style="font-size:10px; font-weight:600;">${signatures[1].name}</div>
+                  <div style="font-size:9px; color:#444;">${signatures[1].designation}</div>
+                `
+                : ""
+            }
+          </div>
+
+        </div>
+
+        <!-- FOOTER IMAGE -->
+        ${
+          printSetting.withLetterhead && footerImageSrc
+            ? `
+              <div style="width:100%; margin-top:3px;">
+                <img src="${footerImageSrc}" style="width:100%; height:auto; display:block;" />
+              </div>
+            `
+            : ""
+        }
+
       </div>
 
     </td>
   </tr>
 </tfoot>
 
-          ` : ''}
+
+          
 
         </table>
       </body>
@@ -584,19 +709,39 @@ const footerImageSrc = letterhead.footerImage
     </html>
   `;
 
-  await page.setContent(html, {
-  waitUntil: "load"
+// ----- Detect natural content height -----
+const height = await page.evaluate(() => {
+    return document.body.scrollHeight;  // total HTML height in px
 });
 
+// PDF A4 height in Playwright = 1123px approx
+const A4_HEIGHT = 1123;
 
-const pdfBuffer = await page.pdf({
-  format: "A4",
-  printBackground: true,
-  displayHeaderFooter: true,
+const totalPages = Math.ceil(height / A4_HEIGHT);
 
-  headerTemplate: `<div></div>`,  // no header
+console.log("Detected Pages:", totalPages);
 
-  footerTemplate: `
+// Select footer class
+const footerClass =
+  totalPages === 1 ? "page-footer-fixed" : "page-footer-normal";
+
+// Replace class
+const finalHTML = html.replace(/{{FOOTER_CLASS}}/g, footerClass);
+
+// Re-render HTML with correct footer
+await page.setContent(finalHTML, { waitUntil: "load" });
+
+
+
+
+  const pdfBuffer = await page.pdf({
+    format: "A4",
+    printBackground: true,
+    displayHeaderFooter: true,
+
+    headerTemplate: `<div></div>`,  // no header
+
+    footerTemplate: `
     <div style="
       font-size:11px;
       color:#444;
@@ -609,24 +754,24 @@ const pdfBuffer = await page.pdf({
     </div>
   `,
 
-  margin: {
-    top: "0mm",
-    bottom: "20mm"   // allow page number area to exist
-  }
-});
+    margin: {
+      top: "0mm",
+      bottom: "20mm"   // allow page number area to exist
+    }
+  });
 
 
 
 
 
 
-await page.close();
+  await page.close();
 
 
-console.log("Type of pdfBuffer:", typeof pdfBuffer);     // object
-console.log("Is Buffer:", Buffer.isBuffer(pdfBuffer));   // true
-console.log("PDF Buffer length:", pdfBuffer.length);
+  console.log("Type of pdfBuffer:", typeof pdfBuffer);     // object
+  console.log("Is Buffer:", Buffer.isBuffer(pdfBuffer));   // true
+  console.log("PDF Buffer length:", pdfBuffer.length);
 
-return pdfBuffer;
+  return pdfBuffer;
 
 };

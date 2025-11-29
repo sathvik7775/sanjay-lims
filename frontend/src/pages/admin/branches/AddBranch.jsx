@@ -65,47 +65,57 @@ const AddBranch = () => {
     return newErrors;
   };
 
-  // ✅ Handle form submit with axios + loader + toast
+ 
+
+
   const handleSubmit = async (e) => {
-    e.preventDefault();
-    const newErrors = validate();
-    setErrors(newErrors);
-    if (Object.keys(newErrors).length > 0) return;
+  e.preventDefault();
 
-    const formDataToSend = new FormData();
-    Object.keys(formData).forEach((key) => {
-      formDataToSend.append(key, formData[key]);
-    });
+  const newErrors = validate();
+  setErrors(newErrors);
+  if (Object.keys(newErrors).length > 0) return;
 
-    try {
-      setLoading(true); // show loader
+  if (!formData.loginPassword || formData.loginPassword.trim().length < 6) {
+    errorToast("Password must be at least 6 characters");
+    return;
+  }
 
-      const response = await axios.post(
-        `${import.meta.env.VITE_API_URL}/api/admin/branch/add`,
-        formDataToSend,
-        {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("adminToken")}`,
-            "Content-Type": "multipart/form-data",
-          },
-        }
-      );
+  const formDataToSend = new FormData();
+ Object.entries(formData).forEach(([key, value]) => {
+  if (key === "logo") {
+    if (value) formDataToSend.append(key, value);
+  } else {
+    formDataToSend.append(key, value);   // 🔥 DO NOT SEND empty strings
+  }
+});
 
-      if (response.data.success) {
-        successToast("Branch added successfully!");
-        navigate("/admin/branches");
-      } else {
-        errorToast(response.data.message || "Failed to add branch");
+  try {
+    setLoading(true);
+
+    const response = await axios.post(
+      `${import.meta.env.VITE_API_URL}/api/admin/branch/add`,
+      formDataToSend,
+      {
+        headers: {
+          Authorization: `Bearer ${adminToken}`,
+          "Content-Type": "multipart/form-data",
+        },
       }
-    } catch (error) {
-      console.error("Error adding branch:", error);
-      errorToast(
-        error.response?.data?.message || "Something went wrong while adding branch"
-      );
-    } finally {
-      setLoading(false); // hide loader
+    );
+
+    if (response.data.success) {
+      successToast("Branch added successfully");
+      navigate("/admin/branches");
+    } else {
+      errorToast(response.data.message);
     }
-  };
+  } catch (error) {
+    console.error(error);
+    errorToast("Error adding branch");
+  } finally {
+    setLoading(false);
+  }
+};
 
   useEffect(() => {
       if (!adminToken) {

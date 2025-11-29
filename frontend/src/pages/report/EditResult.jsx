@@ -4,6 +4,8 @@ import axios from "axios";
 import { LabContext } from "../../context/LabContext";
 import Loader from "../../components/Loader";
 import { TriangleAlert } from 'lucide-react'
+import { useLocation } from "react-router-dom";
+
 
 
 // 🔹 Convert age to years
@@ -116,11 +118,18 @@ const calculateFormulaResult = (formula, dependencies, results) => {
 /* ----------------------------- 🔹 EditResult ----------------------------- */
 
 const EditResult = () => {
-  const { branchId, branchToken, errorToast, successToast } = useContext(LabContext);
+  const { branchId, branchToken, errorToast, successToast, branchData } = useContext(LabContext);
   const { reportId } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
+
+  const query = new URLSearchParams(location.search);
+const autoFinal = query.get("autoFinal");
+
+
 
   const [loading, setLoading] = useState(true);
+  const [labDetails, setLabDetails] = useState(null)
   const [openMenu, setOpenMenu] = useState(false);
   const [report, setReport] = useState(null);
   const [results, setResults] = useState({});
@@ -128,6 +137,27 @@ const EditResult = () => {
   const [testsByCategory, setTestsByCategory] = useState({});
 
   const [resultStructure, setResultStructure] = useState([]); // ✅ stores fetched structure
+
+  useEffect(() => {
+  if (!loading && autoFinal === "true") {
+    console.log("🔥 Auto-final triggered");
+
+    setTimeout(() => {
+      const btn = document.getElementById("finalSubmitButton");
+      if (btn) btn.click();
+    }, 300);
+  }
+}, [loading, autoFinal]);
+
+
+
+  useEffect(() => {
+      setLabDetails({
+      name: branchData.branchName,
+        address: branchData.address || branchData.fullAddress || ""
+    })
+    }, [branchToken, branchId])
+    
 
   const fetchTestWithRefs = async (testId, reportData, branchToken) => {
     try {
@@ -600,6 +630,15 @@ const EditResult = () => {
     loadEditData();
   }, [reportId]);
 
+  useEffect(() => {
+  if (!loading && report && location.state?.autoSignOff) {
+    console.log("🔥 Auto Sign Off triggered AFTER data loaded");
+    handleSubmit("Signed Off");
+  }
+}, [loading, report, location.state]);
+
+
+
 
   /* ----------------------------- 🔹 Input Handler ----------------------------- */
 
@@ -706,6 +745,113 @@ const EditResult = () => {
   };
 
 
+  
+  const autoGeneratePDFFull = async () => {
+  try {
+    console.log("⚡ Auto PDF generation started...");
+
+    /* ---------------------------------------------------
+       0️⃣ CHECK IF PDF EXISTS → IF YES, DELETE IT
+    ----------------------------------------------------*/
+    try {
+      const existingPdf = await axios.get(
+        `${import.meta.env.VITE_API_URL}/api/pdf/get/${reportId}`
+      );
+
+      if (existingPdf.data?.success && existingPdf.data?.data) {
+        console.log("🗑️ Existing PDF found → deleting...");
+
+        await axios.delete(
+          `${import.meta.env.VITE_API_URL}/api/pdf/delete/${reportId}`
+        );
+
+        console.log("✅ Old PDF deleted");
+      } else {
+        console.log("ℹ️ No existing PDF found → generating fresh one...");
+      }
+    } catch (e) {
+      console.log("⚠️ PDF fetch or delete failed (maybe no PDF). Continuing...");
+    }
+
+    /* ---------------------------------------------------
+       1️⃣ FETCH REPORT
+    ----------------------------------------------------*/
+    const reportRes = await axios.get(
+      `${import.meta.env.VITE_API_URL}/api/cases/branch/${reportId}`,
+      { headers: { Authorization: `Bearer ${branchToken}` } }
+    );
+
+    if (!reportRes.data.success) {
+      console.error("❌ Report fetch failed");
+      return;
+    }
+
+    let reportData = reportRes.data.data;
+
+    /* ---------------------------------------------------
+       2️⃣ FETCH RESULTS
+    ----------------------------------------------------*/
+    const resultsRes = await axios.get(
+      `${import.meta.env.VITE_API_URL}/api/results/report/${reportId}`,
+      { headers: { Authorization: `Bearer ${branchToken}` } }
+    );
+
+    if (resultsRes.data?.success && resultsRes.data?.data) {
+      reportData = { ...reportData, ...resultsRes.data.data };
+    }
+
+    /* ---------------------------------------------------
+       3️⃣ FETCH LETTERHEAD
+    ----------------------------------------------------*/
+    const lhRes = await axios.get(
+      `${import.meta.env.VITE_API_URL}/api/report/letterhead/branch/${branchId}`
+    );
+    const letterheadData = lhRes.data?.data || null;
+
+    /* ---------------------------------------------------
+       4️⃣ FETCH SIGNATURES
+    ----------------------------------------------------*/
+    const sigRes = await axios.get(
+      `${import.meta.env.VITE_API_URL}/api/report/signature/branch/${branchId}`
+    );
+    const signatureData = sigRes.data?.data || [];
+
+    /* ---------------------------------------------------
+       5️⃣ FETCH PRINT SETTINGS
+    ----------------------------------------------------*/
+    const psRes = await axios.get(
+      `${import.meta.env.VITE_API_URL}/api/print/${branchId}`
+    );
+    const printSettingData = psRes.data?.data || {};
+
+    /* ---------------------------------------------------
+       6️⃣ GENERATE NEW PDF (NO TOKEN)
+    ----------------------------------------------------*/
+    const payload = {
+      reportId,
+      branchId,
+      reportData,
+      patient: reportData.patient,
+      letterhead: letterheadData,
+      signatures: signatureData,
+      printSetting: printSettingData,
+      lab: labDetails
+    };
+
+    console.log("📤 PDF Generate Payload:", payload);
+
+    await axios.post(`${import.meta.env.VITE_API_URL}/api/pdf/add`, payload);
+
+    console.log("✅ New PDF generated successfully!");
+
+  } catch (err) {
+    console.error("❌ Auto PDF generation failed:", err);
+  }
+};
+
+
+
+
   /* ----------------------------- 🔹 Submit ----------------------------- */
   const handleSubmit = async (status) => {
     if (!report) return errorToast("Patient details missing");
@@ -782,9 +928,14 @@ const EditResult = () => {
       );
 
       if (res.data.success) {
-        successToast("Report updated successfully");
-        navigate(`/${branchId}/view-report/${reportId}`);
-      } else {
+  successToast("Report updated Successfully");
+
+  if (status === "Signed Off") {
+    autoGeneratePDFFull();   // 🔥 FULL BACKGROUND PDF GENERATION
+  }
+
+  navigate(`/${branchId}/view-report/${reportId}`);
+} else {
         errorToast(res.data.message || "Failed to update");
       }
     } catch (err) {
@@ -836,7 +987,7 @@ const EditResult = () => {
 
 
   /* ----------------------------- 🔹 UI ----------------------------- */
-  if (loading) return <Loader />;
+  if (loading) return <Loader text="Processing" />;
   if (!report) return <p className="p-6 text-gray-500">Report not found</p>;
 
   return (
@@ -932,14 +1083,16 @@ const EditResult = () => {
           </div>
 
           {/* FINAL BUTTON */}
-          <button
-            onClick={() => handleSubmit("Final")}
-            className="flex items-center gap-2 border border-gray-300 text-gray-700 
-                 px-5 h-10 rounded-md hover:bg-gray-100 transition"
-          >
-            <img src="/check.png" className="w-4 h-4" />
-            <span className="font-medium">Final</span>
-          </button>
+         <button
+  id="finalSubmitButton"
+  onClick={() => handleSubmit("Final")}
+  className="flex items-center gap-2 border border-gray-300 text-gray-700 
+       px-5 h-10 rounded-md hover:bg-gray-100 transition"
+>
+  <img src="/check.png" className="w-4 h-4" />
+  <span className="font-medium">Final</span>
+</button>
+
 
           {/* SAVE ONLY BUTTON */}
           <button

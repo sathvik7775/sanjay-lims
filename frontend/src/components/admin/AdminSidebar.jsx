@@ -196,11 +196,16 @@ const AdminSidebar = () => {
 
           {/* Reports */}
           <Section title="Reports" icon="/add-task.png" name="reports">
-            <MenuItem icon="/report.png" text="Report Templates" to="/admin/report-temp" />
+            <MenuItem icon="/report.png" text="Proofread" to="/admin/report-temp" />
             <MenuItem icon="/chat.png" text="Message Templates" to="/admin/msg-temp" />
             
             <MenuItem icon="/letter.png" text="Letter Head" to="/admin/letter" />
             <MenuItem icon="/signature.png" text="Signatures" to="/admin/signatures" />
+          </Section>
+
+          <Section title="Profile" icon="/person.png" name="profile">
+            <MenuItem icon="/profile.png" text="Update Profile" to="/admin/profile" />
+            
           </Section>
         </div>
       </div>

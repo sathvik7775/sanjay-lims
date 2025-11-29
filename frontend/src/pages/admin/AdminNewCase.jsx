@@ -1,7 +1,9 @@
 import React, { useContext, useEffect, useState } from "react";
 import { Search } from "lucide-react";
-import Select from "react-select";
+
 import { useLocation } from "react-router-dom";
+import Select, { components } from "react-select";
+
 
 
 import axios from "axios";
@@ -18,6 +20,35 @@ const AdminNewCase = () => {
 
     const location = useLocation();
 const prefill = location.state || {};
+
+
+const CustomMenuList = (props) => {
+  return (
+    <>
+      <components.MenuList {...props}>
+        {props.children}
+      </components.MenuList>
+
+      {/* Bottom fixed buttons inside dropdown */}
+      <div className="p-2 border-t bg-gray-50 flex justify-between">
+        <button
+          className="text-blue-600 text-sm font-medium hover:underline"
+          onClick={() => navigate(`/admin/add-test-manually`, { state: { openModal: true } })}
+        >
+          + Add New
+        </button>
+
+        <button
+          className="text-green-600 text-sm font-medium hover:underline"
+          onClick={() => navigate(`/admin/rate-list`)}
+        >
+          Rate List
+        </button>
+      </div>
+    </>
+  );
+};
+
 
     
     
@@ -497,18 +528,28 @@ const prefill = location.state || {};
 }
 
   // ✅ Combine both dummy tests and dummy panels together
-  const combinedOptions = [
-    ...filteredTests.map((test) => ({
-      value: test._id,
-      label: `🧪 ${test.name} (${test.shortName}) — ₹${test.price}`,
-      type: "test",
-    })),
+ let combinedOptions = [];
+
+// Always include category tests
+combinedOptions = [
+  ...filteredTests.map((test) => ({
+    value: test._id,
+    label: `🧪 ${test.name} (${test.shortName || test.short}) — ₹${test.price}`,
+    type: "test",
+  })),
+];
+
+// Add panels ONLY for LAB
+if (cat === "LAB") {
+  combinedOptions.push(
     ...dummyPanels.map((panel) => ({
       value: panel._id,
       label: `📋 ${panel.name} (Panel) — ₹${panel.price}`,
       type: "panel",
-    })),
-  ];
+    }))
+  );
+}
+
 
   // ✅ Get selected tests/panels for this category
   // ✅ Get selected tests/panels for this category
@@ -542,6 +583,7 @@ const selectedOptions = selectedForCat.map((t) => ({
         placeholder="Search and select multiple tests..."
         className="react-select-container mb-4"
         classNamePrefix="react-select"
+        components={{ MenuList: CustomMenuList }}
       />
 
       {selectedForCat.length > 0 && (

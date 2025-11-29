@@ -20,6 +20,46 @@ const ViewReport = () => {
   const [isPrinting, setIsPrinting] = useState(false);
   const printRef = useRef();
 
+   const [branches, setBranches] = useState([]);
+    const [labDetails, setLabDetails] = useState(null);
+
+
+    const fetchBranches = async () => {
+    try {
+      setLoading(true);
+      const res = await axios.get( `${import.meta.env.VITE_API_URL}/api/admin/branch/list`, {
+        headers: { Authorization: `Bearer ${adminToken}` },
+      });
+      
+      
+      
+      setBranches(res.data.branches || []);
+    } catch (err) {
+      errorToast("Failed to load branches", "error");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+  fetchBranches();
+}, []);
+
+
+useEffect(() => {
+  if (!branchId || branches.length === 0) return;
+
+  const selected = branches.find(b => b._id === branchId);
+
+  if (selected) {
+    setLabDetails({
+      name: selected.branchName,
+      address: selected.address || selected.fullAddress || ""
+    });
+  }
+
+}, [branchId, branches]);
+
   useEffect(() => {
   const fetchData = async () => {
     setLoading(true);
@@ -84,9 +124,10 @@ const ViewReport = () => {
 
 // ---------------- Fetch or Generate PDF ----------------
 useEffect(() => {
+  let interval;
+
   const fetchPDF = async () => {
     try {
-      // 🟩 Step 1: Try fetching existing PDF
       const pdfRes = await axios.get(
         `${import.meta.env.VITE_API_URL}/api/pdf/get/${reportId}`,
         { headers: { Authorization: `Bearer ${adminToken}` } }
@@ -96,7 +137,7 @@ useEffect(() => {
         setPdfUrl(pdfRes.data.pdfUrl);
         console.log("📄 Existing PDF found:", pdfRes.data.pdfUrl);
       } else {
-        console.log("❌ No existing PDF found for this report");
+        console.log("❌ No PDF");
         setPdfUrl(null);
       }
     } catch (err) {
@@ -106,8 +147,14 @@ useEffect(() => {
   };
 
   if (reportId && branchId && adminToken) {
+    // Run immediately
     fetchPDF();
+
+    // 🔄 Poll every 5 seconds
+    interval = setInterval(fetchPDF, 1000);
   }
+
+  return () => clearInterval(interval);
 }, [reportId, branchId, adminToken]);
 
 const handleGeneratePDF = async () => {
@@ -129,6 +176,7 @@ const handleGeneratePDF = async () => {
         letterhead: letterhead,
         signatures: signatures,
         printSetting,
+        lab: labDetails,
       },
       { headers: { Authorization: `Bearer ${adminToken}` } }
     );
@@ -199,6 +247,69 @@ const handleGeneratePDF = async () => {
     }, 500);
   };
 
+
+  const [openMenu, setOpenMenu] = useState(false);
+  
+    
+  
+  
+    const menuRef = useRef(null);
+    
+    
+      useEffect(() => {
+        function handleClickOutside(event) {
+          if (menuRef.current && !menuRef.current.contains(event.target)) {
+            setOpenMenu(false);   // 🔥 Close menu
+          }
+        }
+    
+        document.addEventListener("mousedown", handleClickOutside);
+    
+        return () => {
+          document.removeEventListener("mousedown", handleClickOutside);
+        };
+      }, []);
+    
+      const [showBar, setShowBar] = useState(true);
+      const [lastScrollY, setLastScrollY] = useState(0);
+    
+      useEffect(() => {
+        const handleScroll = () => {
+          if (window.scrollY > lastScrollY) {
+            // scrolling DOWN → hide
+            setShowBar(false);
+          } else {
+            // scrolling UP → show
+            setShowBar(true);
+          }
+          setLastScrollY(window.scrollY);
+        };
+    
+        window.addEventListener("scroll", handleScroll);
+    
+        return () => window.removeEventListener("scroll", handleScroll);
+      }, [lastScrollY]);
+
+       const [open, setOpen] = useState(false);
+      
+        const handleWeb = () => {
+          const msg = `Here is your report:\n${pdfUrl}`;
+          window.open(
+            `https://web.whatsapp.com/send?text=${encodeURIComponent(msg)}`,
+            "_blank"
+          );
+        };
+      
+        const handleApp = () => {
+          const msg = `Here is your report:\n${pdfUrl}`;
+          window.open(
+            `https://api.whatsapp.com/send?text=${encodeURIComponent(msg)}`,
+            "_blank"
+          );
+        };
+    
+    
+
   
 
 
@@ -208,48 +319,232 @@ const handleGeneratePDF = async () => {
 
   return (
     <div className="bg-white min-h-screen py-6">
-      {/* Action Buttons */}
-      <div className="flex justify-center gap-4 mb-6 print:hidden">
-        <button onClick={handlePrint} className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-md shadow-sm">
-          Print Report
-        </button>
 
-        {pdfUrl ? (
-    // ✅ If PDF exists → show Print PDF button
-    <button
-      onClick={() => window.open(pdfUrl, "_blank")
-}
-      className="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-md shadow-sm"
-    >
-      Print PDF
-    </button>
-  ) : (
-    // ❌ If PDF not found → show Generate PDF button
-    <button
-      onClick={handleGeneratePDF}
-      className="bg-yellow-600 hover:bg-yellow-700 text-white px-6 py-2 rounded-md shadow-sm"
-    >
-      Generate PDF
-    </button>
-  )}
+      <div className="w-full print:hidden flex justify-between">
+
+      <div className="mb-4 px-8 print:hidden">
+        <h1 className="text-3xl font-semibold text-gray-800">Lab report</h1>
+
+        <div className="mt-2 inline-flex items-center gap-3">
+
+          {/* Reg No */}
+          <span className="bg-yellow-100 text-yellow-800 px-3 py-1 rounded-md text-xs font-medium">
+            Reg no. {report.regNo} | {report.dcn}
+          </span>
 
 
 
+        </div>
 
-        <button
-          onClick={() => navigate(`/admin/edit-result/${reportId}`)}
-          className="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-md shadow-sm"
-        >
-          Edit Results
-        </button>
+        {/* Status */}
+        <div className="mt-3">
+        <p className="flex items-center gap-2">
+  <span className="font-semibold">Status:</span>
+  <span
+    className={`px-3 py-1 rounded-full text-sm font-medium border
+      ${report.status === "In Progress"
+        ? "bg-red-50 text-red-600 border-red-400"
+        : report.status === "Signed Off"
+        ? "bg-green-50 text-green-600 border-green-400"
+        : report.status === "Final"
+        ? "bg-blue-50 text-blue-600 border-blue-400"
+        : "bg-gray-100 text-gray-600 border-gray-300"
+      }`}
+  >
+    {report.status || "—"}
+  </span>
+</p>
 
-        <button
-          onClick={() => navigate(`/admin/print-settings/${reportId}`)}
-          className="bg-orange-600 hover:bg-orange-700 text-white px-6 py-2 rounded-md shadow-sm"
-        >
-          Print Settings
-        </button>
       </div>
+      </div>
+
+      <div className="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 h-15 p-3 rounded-md shadow-sm text-sm">
+  <p className="font-semibold">⚠️ Attention!</p>
+  <p>
+    Kindly note: If you have added, removed, or modified any tests in this case,
+    please click <strong>Enter Results</strong> to update the results.
+  </p>
+</div>
+
+</div>
+      {/* Action Buttons */}
+      <div
+  className={`fixed bottom-0 left-[225px] right-0 
+    bg-white border-t border-gray-300 shadow-lg z-50
+    transition-transform duration-300 print:hidden
+    ${showBar ? "translate-y-0" : "translate-y-full"}`}
+>
+  <div className="w-full max-w-[1200px] mx-auto px-4 py-3 flex items-center gap-3">
+
+    {/* ======================= PRINT PDF / SIGN OFF ======================= */}
+    <div ref={menuRef} className="relative flex items-center">
+
+      {/* SIGNED OFF → Show PRINT PDF */}
+      {report.status === "Signed Off" && (
+        <>
+          <button
+  onClick={() => pdfUrl && window.open(pdfUrl.replace("?dl=0", "?dl=1"), "_blank")}
+  disabled={!pdfUrl}
+  className={`flex items-center gap-2 
+    px-5 h-10 rounded-l-md shadow transition border-r border-white
+    ${pdfUrl ? "bg-blue-600 hover:bg-blue-700 text-white" : "bg-blue-400 text-white cursor-not-allowed"}`}
+>
+  {pdfUrl ? (
+    <>
+      <img src="/pdf-w.png" className="w-4 h-4" />
+      <span className="font-medium">Print PDF</span>
+    </>
+  ) : (
+    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+  )}
+</button>
+
+
+          <button
+            onClick={() => setOpenMenu(!openMenu)}
+            className="bg-blue-600 hover:bg-blue-700 text-white w-10 h-10 
+              flex items-center justify-center rounded-r-md shadow transition"
+          >
+            <img src="/down-arrow-w.png" className="w-3 h-3 opacity-80" />
+          </button>
+        </>
+      )}
+
+      {/* NOT SIGNED OFF → Show SIGN OFF button */}
+      {report.status !== "Signed Off" && (
+        <>
+          <button
+            onClick={() =>
+    navigate(`/admin/edit-result/${reportId}`, {
+      state: { autoSignOff: true }
+    })
+  }
+            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white
+              px-5 h-10 rounded-l-md shadow transition border-r border-white"
+          >
+            <img src="/signature-w.png" className="w-4 h-4" />
+            <span className="font-medium">Sign off</span>
+          </button>
+
+          <button
+            onClick={() => setOpenMenu(!openMenu)}
+            className="bg-blue-600 hover:bg-blue-700 text-white w-10 h-10 
+              flex items-center justify-center rounded-r-md shadow transition"
+          >
+            <img src="/down-arrow-w.png" className="w-3 h-3 opacity-80" />
+          </button>
+        </>
+      )}
+
+      {/* DROPDOWN */}
+      {openMenu && (
+        <div className="absolute right-0 bottom-12 w-48 bg-white rounded-md shadow-lg border border-gray-300">
+  <div className="absolute -bottom-2 right-4 w-3 h-3 bg-white rotate-45 border-l border-b"></div>
+
+  <ul className="py-2 text-sm">
+
+    <li
+      onClick={() => navigate(`/admin/bill/${reportId}`)}
+      className="px-4 py-2 hover:bg-gray-100 cursor-pointer flex gap-2 items-center"
+    >
+      <img src="/eye.png" className="w-4 h-4" /> View bill
+    </li>
+
+    <li
+      onClick={() => navigate(`/admin/edit-case/${reportId}`)}
+      className="px-4 py-2 hover:bg-gray-100 cursor-pointer flex gap-2 items-center"
+    >
+      <img src="/edit.png" className="w-4 h-4" /> Modify case
+    </li>
+
+    {/* ⭐ NEW: Unapprove Button */}
+    <li
+      onClick={() =>
+        navigate(`/admim/edit-result/${reportId}?autoFinal=true`)
+      }
+      className="px-4 py-2 hover:bg-gray-100 cursor-pointer flex gap-2 items-center"
+    >
+      ❌ Unapprove
+    </li>
+
+  </ul>
+</div>
+
+      )}
+    </div>
+
+    {/* ======================= SEND REPORT ======================= */}
+    <div
+      className="relative inline-block"
+      onMouseEnter={() => setOpen(true)}
+      onMouseLeave={() => setOpen(false)}
+    >
+      {/* Main Button */}
+      <button
+        className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white
+        px-6 h-10 rounded-md shadow transition"
+      >
+        <img src="/send.png" className="w-4 h-4" />
+        <span>Send report</span>
+      </button>
+
+      {/* Dropdown */}
+      {open && (
+        <div className="absolute right-0 -top-20 w-48 bg-white shadow-lg rounded-md border z-20">
+          <button
+            onClick={handleWeb}
+            className="w-full text-left px-4 py-2 hover:bg-gray-100 flex gap-2 items-center"
+          >
+            💻 WhatsApp Web
+          </button>
+
+          <button
+            onClick={handleApp}
+            className="w-full text-left px-4 py-2 hover:bg-gray-100 flex gap-2 items-center"
+          >
+            📱 WhatsApp App
+          </button>
+        </div>
+      )}
+    </div>
+
+    {/* ======================= ENTER RESULTS ======================= */}
+    <button
+      onClick={() => navigate(`/admin/edit-result/${reportId}`)}
+      className="flex items-center gap-2 border border-blue-500 text-blue-600 
+        px-5 h-10 rounded-md hover:bg-blue-50 transition"
+    >
+      <img src="/edit-b.png" className="w-4 h-4" />
+      <span className="font-medium">Enter results</span>
+    </button>
+
+    {/* ======================= BROWSER PRINT ======================= */}
+    <div className="relative flex items-center">
+      <button
+        onClick={handlePrint}
+        className="flex items-center gap-2 border border-gray-300 text-gray-700 
+          px-5 h-10 rounded-l-md hover:bg-gray-100 transition mx-3"
+      >
+        <img src="/printer.png" className="w-4 h-4" />
+        <span className="font-medium">Browser print</span>
+      </button>
+
+      
+
+    {/* ======================= PRINT SETTINGS ======================= */}
+    <button
+      onClick={() => navigate(`/admin/print-settings/${reportId}`)}
+      className="flex items-center gap-2 border border-blue-500 text-blue-600 
+        px-5 h-10 rounded-md hover:bg-blue-50 transition"
+    >
+      <img src="/settings-b.png" className="w-4 h-4" />
+      <span className="font-medium">Print settings</span>
+    </button>
+
+  </div>
+</div>
+</div>
+
 
       {/* Web-Friendly Report */}
       <div className="block print:hidden">
@@ -287,14 +582,57 @@ const WebReport = ({ report, printSetting, signatures }) => {
     <div className="bg-white p-4">
       {patient && (
         <div className="border border-gray-300 p-4 rounded-md mb-6 bg-gray-50 text-sm">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            <p><strong>Patient:</strong> {patient.firstName} {patient.lastName}</p>
-            <p><strong>Age/Sex:</strong> {patient.age} {patient.ageUnit || "Yrs"} / {patient.sex}</p>
-            <p><strong>Referred By:</strong> {patient.doctor || "—"}</p>
-            <p><strong>Date:</strong> {new Date(report.createdAt).toLocaleDateString("en-GB")} <br />
-              {new Date(report.createdAt).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", hour12: true })}</p>
-            <p><strong>PAT ID:</strong> {patient.regNo}</p>
-            <p><strong>UHID:</strong> {patient.uhid}</p>
+          <div className="text-sm flex justify-between items-center">
+          
+            {/* ---- ROW 1 (3 items) ---- */}
+            <div className="flex flex-col gap-4">
+              <div className="">
+                <p><strong>Patient:</strong> {patient.firstName} {patient.lastName}</p>
+              </div>
+          
+              <div className="">
+                <p><strong>Age/Sex:</strong> {patient.age} {patient.ageUnit || "Yrs"} / {patient.sex}</p>
+              </div>
+          
+              <div className="">
+                <p><strong>Referred By:</strong> {patient.doctor || "—"}</p>
+              </div>
+            </div>
+          
+            {/* ---- ROW 2 (3 items) ---- */}
+            <div className="flex flex-col gap-4 ">
+              <div className="">
+                <p><strong>Date:</strong>
+                  {new Date(report.createdAt).toLocaleDateString("en-GB")}, {new Date(report.createdAt).toLocaleTimeString("en-GB", {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                    hour12: true,
+                  })}
+                </p>
+              </div>
+          
+              <div className="">
+                <p><strong>PAT ID:</strong> {patient.regNo}</p>
+              </div>
+          
+              <div className="">
+                <p><strong>UHID:</strong> {patient.uhid}</p>
+              </div>
+            </div>
+          
+            {/* ---- ROW 3 → BARCODE RIGHT ---- */}
+            <div className="">
+              <Barcode
+                value={patient.regNo || ""}
+                height={30}
+                width={1.2}
+                fontSize={12}
+                margin={0}
+                renderer="canvas"
+                
+              />
+            </div>
+          
           </div>
         </div>
       )}
@@ -375,11 +713,19 @@ const LetterheadTable = ({ lh, signatures, children, patient, report, printSetti
                 style={{ fontSize: `${printSetting?.design?.fontSize || 12}px` }}>UHID: {patient.uhid}</p>
               </div>
 
-              {printSetting?.showHide?.showQRCode && (
-              <div>
-                <Barcode value={patient.regNo} height={20} width={1.2} fontSize={10} margin={0} />
-              </div>
-              )}
+             
+              <div className="flex items-center mt-1">
+  <Barcode
+    value={patient.regNo || ""}
+    height={30}
+    width={1.1}
+    fontSize={12}
+    margin={0}
+     
+    renderer="canvas"
+  />
+</div>
+
               {printSetting?.showHide?.showTATTime && (
   <p className="font-semibold">
     TAT: {calculateTAT(patient.createdAt, report.updatedAt)}

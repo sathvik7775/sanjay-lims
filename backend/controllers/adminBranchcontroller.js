@@ -8,6 +8,8 @@ import bcrypt from "bcryptjs";
 
 export const addBranch = async (req, res) => {
   try {
+    console.log("Incoming Body:", req.body);
+    console.log("Raw Password:", req.body.loginPassword);
     const {
       name,
       address,
@@ -24,7 +26,16 @@ export const addBranch = async (req, res) => {
     const logo = req.file ? `/uploads/${req.file.filename}` : null;
 
     // Hash password before saving
-    const hashedPassword = await bcrypt.hash(loginPassword, 10);
+    if (!loginPassword || loginPassword.trim().length < 4) {
+  return res.status(400).json({
+    success: false,
+    message: "Login password is invalid",
+  });
+}
+
+
+const hashedPassword = await bcrypt.hash(loginPassword.trim(), 10);
+
 
     const branch = await Branch.create({
       name,

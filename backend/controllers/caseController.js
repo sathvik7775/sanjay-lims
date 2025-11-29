@@ -7,7 +7,7 @@ import { io } from "../server.js";
  */
 export const createCase = async (req, res) => {
   try {
-    const { branchId, patient, tests, categories, payment, whatsappTriggers } = req.body;
+    const { branchId, patient, tests, categories, payment, whatsappTriggers, reportStatus } = req.body;
 
     if (!branchId)
       return res.status(400).json({ success: false, message: "Branch ID is required" });
@@ -34,6 +34,7 @@ export const createCase = async (req, res) => {
       categories: categories || [],
       payment: { ...payment, balance },
       status,
+      reportStatus,
       whatsappTriggers: Array.isArray(whatsappTriggers)
         ? whatsappTriggers.map((t) => ({
             templateId: t.templateId,
@@ -67,16 +68,17 @@ export const updateCase = async (req, res) => {
     const { id } = req.params;
     const updatedData = { ...req.body };
 
-    // 🧩 Find the existing case
+    // 🧩 Find case
     const caseToUpdate = await Case.findById(id);
     if (!caseToUpdate)
       return res.status(404).json({ success: false, message: "Case not found" });
 
-    // 🧮 Update payment calculations
+    // 🧮 Update payment
     if (updatedData.payment) {
       const total = updatedData.payment.total ?? caseToUpdate.payment.total;
       const discount = updatedData.payment.discount ?? caseToUpdate.payment.discount;
       const received = updatedData.payment.received ?? caseToUpdate.payment.received;
+
       const balance = total - discount - received;
 
       caseToUpdate.payment = {
@@ -85,11 +87,11 @@ export const updateCase = async (req, res) => {
         balance,
       };
 
-      // Auto-update status
+      // Auto status update
       caseToUpdate.status = balance > 0 ? "due" : "no due";
     }
 
-    // 🧾 Update tests (ensure correct format)
+    // 🧪 Update tests
     if (updatedData.tests && typeof updatedData.tests === "object") {
       const formattedTests = {};
       Object.keys(updatedData.tests).forEach((cat) => {
@@ -97,10 +99,11 @@ export const updateCase = async (req, res) => {
           ? updatedData.tests[cat]
           : [];
       });
+
       caseToUpdate.tests = formattedTests;
     }
 
-    // 📋 Update WhatsApp triggers if any
+    // 📋 Update WhatsApp triggers
     if (Array.isArray(updatedData.whatsappTriggers)) {
       caseToUpdate.whatsappTriggers = updatedData.whatsappTriggers.map((t) => ({
         templateId: t.templateId,
@@ -109,18 +112,21 @@ export const updateCase = async (req, res) => {
       }));
     }
 
-    // 🧍 Update patient info, categories, etc.
+    // 🧍 Patient & categories
     if (updatedData.patient) caseToUpdate.patient = updatedData.patient;
     if (updatedData.categories) caseToUpdate.categories = updatedData.categories;
     if (updatedData.branchId) caseToUpdate.branchId = updatedData.branchId;
 
-    // 🕒 ✅ Update createdAt if passed (Registered On)
-    if (updatedData.createdAt) {
-      caseToUpdate.createdAt = new Date(updatedData.createdAt);
-      console.log("✅ Registered date updated to:", caseToUpdate.createdAt);
+    // ⭐ NEW — Update report status
+    if (updatedData.reportStatus) {
+      caseToUpdate.reportStatus = updatedData.reportStatus;  
     }
 
-    // 💾 Save document manually (so createdAt can be modified)
+    // 🕒 Registered On
+    if (updatedData.createdAt) {
+      caseToUpdate.createdAt = new Date(updatedData.createdAt);
+    }
+
     await caseToUpdate.save();
 
     return res.status(200).json({
@@ -128,11 +134,13 @@ export const updateCase = async (req, res) => {
       message: "Case updated successfully",
       data: caseToUpdate,
     });
+
   } catch (error) {
     console.error("❌ Update Case Error:", error);
     return res.status(500).json({ success: false, message: "Server Error" });
   }
 };
+
 
 /**
  * @desc Cancel case + Refund

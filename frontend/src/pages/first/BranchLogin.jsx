@@ -2,17 +2,16 @@ import React, { useContext, useState } from "react";
 import axios from "axios";
 import { LabContext } from "../../context/LabContext";
 import Loader from "../../components/Loader";
+import { Eye, EyeOff } from "lucide-react";
 
 const BranchLogin = () => {
-  const { setBranchId, navigate, successToast, errorToast, branchData, setBranchData, setBranchToken } = useContext(LabContext);
+  const { setBranchId, navigate, successToast, errorToast, setBranchData, setBranchToken } =
+    useContext(LabContext);
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPass, setShowPass] = useState(false); // 👁️ Show/Hide
   const [loading, setLoading] = useState(false);
-
-  
-
-
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -21,32 +20,24 @@ const BranchLogin = () => {
     try {
       setLoading(true);
       const res = await axios.post(
-  `${import.meta.env.VITE_API_URL}/api/branchlogin/login`,
-  {
-    loginEmail: email,
-    loginPassword: password,
-  }
-);
-
-
-      
-      
+        `${import.meta.env.VITE_API_URL}/api/branchlogin/login`,
+        {
+          loginEmail: email,
+          loginPassword: password,
+        }
+      );
 
       if (res.data.success) {
-  // Save token + branch info
-  localStorage.setItem("branchToken", res.data.token);
-  localStorage.setItem("branchInfo", JSON.stringify(res.data.branch));
+        localStorage.setItem("branchToken", res.data.token);
+        localStorage.setItem("branchInfo", JSON.stringify(res.data.branch));
 
-  // ❗ VERY IMPORTANT
-  setBranchToken(res.data.token);
+        setBranchToken(res.data.token);
+        setBranchId(res.data.branch._id);
+        setBranchData(res.data.branch);
 
-  setBranchId(res.data.branch._id);
-  setBranchData(res.data.branch);
-
-  successToast(res.data.message);
-  navigate(`/${res.data.branch._id}/dashboard`);
-}
- else {
+        successToast(res.data.message);
+        navigate(`/${res.data.branch._id}/dashboard`);
+      } else {
         errorToast(res.data.message);
       }
     } catch (err) {
@@ -57,7 +48,7 @@ const BranchLogin = () => {
     }
   };
 
-  if (loading) return <Loader/>;
+  if (loading) return <Loader />;
 
   return (
     <div
@@ -76,7 +67,7 @@ const BranchLogin = () => {
         </div>
 
         {/* Email */}
-        <div className="sm:flex items-center my-2 border bg-indigo-500/5 border-gray-500/10 rounded gap-1 pl-2">
+        <div className="flex items-center my-2 border bg-indigo-500/5 border-gray-500/10 rounded gap-1 px-2">
           <input
             className="w-full outline-none bg-transparent py-2.5 px-2"
             type="email"
@@ -87,25 +78,24 @@ const BranchLogin = () => {
           />
         </div>
 
-        {/* Password */}
-        <div className="sm:flex items-center mt-2 mb-4 border bg-indigo-500/5 border-gray-500/10 rounded gap-1 pl-2">
+        {/* Password + SHOW/HIDE EYE */}
+        <div className="relative flex items-center mt-2 mb-4 border bg-indigo-500/5 border-gray-500/10 rounded px-2">
           <input
-            className="w-full outline-none bg-transparent py-2.5 px-2"
-            type="password"
+            className="w-full outline-none bg-transparent py-2.5 px-2 pr-10"
+            type={showPass ? "text" : "password"}
             placeholder="Password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
           />
-        </div>
 
-        {/* Remember + Forgot */}
-        <div className="flex items-center justify-between mb-6">
-          <label className="flex items-center gap-2">
-            <input type="checkbox" className="cursor-pointer accent-indigo-500" />
-            Remember me
-          </label>
-          
+          {/* 👁️ Eye icon */}
+          <span
+            className="absolute right-3 top-3 cursor-pointer text-gray-600"
+            onClick={() => setShowPass(!showPass)}
+          >
+            {showPass ? <EyeOff size={20} /> : <Eye size={20} />}
+          </span>
         </div>
 
         {/* Login button */}
@@ -124,4 +114,3 @@ const BranchLogin = () => {
 };
 
 export default BranchLogin;
-

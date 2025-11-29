@@ -1,6 +1,7 @@
 import React, { useContext, useState, useEffect } from "react";
 import { Search } from "lucide-react";
-import Select from "react-select";
+import Select, { components } from "react-select";
+
 import axios from "axios";
 import { LabContext } from "../../context/LabContext";
 import { useParams, useNavigate } from "react-router-dom";
@@ -14,6 +15,34 @@ const EditAdminCase = () => {
 const [categoryDcn, setCategoryDcn] = useState({});
    const [msgTemplates, setMsgTemplates] = useState([]); // fetched templates
 const [selectedTemplates, setSelectedTemplates] = useState([]); // array of selected template IDs
+
+
+const CustomMenuList = (props) => {
+  return (
+    <>
+      <components.MenuList {...props}>
+        {props.children}
+      </components.MenuList>
+
+      {/* Bottom fixed buttons inside dropdown */}
+      <div className="p-2 border-t bg-gray-50 flex justify-between">
+        <button
+          className="text-blue-600 text-sm font-medium hover:underline"
+          onClick={() => navigate(`/admin/add-test-manually`, { state: { openModal: true } })}
+        >
+          + Add New
+        </button>
+
+        <button
+          className="text-green-600 text-sm font-medium hover:underline"
+          onClick={() => navigate(`/admin/rate-list`)}
+        >
+          Rate List
+        </button>
+      </div>
+    </>
+  );
+};
 
 
 useEffect(() => {
@@ -278,6 +307,23 @@ const [caseData, setCaseData] = useState(null);
     }
 
 
+      /* ------------ Compute Report Status Based on Changes ------------ */
+
+// Detect TEST CHANGES
+const oldTest = Object.values(original.tests || {}).flat();
+const newTest = Object.values(selectedTests || {}).flat();
+
+const adde = newTest.filter(id => !oldTests.includes(id));
+const remove = oldTest.filter(id => !newTests.includes(id));
+
+const testsChanged = adde.length > 0 || remove.length > 0;
+
+// ⭐ FINAL RULE:
+// If any test added/removed → In Progress
+// Otherwise ALWAYS → Signed Off
+let finalStatus = testsChanged ? "In Progress" : "Signed Off";
+
+
     /* -------- Compare Tests -------- */
     const oldTests = Object.values(original.tests || {}).flat();
     const newTests = Object.values(selectedTests || {}).flat();
@@ -316,6 +362,7 @@ const [caseData, setCaseData] = useState(null);
       patient: formData,
       tests: selectedTests,
       categories: activeCategories,
+      reportStatus: finalStatus,
       payment,
       createdAt: formData.registeredOn
         ? new Date(formData.registeredOn).toISOString()
@@ -677,18 +724,28 @@ const [caseData, setCaseData] = useState(null);
 }
 
   // ✅ Combine both dummy tests and dummy panels together
-  const combinedOptions = [
-    ...filteredTests.map((test) => ({
-      value: test._id,
-      label: `🧪 ${test.name} (${test.shortName}) — ₹${test.price}`,
-      type: "test",
-    })),
+  let combinedOptions = [];
+
+// Always include category tests
+combinedOptions = [
+  ...filteredTests.map((test) => ({
+    value: test._id,
+    label: `🧪 ${test.name} (${test.shortName || test.short}) — ₹${test.price}`,
+    type: "test",
+  })),
+];
+
+// Add panels ONLY for LAB
+if (cat === "LAB") {
+  combinedOptions.push(
     ...dummyPanels.map((panel) => ({
       value: panel._id,
       label: `📋 ${panel.name} (Panel) — ₹${panel.price}`,
       type: "panel",
-    })),
-  ];
+    }))
+  );
+}
+
 
   // ✅ Get selected tests/panels for this category
   // ✅ Get selected tests/panels for this category
@@ -731,6 +788,7 @@ const selectedOptions = selectedForCat.map((t) => ({
         placeholder="Search and select multiple tests..."
         className="react-select-container mb-4"
         classNamePrefix="react-select"
+        components={{ MenuList: CustomMenuList }}
       />
 
       {selectedForCat.length > 0 && (

@@ -304,11 +304,12 @@ const fetchTestWithRefs = async (testId, reportData, branchToken) => {
 
 
 const EnterResults = () => {
-  const { branchId, branchToken, errorToast, successToast } = useContext(LabContext);
+  const { branchId, branchToken, errorToast, successToast, branchData } = useContext(LabContext);
   const { reportId } = useParams();
   const navigate = useNavigate();
 
   const [loading, setLoading] = useState(true);
+  const [labDetails, setLabDetails] = useState(null)
 
 
   const [report, setReport] = useState(null);
@@ -316,6 +317,16 @@ const EnterResults = () => {
   const [results, setResults] = useState({});
   const [references, setReferences] = useState({});
   const [openMenu, setOpenMenu] = useState(false);
+
+  useEffect(() => {
+    setLabDetails({
+    name: branchData.branchName,
+      address: branchData.address || branchData.fullAddress || ""
+  })
+  }, [branchToken, branchId])
+  
+
+  
 
 
 
@@ -718,6 +729,84 @@ const EnterResults = () => {
 
 
 
+  const autoGeneratePDFFull = async () => {
+  try {
+    console.log("⚡ Auto PDF generation started...");
+
+    // 1️⃣ Fetch report
+    const reportRes = await axios.get(
+      `${import.meta.env.VITE_API_URL}/api/cases/branch/${reportId}`,
+      { headers: { Authorization: `Bearer ${branchToken}` } }
+    );
+
+    if (!reportRes.data.success) {
+      console.error("❌ Report fetch failed");
+      return;
+    }
+
+    let reportData = reportRes.data.data;
+
+    // 2️⃣ Fetch results
+    const resultsRes = await axios.get(
+      `${import.meta.env.VITE_API_URL}/api/results/report/${reportId}`,
+      { headers: { Authorization: `Bearer ${branchToken}` } }
+    );
+
+    if (resultsRes.data?.success && resultsRes.data?.data) {
+      reportData = { ...reportData, ...resultsRes.data.data };
+    }
+
+    // 3️⃣ Fetch letterhead
+    const lhRes = await axios.get(
+      `${import.meta.env.VITE_API_URL}/api/report/letterhead/branch/${branchId}`
+    );
+
+    const letterheadData = lhRes.data?.data || null;
+
+    // 4️⃣ Fetch signatures
+    const sigRes = await axios.get(
+      `${import.meta.env.VITE_API_URL}/api/report/signature/branch/${branchId}`
+    );
+
+    const signatureData = sigRes.data?.data || [];
+
+    // 5️⃣ Fetch print settings
+    const psRes = await axios.get(
+      `${import.meta.env.VITE_API_URL}/api/print/${branchId}`,
+      { headers: { Authorization: `Bearer ${branchToken}` } }
+    );
+
+    const printSettingData = psRes.data?.data || {};
+
+    // 6️⃣ Generate PDF in background
+    await axios.post(
+      `${import.meta.env.VITE_API_URL}/api/pdf/add`,
+      {
+        reportId,
+        branchId,
+        reportData,
+        patient: reportData.patient,
+        letterhead: letterheadData,
+        signatures: signatureData,
+        printSetting: printSettingData,
+        lab: labDetails,
+      },
+      { headers: { Authorization: `Bearer ${branchToken}` } }
+    );
+
+    console.log("✅ Auto PDF generated successfully!");
+
+  } catch (err) {
+    console.error("❌ Auto PDF generation failed:", err);
+  }
+};
+
+
+
+
+
+
+
 
   const handleReferenceChange = (paramId, value) =>
     setReferences((prev) => ({ ...prev, [paramId]: value }));
@@ -797,9 +886,14 @@ const EnterResults = () => {
       );
 
       if (res.data.success) {
-        successToast("Report Generated Successfully");
-        navigate(`/${branchId}/view-report/${reportId}`);
-      } else {
+  successToast("Report Generated Successfully");
+
+  if (status === "Signed Off") {
+    autoGeneratePDFFull();   // 🔥 FULL BACKGROUND PDF GENERATION
+  }
+
+  navigate(`/${branchId}/view-report/${reportId}`);
+} else {
         errorToast(res.data.message || "Failed to save results");
       }
     } catch (err) {
@@ -854,7 +948,7 @@ const EnterResults = () => {
 
 
 
-  if (loading) return <Loader />;
+  if (loading) return <Loader text="Processing" />;
   if (!report) return <p className="p-6 text-gray-500">Report not found</p>;
 
   return (

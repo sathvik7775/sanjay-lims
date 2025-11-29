@@ -63,6 +63,12 @@ const CaseSchema = new Schema({
     enum: ["due", "no due", "cancelled", "refund"],
     default: "due",
   },
+  reportStatus: {
+    type: String,
+    enum: ["In Progress", "Signed Off", "New"],
+    default: "New",
+    
+  },
 
   whatsappTriggers: { type: [WhatsappTriggerSchema], default: [] },
   createdAt: { type: Date, default: Date.now },

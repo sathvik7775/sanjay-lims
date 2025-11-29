@@ -305,7 +305,20 @@ useEffect(() => {
           {/* Header */}
           <div className="flex justify-between items-start border-b pb-2">
             <div className="flex items-center gap-3">
-              <img src={lab?.logo ? `/logos/${lab.logo}` : '/sanjay.png'} alt="Lab Logo" className="h-20 w-auto mb-2"/>
+             {lab?.logo ? (
+  <img
+    src={`/logos/${lab.logo}`}
+    className="h-20 w-auto mb-2"
+    alt="Lab Logo"
+  />
+) : lab?.name === "SANJAY DIAGNOSTIC LABORATORIES" ? (
+  <img
+    src="/sanjay.png"
+    className="h-20 w-auto mb-2"
+    alt="Sanjay Lab Logo"
+  />
+) : ""}
+
               <div className="mt-2">
                 <h2 className="text-2xl font-semibold">{lab?.name || "Lab Name"}</h2>
                 

@@ -7,6 +7,7 @@ const PrintSettingSchema = new mongoose.Schema({
 
   // 🧾 Letterhead
   letterhead: {
+    setAsDefault: { type: Boolean, default: true},
     headerHeight: { type: Number, default: 4.5 },
     caseInfoHeight: { type: Number, default: 3.0 },
     signatureHeight: { type: Number, default: 3.4 },
@@ -34,8 +35,7 @@ const PrintSettingSchema = new mongoose.Schema({
 
   // 👁️ Show/Hide
   showHide: {
-    showPatientAddress: { type: Boolean, default: false },
-    showTestsOrdered: { type: Boolean, default: false },
+    
     showPageNumber: { type: Boolean, default: true },
     showQRCode: { type: Boolean, default: true },
     showTATTime: { type: Boolean, default: false },

@@ -81,7 +81,7 @@ const MainHome = () => {
         <Route path='enter-result/:reportId' element={<EnterResults branchId={branchId}/>}/>
         <Route path='edit-result/:reportId' element={<EditResult branchId={branchId}/>}/>
         <Route path='view-report/:reportId' element={<ViewReport branchId={branchId}/>}/>
-        <Route path='print-settings/:reportId' element={<PrintSettings branchId={branchId}/>}/>
+        
         <Route path='test-view-branch/:id' element={<BranchTestView branchId={branchId}/>}/>
         <Route path='rate-list' element={<RateList branchId={branchId}/>}/>
 
