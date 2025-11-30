@@ -27,6 +27,6 @@ pdfRouter.delete("/delete/:reportId", deletePDF);
 pdfRouter.get("/list", listAllPDFs);
 
 // 🌍 PUBLIC REPORT PAGE (LabSmart type)
-pdfRouter.get("/public/:token", publicReportPage);
+pdfRouter.get("/public/report/:token", publicReportPage);
 
 export default pdfRouter;
