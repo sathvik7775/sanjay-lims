@@ -6,7 +6,7 @@ import TestReferenceRanges from "../../components/TestReferenceRanges";
 import Loader from "../../components/Loader";
 
 const ReportTemplates = () => {
-  const { adminToken, branchToken, errorToast, categories } = useContext(LabContext);
+  const { adminToken, branchToken, errorToast, categories, isPublicPage} = useContext(LabContext);
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [tests, setTests] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -69,6 +69,7 @@ const grouped = ranges.reduce((acc, r) => {
 
   // ✅ Fetch all tests and merge their reference ranges
   const fetchTests = async () => {
+    if (isPublicPage) return;
     let url;
     if (adminToken) {
       url = `${import.meta.env.VITE_API_URL}/api/test/database/admin/list`;

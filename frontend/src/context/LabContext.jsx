@@ -675,7 +675,7 @@ useEffect(() => {
 
 
   const value = {
-    navigate, currency, visible, setvisible, branchId, setBranchId, branches, dummyPanels, dummyTests, categories, doctors, agents, selectedBranch, setSelectedBranch, showside, setshowside, errorToast, successToast, removeToast, adminToken, setAdminToken, branchToken, branchData, setBranchData, packages, setBranchToken, totalRevenue, setTotalRevenue, setTodaysIncome, todaysIncome, isOpen, setIsOpen,
+    navigate, currency, isPublicPage, visible, setvisible, branchId, setBranchId, branches, dummyPanels, dummyTests, categories, doctors, agents, selectedBranch, setSelectedBranch, showside, setshowside, errorToast, successToast, removeToast, adminToken, setAdminToken, branchToken, branchData, setBranchData, packages, setBranchToken, totalRevenue, setTotalRevenue, setTodaysIncome, todaysIncome, isOpen, setIsOpen,
   }
 
   return (

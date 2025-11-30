@@ -4,7 +4,7 @@ import { LabContext } from "../../context/LabContext";
 import axios from "axios";
 
 export default function TestDatabase() {
-  const { categories, adminToken, branchId, errorToast, branchToken, navigate, successToast } = useContext(LabContext);
+  const { categories, adminToken, branchId, errorToast, branchToken, navigate, successToast, isPublicPage } = useContext(LabContext);
 
   const [tests, setTests] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -32,6 +32,7 @@ export default function TestDatabase() {
 
   // Fetch tests from backend
   useEffect(() => {
+    if (isPublicPage) return;
     const fetchTests = async () => {
       try {
         setLoading(true);

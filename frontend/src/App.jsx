@@ -19,19 +19,24 @@ const App = () => {
       <Toaster/>
       
       <Routes>
-        <Route path='/' element={<Home/>}/>
-        <Route path='/branch-login' element={<BranchLogin/>}/>
-        <Route path='/admin-login' element={<AdminLogin/>}/>
-        <Route path='/:branchId/*' element={<MainHome/>}/>
-        <Route path='/admin/*' element={<AdminHome/>}/>
-        <Route path="/admin/print-settings/:reportId" element={<AdminPrintSetting />} />
-        <Route path='/:branchId/print-settings/:reportId' element={<PrintSettings />}/>
-        <Route path='/' element={<Home/>}/>
-        <Route path='/' element={<Home/>}/>
-        <Route path='/' element={<Home/>}/>
-        <Route path='/' element={<Home/>}/>
-        <Route path='/' element={<Home/>}/>
-      </Routes>
+  <Route path="/" element={<Home />} />
+
+  {/* PUBLIC PAGE MUST BE ABOVE branch route */}
+  <Route path="/public/report/:token" element={<></>} />
+
+  {/* Auth routes */}
+  <Route path="/branch-login" element={<BranchLogin />} />
+  <Route path="/admin-login" element={<AdminLogin />} />
+
+  {/* Admin routes */}
+  <Route path="/admin/*" element={<AdminHome />} />
+  <Route path="/admin/print-settings/:reportId" element={<AdminPrintSetting />} />
+
+  {/* Branch routes */}
+  <Route path="/:branchId/print-settings/:reportId" element={<PrintSettings />} />
+  <Route path="/:branchId/*" element={<MainHome />} />
+</Routes>
+
       
     </div>
   )
