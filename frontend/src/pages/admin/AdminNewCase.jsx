@@ -13,6 +13,7 @@ const AdminNewCase = () => {
   const { doctors, agents, dummyTests, dummyPanels, branchId, branchToken, successToast, errorToast, selectedBranch, adminToken, navigate } =
     useContext(LabContext);
 
+const [ageError, setAgeError] = useState("");
 
      const [msgTemplates, setMsgTemplates] = useState([]); // fetched templates
     const [selectedTemplates, setSelectedTemplates] = useState([]); // array of selected template IDs
@@ -137,13 +138,28 @@ const CustomMenuList = (props) => {
 
   // ---------------- Handlers ----------------
   const handleChange = (e) => {
-    const { name, value, type, checked } = e.target;
-    setFormData((prev) => {
-      const updated = { ...prev, [name]: type === "checkbox" ? checked : value };
-      if (name === "title") updated.sex = titleToGender[value] || "Other";
-      return updated;
-    });
-  };
+  const { name, value, type, checked } = e.target;
+
+  if (name === "age") {
+    let age = Number(value);
+
+    if (age > 120) {
+      setAgeError("Age should not exceed 120");
+      age = 120; // auto-limit
+    } else {
+      setAgeError("");
+    }
+
+    return setFormData((prev) => ({ ...prev, age }));
+  }
+
+  setFormData((prev) => {
+    const updated = { ...prev, [name]: type === "checkbox" ? checked : value };
+    if (name === "title") updated.sex = titleToGender[value] || "Other";
+    return updated;
+  });
+};
+
 
   const toggleField = (field) => setShowFields((prev) => ({ ...prev, [field]: !prev[field] }));
   const handleCategoryClick = (cat) =>
@@ -324,15 +340,23 @@ const CustomMenuList = (props) => {
       {/* Age */}
       <div className="flex flex-col md:flex-row gap-4 mt-7">
         <div>
-          <label className="block text-sm mb-1">Age*</label>
-          <input
-            type="number"
-            name="age"
-            value={formData.age}
-            onChange={handleChange}
-            className="border border-gray-300 rounded-lg px-3 py-2"
-          />
-        </div>
+  <label className="block text-sm mb-1">Age*</label>
+
+  <input
+    type="number"
+    name="age"
+    value={formData.age}
+    onChange={handleChange}
+    min="0"
+    max="120"
+    className="border border-gray-300 rounded-lg px-3 py-2"
+  />
+
+  {ageError && (
+    <p className="text-red-600 text-sm mt-1">{ageError}</p>
+  )}
+</div>
+
         <div>
           <label className="block text-sm mb-1">TPA / Insurance</label>
           <input
