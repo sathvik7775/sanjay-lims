@@ -6,6 +6,12 @@ import { Phone, Smartphone, Mail, Globe } from "lucide-react";
 import Loader from "../../components/Loader";
 import Barcode from "react-barcode";
 
+
+const savePrintedPDF = (reportId) => {
+  localStorage.setItem(reportId, "printed");
+};
+
+
 const ViewReport = () => {
   const { branchToken, errorToast, navigate, branchId, successToast } = useContext(LabContext);
   const { reportId } = useParams();
@@ -18,6 +24,20 @@ const ViewReport = () => {
   const [pdfUrl, setPdfUrl] = useState(null);
   const [isPrinting, setIsPrinting] = useState(false);
   const printRef = useRef();
+   const [isPrinted, setIsPrinted] = useState(false);
+
+   useEffect(() => {
+  if (!reportId) return;
+
+  const interval = setInterval(() => {
+    const printed = localStorage.getItem(reportId);
+    setIsPrinted(printed === "printed");
+  }, 1000); // 🔄 check every 1 sec
+
+  return () => clearInterval(interval); // cleanup when component unmounts
+}, [reportId]);
+
+   
 
   useEffect(() => {
   const fetchData = async () => {
@@ -304,20 +324,29 @@ const handleGeneratePDF = async () => {
         <div className="mt-3">
         <p className="flex items-center gap-2">
   <span className="font-semibold">Status:</span>
+
   <span
-    className={`px-3 py-1 rounded-full text-sm font-medium border
+    className={`px-3 py-1 rounded text-sm font-medium 
       ${report.status === "In Progress"
-        ? "bg-red-50 text-red-600 border-red-400"
+        ? "bg-red-500 text-white"
         : report.status === "Signed Off"
-        ? "bg-green-50 text-green-600 border-green-400"
+        ? "bg-green-500 text-white"
         : report.status === "Final"
-        ? "bg-blue-50 text-blue-600 border-blue-400"
-        : "bg-gray-100 text-gray-600 border-gray-300"
+        ? "bg-blue-500 text-white"
+        : "bg-gray-400 text-white"
       }`}
   >
     {report.status || "—"}
   </span>
+
+  {isPrinted && (
+    <span className="px-3 py-1 rounded text-sm font-medium bg-green-500 text-white flex items-center gap-1">
+      Printed
+      <span className="font-bold">✓</span>
+    </span>
+  )}
 </p>
+
 
       </div>
       </div>
@@ -350,7 +379,11 @@ const handleGeneratePDF = async () => {
       {report.status === "Signed Off" && (
         <>
           <button
-  onClick={() => pdfUrl && window.open(pdfUrl.replace("?dl=0", "?dl=1"), "_blank")}
+  onClick={() => {
+  savePrintedPDF(reportId);  // ✅ SAVE HERE
+  if (pdfUrl) window.open(pdfUrl.replace("?dl=0", "?dl=1"), "_blank");
+}}
+
   disabled={!pdfUrl}
   className={`flex items-center gap-2 
     px-5 h-10 rounded-l-md shadow transition border-r border-white

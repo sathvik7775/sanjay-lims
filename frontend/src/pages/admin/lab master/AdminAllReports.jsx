@@ -494,52 +494,60 @@ export default function AdminAllReports() {
                   <td className="p-3">{r.collectionCentre || "Main"}</td>
 
                   {/* STATUS */}
+                  {/* STATUS */}
                   <td className="p-3">
-                    <span
-                      className={`inline-block px-2 py-1 text-xs rounded-md whitespace-nowrap break-keep ${r.dynamicStatus === "Signed off"
-                        ? "bg-green-100 text-green-700"
-                        : r.dynamicStatus === "New"
-                          ? "bg-blue-100 text-blue-700"
-                          : "bg-yellow-100 text-yellow-700"
-                        }`}
-                    >
-                      {r.dynamicStatus}
-                    </span>
-
+                    <div className="flex flex-col items-start gap-1">
+                      <span
+                        className={`px-2 py-1 text-xs rounded-md font-medium text-white whitespace-nowrap
+                          ${r.dynamicStatus === "Signed off"
+                            ? "bg-green-500"
+                            : r.dynamicStatus === "New"
+                            ? "bg-blue-500"
+                            : "bg-yellow-500"}
+                        `}
+                      >
+                        {r.dynamicStatus}
+                      </span>
+                  
+                      {localStorage.getItem(r._id) === "printed" && (
+                        <span className="px-2 py-1 text-xs rounded-md bg-green-600 text-white flex items-center gap-1">
+                          ✔ Printed
+                        </span>
+                      )}
+                    </div>
                   </td>
-
+                  
                   {/* ACTIONS */}
-                  <td className="p-3 flex flex-col gap-1">
-                    <button
-                      onClick={() =>
-                        navigate(`/admin/bill/${r._id}`)
-                      }
-                      className="text-blue-600 flex items-center gap-1"
-                    >
-                      <Eye size={15} /> View
-                    </button>
-
-                    <button
-                      onClick={() =>
-                        navigate(
-                          `/admin/${r.dynamicStatus === "Signed off"
-                            ? "edit-result"
-                            : "enter-result"
-                          }/${r._id}`
-                        )
-                      }
-                      className="text-gray-700 flex items-center gap-1"
-                    >
-                      <Pencil size={15} />
-                      {r.dynamicStatus === "Signed off"
-                        ? "Edit results"
-                        : "Enter results"}
-                    </button>
-
-                    <MoreHorizontal
-                      size={18}
-                      className="text-gray-500 cursor-pointer"
-                    />
+                  <td className="p-3">
+                    <div className="flex flex-col gap-1">
+                  
+                      <button
+                        onClick={() => navigate(`/${branchId}/bill/${r._id}`)}
+                        className="text-blue-600 flex items-center gap-1"
+                      >
+                        <Eye size={15} /> View
+                      </button>
+                  
+                      <button
+                        onClick={() =>
+                          navigate(
+                            `/${branchId}/${r.dynamicStatus === "Signed off"
+                              ? "edit-result"
+                              : "enter-result"
+                            }/${r._id}`
+                          )
+                        }
+                        className="text-gray-700 flex items-center gap-1"
+                      >
+                        <Pencil size={15} />
+                        {r.dynamicStatus === "Signed off" ? "Edit results" : "Enter results"}
+                      </button>
+                  
+                      <MoreHorizontal
+                        size={18}
+                        className="text-gray-500 cursor-pointer"
+                      />
+                    </div>
                   </td>
                 </tr>
               ))
