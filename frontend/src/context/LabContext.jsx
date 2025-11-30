@@ -9,6 +9,7 @@ export const LabContext = createContext()
 const LabContextProvider = ({ children }) => {
 
 
+const isPublicPage = window.location.pathname.startsWith("/public");
 
 
   const currency = "₹"
@@ -48,6 +49,7 @@ const LabContextProvider = ({ children }) => {
 
   // Restore branch login data on page reload
   useEffect(() => {
+    if (isPublicPage) return;
     const savedToken = localStorage.getItem("branchToken");
     const savedInfo = localStorage.getItem("branchInfo");
 
@@ -64,6 +66,8 @@ const LabContextProvider = ({ children }) => {
 
 
   const fetchTodaysIncome = async () => {
+    if (isPublicPage) return;
+
     if (!adminToken) return;
 
     try {
@@ -94,10 +98,14 @@ const LabContextProvider = ({ children }) => {
 
   // Fetch today's income whenever adminToken changes
   useEffect(() => {
+    if (isPublicPage) return;
+
     fetchTodaysIncome();
   }, [adminToken]);
 
   useEffect(() => {
+    if (isPublicPage) return;
+
     if (!branchId) return;
 
     const fetchTodaysIncome = async () => {
@@ -138,6 +146,8 @@ const LabContextProvider = ({ children }) => {
 
   // Fetch all global categories
   useEffect(() => {
+    if (isPublicPage) return;
+
     const fetchCategories = async () => {
       try {
         // ✅ Use correct route based on user type
@@ -163,6 +173,8 @@ const LabContextProvider = ({ children }) => {
 
   // Fetch tests from backend
   useEffect(() => {
+    if (isPublicPage) return;
+
     const fetchTests = async () => {
       try {
 
@@ -202,6 +214,8 @@ const LabContextProvider = ({ children }) => {
 
 
   useEffect(() => {
+    if (isPublicPage) return;
+
     const fetchPanels = async () => {
       try {
         const token = adminToken || branchToken;
@@ -230,6 +244,8 @@ const LabContextProvider = ({ children }) => {
 
 
   useEffect(() => {
+    if (isPublicPage) return;
+
     const fetchPackages = async () => {
       try {
 
@@ -391,6 +407,7 @@ const LabContextProvider = ({ children }) => {
 
   useEffect(() => {
 
+if (isPublicPage) return;
 
 
     if (branchId && branchToken) {
@@ -565,6 +582,8 @@ const LabContextProvider = ({ children }) => {
 
 
   const fetchDoctors = async () => {
+    if (isPublicPage) return;
+
     try {
 
       const token = adminToken || branchToken;
@@ -590,6 +609,8 @@ const LabContextProvider = ({ children }) => {
 
 
   const fetchAgents = async () => {
+    if (isPublicPage) return;
+
     try {
 
       const token = adminToken || branchToken;
@@ -611,12 +632,16 @@ const LabContextProvider = ({ children }) => {
   };
 
  useEffect(() => {
+  if (isPublicPage) return;
+
   if (adminToken || branchToken) {
     fetchDoctors();
   }
 }, [adminToken, branchToken]);
 
 useEffect(() => {
+  if (isPublicPage) return;
+
   if (adminToken || branchToken) {
     fetchAgents();
   }
