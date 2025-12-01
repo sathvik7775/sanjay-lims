@@ -43,7 +43,7 @@ export default function TestDatabase() {
         } else if (branchToken) {
           url = `${import.meta.env.VITE_API_URL}/api/test/database/list`;
         } else {
-          errorToast?.("Unauthorized! Cannot fetch tests.");
+          
           setLoading(false);
           return;
         }

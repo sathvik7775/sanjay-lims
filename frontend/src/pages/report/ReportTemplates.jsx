@@ -19,7 +19,7 @@ const ReportTemplates = () => {
     } else if (branchToken) {
       url = `${import.meta.env.VITE_API_URL}/api/test/database/reference-ranges`;
     } else {
-      errorToast?.("Unauthorized! Cannot fetch reference ranges.");
+      
       return {};
     }
 
@@ -76,7 +76,7 @@ const grouped = ranges.reduce((acc, r) => {
     } else if (branchToken) {
       url = `${import.meta.env.VITE_API_URL}/api/test/database/list`;
     } else {
-      errorToast?.("Unauthorized! Cannot fetch tests.");
+      
       setLoading(false);
       return;
     }
