@@ -13,8 +13,10 @@ const TodaysAdminreports = () => {
   const [todaysReports, setTodaysReports] = useState([]);
   const [branchId, setBranchId] = useState(null)
 
-  setBranchId(selectedBranch)
-  
+ useEffect(() => {
+  setBranchId(selectedBranch);
+}, [selectedBranch]);
+
 
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
@@ -178,9 +180,15 @@ useEffect(() => {
 
     setTodaysReports(todays);
     setFilteredReports(todays);
-    setFilters(prev => ({ ...prev, dailyCase: today }));
+
+    // 🔥 Prevent infinite loop
+    if (!filters.dailyCase) {
+      setFilters(prev => ({ ...prev, dailyCase: today }));
+    }
   }
-}, [allReports]);
+}, [allReports, filters.dailyCase]);
+
+
 
 // 💥 Recalculate todaysReports when date changes
 useEffect(() => {

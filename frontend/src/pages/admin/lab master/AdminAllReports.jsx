@@ -25,7 +25,10 @@ export default function AdminAllReports() {
   const [testDetailsMap, setTestDetailsMap] = useState({});
   const [branchId, setBranchId] = useState(null)
   
-    setBranchId(selectedBranch)
+    useEffect(() => {
+  setBranchId(selectedBranch);
+}, [selectedBranch]);
+
 
   const combinedTests = [
     ...dummyTests.map(t => ({ type: "TEST", name: t.name })),
