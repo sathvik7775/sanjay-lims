@@ -165,8 +165,8 @@ const TodaysAdminreports = () => {
 
   // 1️⃣ Fetch all reports when branchId changes
 useEffect(() => {
-  if (branchId) fetchReports();
-}, [branchId]);
+  fetchReports();
+}, []);
 
 // 2️⃣ When reports are loaded, auto-filter to today's date
 useEffect(() => {

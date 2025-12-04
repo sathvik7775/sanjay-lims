@@ -155,9 +155,9 @@ export default function AdminAllReports() {
     }
   };
 
-  useEffect(() => {
-    if (branchId) fetchReports();
-  }, [branchId]);
+useEffect(() => {
+  fetchReports();
+}, []);
 
   // TEST Column 2-line truncation
   const testsToTwoLines = (items) => {
