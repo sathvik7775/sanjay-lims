@@ -6,11 +6,15 @@ import Loader from "../../../components/Loader";
 
 
 const TodaysAdminreports = () => {
-  const { branchId, branchToken, navigate, errorToast, adminToken } = useContext(LabContext);
+  const { selectedBranch,  navigate, errorToast, adminToken } = useContext(LabContext);
 
   const [allReports, setAllReports] = useState([]);
   const [filteredReports, setFilteredReports] = useState([]);
   const [todaysReports, setTodaysReports] = useState([]);
+  const [branchId, setBranchId] = useState(null)
+
+  setBranchId(selectedBranch)
+  
 
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);

@@ -14,7 +14,7 @@ import { LabContext } from "../../../context/LabContext";
 import Loader from "../../../components/Loader";
 
 export default function AdminAllReports() {
-  const { branchId, branchToken, navigate, errorToast, doctors, dummyPanels, dummyTests, packages, adminToken } =
+  const { selectedBranch,  navigate, errorToast, doctors, dummyPanels, dummyTests, packages, adminToken } =
     useContext(LabContext);
 
   const [allReports, setAllReports] = useState([]);
@@ -23,6 +23,9 @@ export default function AdminAllReports() {
   const [page, setPage] = useState(1);
   const pageSize = 20;
   const [testDetailsMap, setTestDetailsMap] = useState({});
+  const [branchId, setBranchId] = useState(null)
+  
+    setBranchId(selectedBranch)
 
   const combinedTests = [
     ...dummyTests.map(t => ({ type: "TEST", name: t.name })),
