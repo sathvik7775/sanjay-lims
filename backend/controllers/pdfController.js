@@ -193,6 +193,8 @@ export const addPDF = async (req, res) => {
 
 // 🧾 3️⃣ LIST ALL PDFs
 export const listAllPDFs = async (req, res) => {
+  console.log("🟢 PDF API HIT → /api/pdf/add");
+  console.log("📥 Incoming PDF payload:", req.body);
   try {
     const { branchId } = req.params;
     const filter = branchId ? { branchId } : {};

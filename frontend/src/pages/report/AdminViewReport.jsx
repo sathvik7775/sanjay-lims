@@ -94,7 +94,7 @@ useEffect(() => {
       setBranchId(branchId)
 
       if (!reportRes.data.success) {
-        errorToast(reportRes.data.message || "Failed to fetch report case");
+     
         return;
       }
 
@@ -133,7 +133,7 @@ useEffect(() => {
      
     } catch (err) {
       console.error(err);
-      errorToast("Failed to fetch report data or generate PDF");
+      
     } finally {
       setLoading(false);
     }
