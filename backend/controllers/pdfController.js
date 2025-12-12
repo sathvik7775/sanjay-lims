@@ -205,6 +205,7 @@ export const listAllPDFs = async (req, res) => {
       success: true,
       count: pdfs.length,
       data: pdfs
+      
     });
   } catch (err) {
     console.error("❌ listAllPDFs failed:", err);

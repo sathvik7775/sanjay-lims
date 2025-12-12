@@ -331,8 +331,8 @@ const [caseData, setCaseData] = useState(null);
 const oldTest = Object.values(original.tests || {}).flat();
 const newTest = Object.values(selectedTests || {}).flat();
 
-const adde = newTest.filter(id => !oldTests.includes(id));
-const remove = oldTest.filter(id => !newTests.includes(id));
+const adde = newTest.filter(id => !oldTest.includes(id));
+const remove = oldTest.filter(id => !newTest.includes(id));
 
 const testsChanged = adde.length > 0 || remove.length > 0;
 
@@ -419,6 +419,7 @@ let finalStatus = testsChanged ? "In Progress" : "Signed Off";
 
     if (response.data.success) {
       successToast("Case updated successfully!");
+      navigate(`/admin/bill/${id}`)
     } else {
       errorToast(response.data.message || "Failed to update case");
     }

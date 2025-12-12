@@ -434,6 +434,7 @@ let finalStatus = testsChanged ? "In Progress" : "Signed Off";
     ------------------------------------------- */
     if (response.data.success) {
       successToast("Case updated successfully!");
+      navigate(`/${branchId}/bill/${id}`)
     } else {
       errorToast(response.data.message || "Failed to update case");
     }
