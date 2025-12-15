@@ -460,6 +460,32 @@ if (publicPdfUrl) {
     text-transform: capitalize;
   }
 
+  .report-footer {
+  margin-top: 20px;
+  page-break-inside: avoid;
+}
+
+.footer-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+}
+
+.footer-col {
+  width: 33%;
+  text-align: center;
+}
+
+.footer-col img {
+  height: 45px;
+}
+
+.footer-img {
+  width: 100%;
+  margin-top: 4px;
+}
+
+
   
 </style>
 
@@ -607,6 +633,40 @@ if (publicPdfUrl) {
 
         </table>
 
+        <div class="report-footer">
+  <div class="footer-row">
+
+    <div class="footer-col">
+      ${signatures[0] ? `
+        <img src="${signatures[0].imageUrl}" />
+        <div>${signatures[0].name}</div>
+      ` : ""}
+    </div>
+
+    <div class="footer-col">
+      ${printSetting?.showHide?.showQRCode && qrBase64 ? `
+        <img src="${qrBase64}" />
+        <div>Scan to view report</div>
+      ` : ""}
+    </div>
+
+    <div class="footer-col">
+      ${signatures[1] ? `
+        <img src="${signatures[1].imageUrl}" />
+        <div>${signatures[1].name}</div>
+      ` : ""}
+    </div>
+
+  </div>
+
+  ${
+    printSetting.withLetterhead && footerImageSrc
+      ? `<img src="${footerImageSrc}" class="footer-img" />`
+      : ""
+  }
+</div>
+
+
       
 
 
@@ -651,57 +711,20 @@ await page.setContent(finalHTML, { waitUntil: "load" });
   headerTemplate: `<div></div>`,
 
   footerTemplate: `
-    <div style="
-      width:100%;
-      font-size:10px;
-      padding:6px 20px;
-      box-sizing:border-box;
-    ">
+  <div style="
+    width:100%;
+    font-size:10px;
+    text-align:right;
+    padding-right:20px;
+  ">
+    Page <span class="pageNumber"></span> of <span class="totalPages"></span>
+  </div>
+`,
 
-      <div style="display:flex; justify-content:space-between; align-items:flex-end;">
-
-        <!-- LEFT SIGN -->
-        <div style="width:33%; text-align:center;">
-          ${signatures[0] ? `
-            <img src="${signatures[0].imageUrl}" style="height:45px;" />
-            <div>${signatures[0].name}</div>
-          ` : ""}
-        </div>
-
-        <!-- CENTER QR -->
-        <div style="width:34%; text-align:center;">
-          ${printSetting?.showHide?.showQRCode && qrBase64 ? `
-            <img src="${qrBase64}" style="height:60px;" />
-            <div>Scan to view report</div>
-          ` : ""}
-        </div>
-
-        <!-- RIGHT SIGN -->
-        <div style="width:33%; text-align:center;">
-          ${signatures[1] ? `
-            <img src="${signatures[1].imageUrl}" style="height:45px;" />
-            <div>${signatures[1].name}</div>
-          ` : ""}
-        </div>
-
-      </div>
-
-      ${
-        printSetting.withLetterhead && footerImageSrc
-          ? `<img src="${footerImageSrc}" style="width:100%; margin-top:4px;" />`
-          : ""
-      }
-
-      <div style="text-align:right; margin-top:2px;">
-        Page <span class="pageNumber"></span> of <span class="totalPages"></span>
-      </div>
-
-    </div>
-  `,
 
   margin: {
     top: "0mm",
-    bottom: "120px"   // 👈 enough for footerTemplate
+    bottom: "25mm"   // 👈 enough for footerTemplate
   }
 });
 
