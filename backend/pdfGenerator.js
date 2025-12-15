@@ -441,7 +441,7 @@ if (publicPdfUrl) {
   body {
     margin: 0;
     padding: 0;
-    padding-bottom: 200px; /* ✅ reserve space for fixed footer */
+    
     font-family: ${fontFamily};
     font-size: ${fontSize}px;
     color: #000;
@@ -460,21 +460,7 @@ if (publicPdfUrl) {
     text-transform: capitalize;
   }
 
-  /* ✅ FIXED FOOTER (always at bottom) */
-  .fixed-footer {
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    width: 100%;
-    background: #fff;
-    border-top: 1px solid #d1d5db;
-  }
-
-  .footer-inner {
-    width: 100%;
-    padding: 6px 8px 0 8px;
-    box-sizing: border-box;
-  }
+  
 </style>
 
       </head>
@@ -621,65 +607,7 @@ if (publicPdfUrl) {
 
         </table>
 
-        <div class="fixed-footer">
-
-  <div class="footer-inner">
-
-    <!-- SIGNATURE + QR -->
-    <div style="
-      width:100%;
-      display:flex;
-      justify-content:space-between;
-      align-items:flex-end;
-      height:90px;
-    ">
-
-      <!-- LEFT SIGN -->
-      <div style="width:33%; text-align:center;">
-        ${signatures[0] ? `
-          <img src="${signatures[0].imageUrl}" style="height:55px;" />
-          <div style="font-size:10px; font-weight:600;">${signatures[0].name}</div>
-          <div style="font-size:9px;">${signatures[0].designation || ""}</div>
-        ` : ""}
-      </div>
-
-      <!-- CENTER QR -->
-      <div style="width:34%; text-align:center;">
-        ${
-          printSetting?.showHide?.showQRCode && qrBase64
-            ? `
-              <img src="${qrBase64}" style="height:70px;" />
-              <div style="font-size:10px;">Scan to view report</div>
-            `
-            : ""
-        }
-      </div>
-
-      <!-- RIGHT SIGN -->
-      <div style="width:33%; text-align:center;">
-        ${signatures[1] ? `
-          <img src="${signatures[1].imageUrl}" style="height:55px;" />
-          <div style="font-size:10px; font-weight:600;">${signatures[1].name}</div>
-          <div style="font-size:9px;">${signatures[1].designation || ""}</div>
-        ` : ""}
-      </div>
-
-    </div>
-
-    <!-- FOOTER IMAGE -->
-    ${
-      printSetting.withLetterhead && footerImageSrc
-        ? `
-          <img
-            src="${footerImageSrc}"
-            style="width:100%; height:auto; display:block; margin-top:4px;"
-          />
-        `
-        : ""
-    }
-
-  </div>
-</div>
+      
 
 
       </body>
@@ -716,30 +644,67 @@ await page.setContent(finalHTML, { waitUntil: "load" });
 
 
   const pdfBuffer = await page.pdf({
-    format: "A4",
-    printBackground: true,
-    displayHeaderFooter: true,
+  format: "A4",
+  printBackground: true,
+  displayHeaderFooter: true,
 
-    headerTemplate: `<div></div>`,  // no header
+  headerTemplate: `<div></div>`,
 
-    footerTemplate: `
+  footerTemplate: `
     <div style="
-      font-size:11px;
-      color:#444;
       width:100%;
-      text-align:right;
-      padding-right:20px;
-      margin-top:-40px;   /* move upward (above footer image) */
+      font-size:10px;
+      padding:6px 20px;
+      box-sizing:border-box;
     ">
-      Page <span class="pageNumber"></span> of <span class="totalPages"></span>
+
+      <div style="display:flex; justify-content:space-between; align-items:flex-end;">
+
+        <!-- LEFT SIGN -->
+        <div style="width:33%; text-align:center;">
+          ${signatures[0] ? `
+            <img src="${signatures[0].imageUrl}" style="height:45px;" />
+            <div>${signatures[0].name}</div>
+          ` : ""}
+        </div>
+
+        <!-- CENTER QR -->
+        <div style="width:34%; text-align:center;">
+          ${printSetting?.showHide?.showQRCode && qrBase64 ? `
+            <img src="${qrBase64}" style="height:60px;" />
+            <div>Scan to view report</div>
+          ` : ""}
+        </div>
+
+        <!-- RIGHT SIGN -->
+        <div style="width:33%; text-align:center;">
+          ${signatures[1] ? `
+            <img src="${signatures[1].imageUrl}" style="height:45px;" />
+            <div>${signatures[1].name}</div>
+          ` : ""}
+        </div>
+
+      </div>
+
+      ${
+        printSetting.withLetterhead && footerImageSrc
+          ? `<img src="${footerImageSrc}" style="width:100%; margin-top:4px;" />`
+          : ""
+      }
+
+      <div style="text-align:right; margin-top:2px;">
+        Page <span class="pageNumber"></span> of <span class="totalPages"></span>
+      </div>
+
     </div>
   `,
 
-    margin: {
-      top: "0mm",
-      bottom: "20mm"   // allow page number area to exist
-    }
-  });
+  margin: {
+    top: "0mm",
+    bottom: "120px"   // 👈 enough for footerTemplate
+  }
+});
+
 
 
 
