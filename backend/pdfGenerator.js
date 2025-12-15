@@ -441,7 +441,7 @@ if (publicPdfUrl) {
   body {
     margin: 0;
     padding: 0;
-    padding-bottom: 160px; /* ✅ reserve space for fixed footer */
+    padding-bottom: 200px; /* ✅ reserve space for fixed footer */
     font-family: ${fontFamily};
     font-size: ${fontSize}px;
     color: #000;
@@ -620,9 +620,8 @@ if (publicPdfUrl) {
           
 
         </table>
-      </body>
 
-      <div class="fixed-footer">
+        <div class="fixed-footer">
 
   <div class="footer-inner">
 
@@ -683,6 +682,9 @@ if (publicPdfUrl) {
 </div>
 
 
+      </body>
+
+      
       
 
     </html>
