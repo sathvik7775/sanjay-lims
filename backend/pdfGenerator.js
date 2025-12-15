@@ -10,31 +10,6 @@ import path from "path";
 import { generateBarcodeBase64 } from "./utils/barcode.js";
 
 
-function paginateCategories(categories = []) {
-  const pages = [];
-  let page = [];
-  let height = 0;
-
-  categories.forEach(cat => {
-    const estimatedHeight = 40 + (cat.items?.length || 1) * 28;
-
-    if (height + estimatedHeight > 760) {
-      pages.push(page);
-      page = [];
-      height = 0;
-    }
-
-    
-    page.push(cat);
-    height += estimatedHeight;
-  });
-
-  if (page.length) pages.push(page);
-  return pages;
-}
-
-
-
 let browser;
 
 async function getBrowser() {
@@ -451,235 +426,340 @@ if (publicPdfUrl) {
 
 
 
-  const pages = paginateCategories(reportData.categories || []);
+  // HTML Content
+  const html = `
+    <html>
+      <head>
+        <meta charset="UTF-8"/>
+       <style>
+ @page {
+  size: A4;
+  margin: 0mm;
 
-const html = `
-<html>
-<head>
-  <meta charset="UTF-8"/>
-  <style>
-    @page {
-      size: A4;
-      margin: 0;
-    }
+  /* Create a bottom margin box */
+  @bottom-center {
+    content: "Page " counter(page) " of " counter(pages);
+    font-size: 11px;
+    color: #444;
+  }
+}
 
-    body {
-      margin: 0;
-      padding: 0;
-      font-family: ${fontFamily};
-      font-size: ${fontSize}px;
-      color: #000;
-      line-height: ${spacing};
-    }
+/* Hide the margin-box visually */
+.page-number-placeholder {
+  height: 0;
+  visibility: hidden;
+}
 
-    .page {
-      height: 1123px; /* A4 */
-      display: flex;
-      flex-direction: column;
-      page-break-after: always;
-    }
+.cap-text {
+  text-transform: capitalize;
+}
 
-    .page:last-child {
-      page-break-after: auto;
-    }
 
-    .header {
-      flex-shrink: 0;
-      height: ${letterheadSettings.headerHeight || 240}px;
-      border-bottom: 1px solid #d1d5db;
-    }
 
-    .content {
-      flex: 1;
-      padding: ${letterheadSettings.caseInfoHeight || 6}mm;
-      overflow: hidden;
-    }
 
-    .footer {
-      flex-shrink: 0;
-      height: 170px;
-      border-top: 1px solid #d1d5db;
-      padding: 6px 10px;
-      box-sizing: border-box;
-    }
+  
 
-    table {
-      width: 100%;
-      border-collapse: collapse;
-    }
+  body {
+    margin: 0;
+    padding: 0;
+    font-family: ${fontFamily};
+    font-size: ${fontSize}px;
+    color: #000;
+    line-height: ${spacing};
+  }
 
-    .footer-row {
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-end;
-    }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 0;
+    padding: 0;
+  }
 
-    .footer-col {
-      width: 33%;
-      text-align: center;
-    }
+  tfoot {
+  display: table-footer-group;
+}
 
-    .footer-col img {
-      height: 45px;
-    }
+tfoot tr td {
+  vertical-align: bottom !important;
+}
 
-    .footer-img {
-      width: 100%;
-      margin-top: 4px;
-    }
+/* FIXED footer for single-page PDF */
 
-    .avoid-break {
-      page-break-inside: avoid;
-    }
-  </style>
-</head>
 
-<body>
 
-${pages.map(pageCats => `
-  <div class="page">
+</style>
 
-    <!-- ===== HEADER ===== -->
-    <div class="header">
-      ${printSetting.withLetterhead ? `
-        <img
-  src="${headerImageSrc}"
-  style="width:100%; max-height:120px; object-fit:contain; display:block;"
+      </head>
+      <body>
+      <div id="page-height-detector" style="visibility:hidden; position:absolute; top:0;">
+</div>
+
+        <table style="width:100%; border-collapse:collapse; margin-top:0; padding-top:0;">
+
+          
+          <thead>
+            <tr>
+              <th style=" background:#fff; border-bottom:1px solid #d1d5db;">
+                <!-- Header -->
+                ${printSetting.withLetterhead ? `
+                  <div style="display:flex; justify-content:center; align-items:center; width:100%;
+                 ${letterheadSettings.setAsDefault ? "" : `height:${letterheadSettings.headerHeight || 30}cm;`}
+                ">
+  <img 
+  src="${headerImageSrc}" 
+  alt="Header" 
+  style="width:100%; height:auto; object-fit:cover; margin:0; padding:0; display:block;" 
 />
 
-      ` : ""}
+</div>
+                 ` : "" }
+                
 
-      <div style="
-  margin:4px;
+                
+
+
+                <div style="
+  margin-top:6px;
   border:1px solid #000;
   padding:6px;
-  height:90px;
-  box-sizing:border-box;
+  margin:4px;
+  background:#fff;
+  font-size:${printSetting?.design?.fontSize || 12}px;
   display:flex;
   justify-content:space-between;
   align-items:center;
 ">
 
-
-      <div style="
-        margin:4px;
-        border:1px solid #000;
-        padding:6px;
-        display:flex;
-        justify-content:space-between;
-        align-items:center;
-        font-size:${printSetting?.design?.fontSize || 12}px;
-      ">
-
-        <div>
-          <div><b>Patient:</b> ${patient.firstName} ${patient.lastName}</div>
-          <div><b>Age/Sex:</b> ${patient.age} ${patient.ageUnit || "Yrs"} / ${patient.sex}</div>
-          <div><b>Referred By:</b> ${patient.doctor || "—"}</div>
-        </div>
-
-        <div>
-          <div><b>Date:</b> ${new Date(reportData.createdAt).toLocaleDateString("en-GB")}</div>
-          <div><b>Time:</b> ${new Date(reportData.createdAt).toLocaleTimeString("en-GB", {
-            hour: "2-digit",
-            minute: "2-digit",
-            hour12: true
-          })}</div>
-          <div><b>PAT ID / UHID:</b> ${patient.regNo} / ${patient.uhid}</div>
-        </div>
-
-        <div>
-          <img src="data:image/png;base64,${barcodeBase64}" style="height:40px;" />
-        </div>
-
-      </div>
-    </div>
-    </div>
-
-    <!-- ===== CONTENT ===== -->
-    <div class="content">
-      ${pageCats.map(cat => `
-        <div class="avoid-break">
-          ${renderCategorySection(
-            cat,
-            design,
-            spacing,
-            fontSize,
-            fontFamily,
-            useHLMarkers,
-            categoryNewFlag,
-            capetalizeTestFlag
-          )}
-        </div>
-      `).join("")}
-    </div>
-
-    <!-- ===== FOOTER ===== -->
-    <div class="footer">
-      <div class="footer-row">
-
-        <div class="footer-col">
-          ${signatures[0] ? `
-            <img src="${signatures[0].imageUrl}" />
-            <div>${signatures[0].name}</div>
-          ` : ""}
-        </div>
-
-        <div class="footer-col">
-          ${printSetting?.showHide?.showQRCode && qrBase64 ? `
-            <img src="${qrBase64}" />
-            <div>Scan to view report</div>
-          ` : ""}
-        </div>
-
-        <div class="footer-col">
-          ${signatures[1] ? `
-            <img src="${signatures[1].imageUrl}" />
-            <div>${signatures[1].name}</div>
-          ` : ""}
-        </div>
-
-      </div>
-
-      ${
-        printSetting.withLetterhead && footerImageSrc
-          ? `<img src="${footerImageSrc}" class="footer-img" />`
-          : ""
-      }
-    </div>
-
+  <!-- LEFT COLUMN -->
+  <div style="display:flex; flex-direction:column; align-items:flex-start;">
+    <p style="margin:2px 0; font-weight:600;">
+      Patient: ${patient.firstName} ${patient.lastName}
+    </p>
+    <p style="margin:2px 0; font-weight:600;">
+      Age/Sex: ${patient.age} ${patient.ageUnit || "Yrs"} / ${patient.sex}
+    </p>
+    <p style="margin:2px 0; font-weight:600;">
+      Referred By: ${patient.doctor || "—"}
+    </p>
   </div>
-`).join("")}
 
-</body>
-</html>
-`;
+  <!-- RIGHT COLUMN -->
+  <div style="display:flex; flex-direction:column; text-align:right; align-items:flex-start;">
+    <p style="margin:2px 0; font-weight:600;">
+      Date: ${new Date(reportData.createdAt).toLocaleDateString("en-GB")}
+    </p>
+
+    <p style="margin:2px 0; font-weight:600;">
+      Time: ${new Date(reportData.createdAt).toLocaleTimeString("en-GB", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: true
+  })}
+    </p>
+
+    <p style="margin:2px 0; font-weight:600;">
+      PAT ID /UHID: ${patient.regNo} / ${patient.uhid}
+    </p>
+
+    
+  </div>
+  <div style="display:flex; flex-direction:column; text-align:right; align-items:flex-start;">
+    ${printSetting?.showHide?.showTATTime
+        ? `
+      <p style="margin-left:10px; font-weight:600;">
+        TAT: ${calculateTAT(reportData.createdAt, reportData.updatedAt)}
+      </p>
+      `
+        : ""
+      }
+
+    
+  </div>
+
+  <!-- BARCODE -->
+  
+        
+      <div style="margin-left:10px;">
+        <img 
+          src="data:image/png;base64,${barcodeBase64}" 
+          style="height:40px; width:auto;" 
+        />
+      </div>
+      
+
+  <!-- TAT -->
+  
+
+</div>
 
 
-// // ----- Detect natural content height -----
-// const height = await page.evaluate(() => {
-//     return document.body.scrollHeight;  // total HTML height in px
-// });
 
-// // PDF A4 height in Playwright = 1123px approx
-// const A4_HEIGHT = 1123;
+              </th>
+            </tr>
+          </thead>
+          
 
-// const totalPages = Math.ceil(height / A4_HEIGHT);
+          <tbody>
+            <tr>
+              <td style="padding:${letterheadSettings.caseInfoHeight || 3}mm;">
 
-// console.log("Detected Pages:", totalPages);
+  ${reportData.categories
+    ?.map(cat => `
+        <div class="result-page">
+            ${renderCategorySection(
+              cat,
+              design,
+              spacing,
+              fontSize,
+              fontFamily,
+              useHLMarkers,
+              categoryNewFlag,
+              capetalizeTestFlag
+            )}
+        </div>
+    `)
+    .join('')}
 
-// // Select footer class
-// const footerClass =
-//   totalPages === 1 ? "page-footer-fixed" : "page-footer-normal";
+</td>
 
-// // Replace class
-// const finalHTML = html.replace(/{{FOOTER_CLASS}}/g, footerClass);
+            </tr>
+          </tbody>
 
-await page.setContent(html, { waitUntil: "load" });
+          
+         <tfoot style="display: table-footer-group;">
+  <tr>
+    <td style="border-top:1px solid #d1d5db; padding:0;">
 
-const pdfBuffer = await page.pdf({
-  format: "A4",
-  printBackground: true
+      <div class="{{FOOTER_CLASS}}">
+
+
+        <!-- SIGNATURE + QR SECTION -->
+        <div style="
+          width:100%;
+          display:flex;
+          align-items:flex-end;
+          justify-content:space-between;
+          ${letterheadSettings.setAsDefault ? "height:90px;" : `height:${letterheadSettings.signatureHeight || 30}cm;`}
+        ">
+
+          <!-- LEFT SIGNATURE -->
+          <div style="width:33%; text-align:center;">
+            ${
+              signatures[0]
+                ? `
+                  <img src="${signatures[0].imageUrl}" style="height:55px;" />
+                  <div style="font-size:10px; font-weight:600;">${signatures[0].name}</div>
+                  <div style="font-size:9px; color:#444;">${signatures[0].designation}</div>
+                `
+                : ""
+            }
+          </div>
+
+          <!-- CENTER QR -->
+          <div style="width:34%; text-align:center;">
+            ${
+              printSetting?.showHide?.showQRCode && qrBase64
+                ? `
+                  <img src="${qrBase64}" style="height:70px; width:70px;" />
+                  <p style="font-size:10px; margin:0; color:#444;">Scan to view report</p>
+                `
+                : ""
+            }
+          </div>
+
+          <!-- RIGHT SIGNATURE -->
+          <div style="width:33%; text-align:center;">
+            ${
+              signatures[1]
+                ? `
+                  <img src="${signatures[1].imageUrl}" style="height:55px;" />
+                  <div style="font-size:10px; font-weight:600;">${signatures[1].name}</div>
+                  <div style="font-size:9px; color:#444;">${signatures[1].designation}</div>
+                `
+                : ""
+            }
+          </div>
+
+        </div>
+
+        <!-- FOOTER IMAGE -->
+        ${
+          printSetting.withLetterhead && footerImageSrc
+            ? `
+              <div style="width:100%; margin-top:3px;">
+                <img src="${footerImageSrc}" style="width:100%; height:auto; display:block;" />
+              </div>
+            `
+            : ""
+        }
+
+      </div>
+
+    </td>
+  </tr>
+</tfoot>
+
+
+          
+
+        </table>
+      </body>
+
+      
+
+    </html>
+  `;
+
+// ----- Detect natural content height -----
+const height = await page.evaluate(() => {
+    return document.body.scrollHeight;  // total HTML height in px
 });
+
+// PDF A4 height in Playwright = 1123px approx
+const A4_HEIGHT = 1123;
+
+const totalPages = Math.ceil(height / A4_HEIGHT);
+
+console.log("Detected Pages:", totalPages);
+
+// Select footer class
+const footerClass =
+  totalPages === 1 ? "page-footer-fixed" : "page-footer-normal";
+
+// Replace class
+const finalHTML = html.replace(/{{FOOTER_CLASS}}/g, footerClass);
+
+// Re-render HTML with correct footer
+await page.setContent(finalHTML, { waitUntil: "load" });
+
+
+
+
+  const pdfBuffer = await page.pdf({
+    format: "A4",
+    printBackground: true,
+    displayHeaderFooter: true,
+
+    headerTemplate: `<div></div>`,  // no header
+
+    footerTemplate: `
+    <div style="
+      font-size:11px;
+      color:#444;
+      width:100%;
+      text-align:right;
+      padding-right:20px;
+      margin-top:-40px;   /* move upward (above footer image) */
+    ">
+      Page <span class="pageNumber"></span> of <span class="totalPages"></span>
+    </div>
+  `,
+
+    margin: {
+      top: "0mm",
+      bottom: "20mm"   // allow page number area to exist
+    }
+  });
 
 
 
