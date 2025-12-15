@@ -426,257 +426,202 @@ if (publicPdfUrl) {
 
 
 
-  // HTML Content
   const html = `
-    <html>
-      <head>
-        <meta charset="UTF-8"/>
-      <style>
-  /* Page setup */
-  @page {
-    size: A4;
-    margin: 0mm;
-  }
+<html>
+<head>
+  <meta charset="UTF-8"/>
+  <style>
+    @page {
+      size: A4;
+      margin: 0;
+    }
 
-  body {
-    margin: 0;
-    padding: 0;
-    
-    font-family: ${fontFamily};
-    font-size: ${fontSize}px;
-    color: #000;
-    line-height: ${spacing};
-  }
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: ${fontFamily};
+      font-size: ${fontSize}px;
+      color: #000;
+      line-height: ${spacing};
+    }
 
-  table {
-    width: 100%;
-    border-collapse: collapse;
-    margin: 0;
-    padding: 0;
-  }
+    /* ===== PAGE LAYOUT ===== */
+    .page {
+      height: 1123px; /* A4 height */
+      display: flex;
+      flex-direction: column;
+      page-break-after: always;
+    }
 
-  /* Capitalize helper */
-  .cap-text {
-    text-transform: capitalize;
-  }
+    .page:last-child {
+      page-break-after: auto;
+    }
 
-  .report-footer {
-  margin-top: 20px;
-  page-break-inside: avoid;
-}
+    /* ===== HEADER ===== */
+    .header {
+      flex-shrink: 0;
+      height: ${letterheadSettings.headerHeight || 160}px;
+      border-bottom: 1px solid #d1d5db;
+    }
 
-.footer-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-end;
-}
+    /* ===== CONTENT ===== */
+    .content {
+      flex: 1;
+      padding: ${letterheadSettings.caseInfoHeight || 6}mm;
+      overflow: hidden;
+    }
 
-.footer-col {
-  width: 33%;
-  text-align: center;
-}
+    /* ===== FOOTER ===== */
+    .footer {
+      flex-shrink: 0;
+      height: 170px;
+      border-top: 1px solid #d1d5db;
+      padding: 6px 10px;
+      box-sizing: border-box;
+    }
 
-.footer-col img {
-  height: 45px;
-}
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
 
-.footer-img {
-  width: 100%;
-  margin-top: 4px;
-}
+    /* ===== FOOTER INTERNAL ===== */
+    .footer-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+    }
 
+    .footer-col {
+      width: 33%;
+      text-align: center;
+    }
 
-  
-</style>
+    .footer-col img {
+      height: 45px;
+    }
 
-      </head>
-      <body>
-      <div id="page-height-detector" style="visibility:hidden; position:absolute; top:0;">
-</div>
+    .footer-img {
+      width: 100%;
+      margin-top: 4px;
+    }
 
-        <table style="width:100%; border-collapse:collapse; margin-top:0; padding-top:0;">
+    /* Avoid splitting */
+    .avoid-break {
+      page-break-inside: avoid;
+    }
+  </style>
+</head>
 
-          
-          <thead>
-            <tr>
-              <th style=" background:#fff; border-bottom:1px solid #d1d5db;">
-                <!-- Header -->
-                ${printSetting.withLetterhead ? `
-                  <div style="display:flex; justify-content:center; align-items:center; width:100%;
-                 ${letterheadSettings.setAsDefault ? "" : `height:${letterheadSettings.headerHeight || 30}cm;`}
-                ">
-  <img 
-  src="${headerImageSrc}" 
-  alt="Header" 
-  style="width:100%; height:auto; object-fit:cover; margin:0; padding:0; display:block;" 
-/>
+<body>
 
-</div>
-                 ` : "" }
-                
+<div class="page">
 
-                
+  <!-- ================= HEADER ================= -->
+  <div class="header">
 
+    ${printSetting.withLetterhead ? `
+      <img
+        src="${headerImageSrc}"
+        style="width:100%; height:auto; display:block;"
+      />
+    ` : ""}
 
-                <div style="
-  margin-top:6px;
-  border:1px solid #000;
-  padding:6px;
-  margin:4px;
-  background:#fff;
-  font-size:${printSetting?.design?.fontSize || 12}px;
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
-">
+    <div style="
+      margin:4px;
+      border:1px solid #000;
+      padding:6px;
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      font-size:${printSetting?.design?.fontSize || 12}px;
+    ">
 
-  <!-- LEFT COLUMN -->
-  <div style="display:flex; flex-direction:column; align-items:flex-start;">
-    <p style="margin:2px 0; font-weight:600;">
-      Patient: ${patient.firstName} ${patient.lastName}
-    </p>
-    <p style="margin:2px 0; font-weight:600;">
-      Age/Sex: ${patient.age} ${patient.ageUnit || "Yrs"} / ${patient.sex}
-    </p>
-    <p style="margin:2px 0; font-weight:600;">
-      Referred By: ${patient.doctor || "—"}
-    </p>
-  </div>
-
-  <!-- RIGHT COLUMN -->
-  <div style="display:flex; flex-direction:column; text-align:right; align-items:flex-start;">
-    <p style="margin:2px 0; font-weight:600;">
-      Date: ${new Date(reportData.createdAt).toLocaleDateString("en-GB")}
-    </p>
-
-    <p style="margin:2px 0; font-weight:600;">
-      Time: ${new Date(reportData.createdAt).toLocaleTimeString("en-GB", {
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: true
-  })}
-    </p>
-
-    <p style="margin:2px 0; font-weight:600;">
-      PAT ID /UHID: ${patient.regNo} / ${patient.uhid}
-    </p>
-
-    
-  </div>
-  <div style="display:flex; flex-direction:column; text-align:right; align-items:flex-start;">
-    ${printSetting?.showHide?.showTATTime
-        ? `
-      <p style="margin-left:10px; font-weight:600;">
-        TAT: ${calculateTAT(reportData.createdAt, reportData.updatedAt)}
-      </p>
-      `
-        : ""
-      }
-
-    
-  </div>
-
-  <!-- BARCODE -->
-  
-        
-      <div style="margin-left:10px;">
-        <img 
-          src="data:image/png;base64,${barcodeBase64}" 
-          style="height:40px; width:auto;" 
-        />
+      <div>
+        <div><b>Patient:</b> ${patient.firstName} ${patient.lastName}</div>
+        <div><b>Age/Sex:</b> ${patient.age} ${patient.ageUnit || "Yrs"} / ${patient.sex}</div>
+        <div><b>Referred By:</b> ${patient.doctor || "—"}</div>
       </div>
-      
 
-  <!-- TAT -->
-  
+      <div>
+        <div><b>Date:</b> ${new Date(reportData.createdAt).toLocaleDateString("en-GB")}</div>
+        <div><b>Time:</b> ${new Date(reportData.createdAt).toLocaleTimeString("en-GB", {
+          hour: "2-digit",
+          minute: "2-digit",
+          hour12: true
+        })}</div>
+        <div><b>PAT ID / UHID:</b> ${patient.regNo} / ${patient.uhid}</div>
+      </div>
 
-</div>
+      <div>
+        <img src="data:image/png;base64,${barcodeBase64}" style="height:40px;" />
+      </div>
 
+    </div>
+  </div>
 
-
-              </th>
-            </tr>
-          </thead>
-          
-
-          <tbody>
-            <tr>
-              <td style="padding:${letterheadSettings.caseInfoHeight || 3}mm;">
-
-  ${reportData.categories
-    ?.map(cat => `
-        <div class="result-page">
-            ${renderCategorySection(
-              cat,
-              design,
-              spacing,
-              fontSize,
-              fontFamily,
-              useHLMarkers,
-              categoryNewFlag,
-              capetalizeTestFlag
-            )}
+  <!-- ================= CONTENT ================= -->
+  <div class="content">
+    ${reportData.categories
+      ?.map(cat => `
+        <div class="avoid-break">
+          ${renderCategorySection(
+            cat,
+            design,
+            spacing,
+            fontSize,
+            fontFamily,
+            useHLMarkers,
+            categoryNewFlag,
+            capetalizeTestFlag
+          )}
         </div>
-    `)
-    .join('')}
+      `)
+      .join("")}
+  </div>
 
-</td>
+  <!-- ================= FOOTER ================= -->
+  <div class="footer">
 
-            </tr>
-          </tbody>
+    <div class="footer-row">
 
-          
-         
+      <div class="footer-col">
+        ${signatures[0] ? `
+          <img src="${signatures[0].imageUrl}" />
+          <div>${signatures[0].name}</div>
+        ` : ""}
+      </div>
 
+      <div class="footer-col">
+        ${printSetting?.showHide?.showQRCode && qrBase64 ? `
+          <img src="${qrBase64}" />
+          <div>Scan to view report</div>
+        ` : ""}
+      </div>
 
-          
+      <div class="footer-col">
+        ${signatures[1] ? `
+          <img src="${signatures[1].imageUrl}" />
+          <div>${signatures[1].name}</div>
+        ` : ""}
+      </div>
 
-        </table>
-
-        <div class="report-footer">
-  <div class="footer-row">
-
-    <div class="footer-col">
-      ${signatures[0] ? `
-        <img src="${signatures[0].imageUrl}" />
-        <div>${signatures[0].name}</div>
-      ` : ""}
     </div>
 
-    <div class="footer-col">
-      ${printSetting?.showHide?.showQRCode && qrBase64 ? `
-        <img src="${qrBase64}" />
-        <div>Scan to view report</div>
-      ` : ""}
-    </div>
-
-    <div class="footer-col">
-      ${signatures[1] ? `
-        <img src="${signatures[1].imageUrl}" />
-        <div>${signatures[1].name}</div>
-      ` : ""}
-    </div>
+    ${
+      printSetting.withLetterhead && footerImageSrc
+        ? `<img src="${footerImageSrc}" class="footer-img" />`
+        : ""
+    }
 
   </div>
 
-  ${
-    printSetting.withLetterhead && footerImageSrc
-      ? `<img src="${footerImageSrc}" class="footer-img" />`
-      : ""
-  }
 </div>
 
+</body>
+</html>
+`;
 
-      
-
-
-      </body>
-
-      
-      
-
-    </html>
-  `;
 
 // ----- Detect natural content height -----
 const height = await page.evaluate(() => {
