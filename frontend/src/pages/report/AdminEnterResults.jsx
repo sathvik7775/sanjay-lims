@@ -304,11 +304,17 @@ const fetchTestWithRefs = async (testId, reportData, adminToken) => {
 
 
 const AdminEnterResults = () => {
-  const { branchId, branchToken, errorToast, successToast, adminToken } = useContext(LabContext);
+  const { selectedBranch, branchToken, errorToast, successToast, adminToken } = useContext(LabContext);
   const { reportId } = useParams();
   const navigate = useNavigate();
+  const [branchId, setBranchId] = useState(null)
 
   const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    setBranchId(selectedBranch)
+  }, [])
+  
 
 
   const [report, setReport] = useState(null);
@@ -839,6 +845,10 @@ useEffect(() => {
     if (!report) {
       errorToast("Patient details not found");
       return;
+    }
+    if (!selectedBranch) {
+      errorToast("Please select branch to submit the report");
+      return
     }
 
     try {

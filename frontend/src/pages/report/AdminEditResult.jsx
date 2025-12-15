@@ -118,7 +118,7 @@ const calculateFormulaResult = (formula, dependencies, results) => {
 /* ----------------------------- 🔹 EditResult ----------------------------- */
 
 const AdminEditResult = () => {
-  const { branchId, branchToken, errorToast, successToast, adminToken } = useContext(LabContext);
+  const { selectedBranch, branchToken, errorToast, successToast, adminToken } = useContext(LabContext);
   const { reportId } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
@@ -139,6 +139,13 @@ const autoFinal = query.get("autoFinal");
 
   const [branches, setBranches] = useState([]);
     const [labDetails, setLabDetails] = useState(null);
+     const [branchId, setBranchId] = useState(null)
+
+
+    useEffect(() => {
+        setBranchId(selectedBranch)
+      }, [])
+      
 
     useEffect(() => {
   if (!loading && autoFinal === "true") {
@@ -883,6 +890,10 @@ useEffect(() => {
   /* ----------------------------- 🔹 Submit ----------------------------- */
   const handleSubmit = async (status) => {
     if (!report) return errorToast("Patient details missing");
+    if (!selectedBranch) {
+      errorToast("Please select branch to submit the report");
+      return
+    }
 
     try {
       setLoading(true);
