@@ -24,6 +24,44 @@ const EditCase = () => {
   const [msgTemplates, setMsgTemplates] = useState([]); // fetched templates
   const [selectedTemplates, setSelectedTemplates] = useState([]); // array of selected template IDs
 
+  const [errors, setErrors] = useState({});
+  
+  
+  const validateForm = () => {
+    const newErrors = {};
+  
+    // 📱 Mobile number (India)
+    if (!formData.mobile) {
+      newErrors.mobile = "Mobile number is required";
+    } else if (!/^[6-9]\d{9}$/.test(formData.mobile)) {
+      newErrors.mobile = "Enter a valid 10-digit mobile number";
+    }
+  
+    // 👤 First Name
+    if (!formData.firstName) {
+      newErrors.firstName = "First name is required";
+    } else if (!/^[A-Za-z ]{2,}$/.test(formData.firstName)) {
+      newErrors.firstName = "Only alphabets allowed (min 2 letters)";
+    }
+  
+    // 🎂 Age
+    if (formData.age === "" || formData.age === null) {
+      newErrors.age = "Age is required";
+    } else if (isNaN(formData.age)) {
+      newErrors.age = "Age must be a number";
+    } else if (formData.age < 0 || formData.age > 120) {
+      newErrors.age = "Age must be between 0 and 120";
+    }
+  
+    // 🧑‍⚕️ Referred By
+    if (!formData.doctor) {
+      newErrors.doctor = "Referred By is required";
+    }
+  
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
 
   
 const CustomMenuList = (props) => {
@@ -294,6 +332,12 @@ const CustomMenuList = (props) => {
 
 
  const handleUpdateCase = async () => {
+  if (!validateForm()) {
+    errorToast("Incomplete patient information. Please verify and submit again");
+
+    return;
+  }
+
   try {
     /* ------------------------------------------
       🔥 1) Detect ALL changes for Activity Log
@@ -467,13 +511,17 @@ let finalStatus = testsChanged ? "In Progress" : "Signed Off";
             +91
           </span>
           <input
-            type="text"
-            name="mobile"
-            placeholder="Enter mobile number"
-            value={formData.mobile}
-            onChange={handleChange}
-            className="flex-1 px-3 py-2 outline-none text-sm"
-          />
+  type="text"
+  name="mobile"
+  value={formData.mobile}
+  onChange={handleChange}
+  className={`flex-1 px-3 py-2 outline-none text-sm ${
+    errors.mobile ? "border-red-500" : ""
+  }`}
+/>
+{errors.mobile && (
+  <p className="text-red-600 text-sm mt-1">{errors.mobile}</p>
+)}
           <button className="px-3 py-2 text-gray-500 hover:text-gray-700">
             <Search size={18} />
           </button>
@@ -503,13 +551,18 @@ let finalStatus = testsChanged ? "In Progress" : "Signed Off";
 
           <div>
             <label className="block text-sm mb-1">First name*</label>
-            <input
-              type="text"
-              name="firstName"
-              value={formData.firstName}
-              onChange={handleChange}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2"
-            />
+             <input
+  type="text"
+  name="firstName"
+  value={formData.firstName}
+  onChange={handleChange}
+  className={`w-full border rounded-lg px-3 py-2 ${
+    errors.firstName ? "border-red-500" : "border-gray-300"
+  }`}
+/>
+{errors.firstName && (
+  <p className="text-red-600 text-xs">{errors.firstName}</p>
+)}
           </div>
         </div>
 
@@ -556,11 +609,13 @@ let finalStatus = testsChanged ? "In Progress" : "Signed Off";
     onChange={handleChange}
     min="0"
     max="120"
-    className="border border-gray-300 rounded-lg px-3 py-2"
+    className={`border rounded-lg px-3 py-2 ${
+      errors.age ? "border-red-500" : "border-gray-300"
+    }`}
   />
 
-  {ageError && (
-    <p className="text-red-600 text-sm mt-1">{ageError}</p>
+  {errors.age && (
+    <p className="text-red-600 text-sm mt-1">{errors.age}</p>
   )}
 </div>
 
@@ -647,14 +702,18 @@ let finalStatus = testsChanged ? "In Progress" : "Signed Off";
         <div className="flex flex-col md:flex-row gap-2">
           <div>
             <label className="block text-sm mb-1">Referred By*</label>
-            <input
-              list="doctors"
-              name="doctor"
-              value={formData.doctor}
-              onChange={handleChange}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2"
-              placeholder="Select doctor..."
-            />
+             <input
+  list="doctors"
+  name="doctor"
+  value={formData.doctor}
+  onChange={handleChange}
+  className={`w-full border rounded-lg px-3 py-2 ${
+    errors.doctor ? "border-red-500" : "border-gray-300"
+  }`}
+/>
+{errors.doctor && (
+  <p className="text-red-600 text-xs">{errors.doctor}</p>
+)}
             <datalist id="doctors">
               {doctors.map((doc) => (
                 <option key={doc._id} value={`${doc.name}`} />
