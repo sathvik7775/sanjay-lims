@@ -10,6 +10,31 @@ import path from "path";
 import { generateBarcodeBase64 } from "./utils/barcode.js";
 
 
+function paginateCategories(categories = []) {
+  const pages = [];
+  let page = [];
+  let height = 0;
+
+  categories.forEach(cat => {
+    const estimatedHeight = 40 + (cat.items?.length || 1) * 28;
+
+    if (height + estimatedHeight > 760) {
+      pages.push(page);
+      page = [];
+      height = 0;
+    }
+
+    
+    page.push(cat);
+    height += estimatedHeight;
+  });
+
+  if (page.length) pages.push(page);
+  return pages;
+}
+
+
+
 let browser;
 
 async function getBrowser() {
@@ -426,7 +451,9 @@ if (publicPdfUrl) {
 
 
 
-  const html = `
+  const pages = paginateCategories(reportData.categories || []);
+
+const html = `
 <html>
 <head>
   <meta charset="UTF-8"/>
@@ -445,9 +472,8 @@ if (publicPdfUrl) {
       line-height: ${spacing};
     }
 
-    /* ===== PAGE LAYOUT ===== */
     .page {
-      height: 1123px; /* A4 height */
+      height: 1123px; /* A4 */
       display: flex;
       flex-direction: column;
       page-break-after: always;
@@ -457,21 +483,18 @@ if (publicPdfUrl) {
       page-break-after: auto;
     }
 
-    /* ===== HEADER ===== */
     .header {
       flex-shrink: 0;
       height: ${letterheadSettings.headerHeight || 160}px;
       border-bottom: 1px solid #d1d5db;
     }
 
-    /* ===== CONTENT ===== */
     .content {
       flex: 1;
       padding: ${letterheadSettings.caseInfoHeight || 6}mm;
       overflow: hidden;
     }
 
-    /* ===== FOOTER ===== */
     .footer {
       flex-shrink: 0;
       height: 170px;
@@ -485,7 +508,6 @@ if (publicPdfUrl) {
       border-collapse: collapse;
     }
 
-    /* ===== FOOTER INTERNAL ===== */
     .footer-row {
       display: flex;
       justify-content: space-between;
@@ -506,7 +528,6 @@ if (publicPdfUrl) {
       margin-top: 4px;
     }
 
-    /* Avoid splitting */
     .avoid-break {
       page-break-inside: avoid;
     }
@@ -515,55 +536,51 @@ if (publicPdfUrl) {
 
 <body>
 
-<div class="page">
+${pages.map(pageCats => `
+  <div class="page">
 
-  <!-- ================= HEADER ================= -->
-  <div class="header">
+    <!-- ===== HEADER ===== -->
+    <div class="header">
+      ${printSetting.withLetterhead ? `
+        <img src="${headerImageSrc}" style="width:100%; display:block;" />
+      ` : ""}
 
-    ${printSetting.withLetterhead ? `
-      <img
-        src="${headerImageSrc}"
-        style="width:100%; height:auto; display:block;"
-      />
-    ` : ""}
+      <div style="
+        margin:4px;
+        border:1px solid #000;
+        padding:6px;
+        display:flex;
+        justify-content:space-between;
+        align-items:center;
+        font-size:${printSetting?.design?.fontSize || 12}px;
+      ">
 
-    <div style="
-      margin:4px;
-      border:1px solid #000;
-      padding:6px;
-      display:flex;
-      justify-content:space-between;
-      align-items:center;
-      font-size:${printSetting?.design?.fontSize || 12}px;
-    ">
+        <div>
+          <div><b>Patient:</b> ${patient.firstName} ${patient.lastName}</div>
+          <div><b>Age/Sex:</b> ${patient.age} ${patient.ageUnit || "Yrs"} / ${patient.sex}</div>
+          <div><b>Referred By:</b> ${patient.doctor || "—"}</div>
+        </div>
 
-      <div>
-        <div><b>Patient:</b> ${patient.firstName} ${patient.lastName}</div>
-        <div><b>Age/Sex:</b> ${patient.age} ${patient.ageUnit || "Yrs"} / ${patient.sex}</div>
-        <div><b>Referred By:</b> ${patient.doctor || "—"}</div>
+        <div>
+          <div><b>Date:</b> ${new Date(reportData.createdAt).toLocaleDateString("en-GB")}</div>
+          <div><b>Time:</b> ${new Date(reportData.createdAt).toLocaleTimeString("en-GB", {
+            hour: "2-digit",
+            minute: "2-digit",
+            hour12: true
+          })}</div>
+          <div><b>PAT ID / UHID:</b> ${patient.regNo} / ${patient.uhid}</div>
+        </div>
+
+        <div>
+          <img src="data:image/png;base64,${barcodeBase64}" style="height:40px;" />
+        </div>
+
       </div>
-
-      <div>
-        <div><b>Date:</b> ${new Date(reportData.createdAt).toLocaleDateString("en-GB")}</div>
-        <div><b>Time:</b> ${new Date(reportData.createdAt).toLocaleTimeString("en-GB", {
-          hour: "2-digit",
-          minute: "2-digit",
-          hour12: true
-        })}</div>
-        <div><b>PAT ID / UHID:</b> ${patient.regNo} / ${patient.uhid}</div>
-      </div>
-
-      <div>
-        <img src="data:image/png;base64,${barcodeBase64}" style="height:40px;" />
-      </div>
-
     </div>
-  </div>
 
-  <!-- ================= CONTENT ================= -->
-  <div class="content">
-    ${reportData.categories
-      ?.map(cat => `
+    <!-- ===== CONTENT ===== -->
+    <div class="content">
+      ${pageCats.map(cat => `
         <div class="avoid-break">
           ${renderCategorySection(
             cat,
@@ -576,103 +593,76 @@ if (publicPdfUrl) {
             capetalizeTestFlag
           )}
         </div>
-      `)
-      .join("")}
-  </div>
-
-  <!-- ================= FOOTER ================= -->
-  <div class="footer">
-
-    <div class="footer-row">
-
-      <div class="footer-col">
-        ${signatures[0] ? `
-          <img src="${signatures[0].imageUrl}" />
-          <div>${signatures[0].name}</div>
-        ` : ""}
-      </div>
-
-      <div class="footer-col">
-        ${printSetting?.showHide?.showQRCode && qrBase64 ? `
-          <img src="${qrBase64}" />
-          <div>Scan to view report</div>
-        ` : ""}
-      </div>
-
-      <div class="footer-col">
-        ${signatures[1] ? `
-          <img src="${signatures[1].imageUrl}" />
-          <div>${signatures[1].name}</div>
-        ` : ""}
-      </div>
-
+      `).join("")}
     </div>
 
-    ${
-      printSetting.withLetterhead && footerImageSrc
-        ? `<img src="${footerImageSrc}" class="footer-img" />`
-        : ""
-    }
+    <!-- ===== FOOTER ===== -->
+    <div class="footer">
+      <div class="footer-row">
+
+        <div class="footer-col">
+          ${signatures[0] ? `
+            <img src="${signatures[0].imageUrl}" />
+            <div>${signatures[0].name}</div>
+          ` : ""}
+        </div>
+
+        <div class="footer-col">
+          ${printSetting?.showHide?.showQRCode && qrBase64 ? `
+            <img src="${qrBase64}" />
+            <div>Scan to view report</div>
+          ` : ""}
+        </div>
+
+        <div class="footer-col">
+          ${signatures[1] ? `
+            <img src="${signatures[1].imageUrl}" />
+            <div>${signatures[1].name}</div>
+          ` : ""}
+        </div>
+
+      </div>
+
+      ${
+        printSetting.withLetterhead && footerImageSrc
+          ? `<img src="${footerImageSrc}" class="footer-img" />`
+          : ""
+      }
+    </div>
 
   </div>
-
-</div>
+`).join("")}
 
 </body>
 </html>
 `;
 
 
-// ----- Detect natural content height -----
-const height = await page.evaluate(() => {
-    return document.body.scrollHeight;  // total HTML height in px
-});
+// // ----- Detect natural content height -----
+// const height = await page.evaluate(() => {
+//     return document.body.scrollHeight;  // total HTML height in px
+// });
 
-// PDF A4 height in Playwright = 1123px approx
-const A4_HEIGHT = 1123;
+// // PDF A4 height in Playwright = 1123px approx
+// const A4_HEIGHT = 1123;
 
-const totalPages = Math.ceil(height / A4_HEIGHT);
+// const totalPages = Math.ceil(height / A4_HEIGHT);
 
-console.log("Detected Pages:", totalPages);
+// console.log("Detected Pages:", totalPages);
 
-// Select footer class
-const footerClass =
-  totalPages === 1 ? "page-footer-fixed" : "page-footer-normal";
+// // Select footer class
+// const footerClass =
+//   totalPages === 1 ? "page-footer-fixed" : "page-footer-normal";
 
-// Replace class
-const finalHTML = html.replace(/{{FOOTER_CLASS}}/g, footerClass);
+// // Replace class
+// const finalHTML = html.replace(/{{FOOTER_CLASS}}/g, footerClass);
 
-// Re-render HTML with correct footer
-await page.setContent(finalHTML, { waitUntil: "load" });
+await page.setContent(html, { waitUntil: "load" });
 
-
-
-
-  const pdfBuffer = await page.pdf({
+const pdfBuffer = await page.pdf({
   format: "A4",
-  printBackground: true,
-  displayHeaderFooter: true,
-
-  headerTemplate: `<div></div>`,
-
-  footerTemplate: `
-  <div style="
-    width:100%;
-    font-size:10px;
-    text-align:right;
-    padding-right:20px;
-  ">
-    Page <span class="pageNumber"></span> of <span class="totalPages"></span>
-  </div>
-`,
-
-
-  margin: {
-    top: "0mm",
-    bottom: "25mm"   // 👈 enough for footerTemplate
-  }
+  printBackground: true
 });
-
 
 
 
