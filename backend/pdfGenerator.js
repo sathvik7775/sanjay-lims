@@ -485,7 +485,7 @@ const html = `
 
     .header {
       flex-shrink: 0;
-      height: ${letterheadSettings.headerHeight || 160}px;
+      height: ${letterheadSettings.headerHeight || 240}px;
       border-bottom: 1px solid #d1d5db;
     }
 
@@ -542,8 +542,24 @@ ${pages.map(pageCats => `
     <!-- ===== HEADER ===== -->
     <div class="header">
       ${printSetting.withLetterhead ? `
-        <img src="${headerImageSrc}" style="width:100%; display:block;" />
+        <img
+  src="${headerImageSrc}"
+  style="width:100%; max-height:120px; object-fit:contain; display:block;"
+/>
+
       ` : ""}
+
+      <div style="
+  margin:4px;
+  border:1px solid #000;
+  padding:6px;
+  height:90px;
+  box-sizing:border-box;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+">
+
 
       <div style="
         margin:4px;
@@ -576,6 +592,7 @@ ${pages.map(pageCats => `
         </div>
 
       </div>
+    </div>
     </div>
 
     <!-- ===== CONTENT ===== -->
