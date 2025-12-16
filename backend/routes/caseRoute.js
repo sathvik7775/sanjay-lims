@@ -44,6 +44,7 @@ caseRouter.put("/admin/cancel/:id", verifyAdminToken, cancelCase);
 
 // Admin lists all cases
 caseRouter.get("/admin/list", verifyAdminToken, getAllCases);
+caseRouter.get("/list",  getAllCases);
 
 // Admin gets a single case by ID
 caseRouter.get("/admin/:id", verifyAdminToken, getCaseById);
