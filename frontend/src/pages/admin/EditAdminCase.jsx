@@ -53,6 +53,12 @@ const [errors, setErrors] = useState({});
     if (!formData.doctor) {
       newErrors.doctor = "Referred By is required";
     }
+
+    // 🚻 Sex
+if (!formData.sex) {
+  newErrors.sex = "Please select the gender";
+}
+
   
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -472,7 +478,7 @@ let finalStatus = testsChanged ? "In Progress" : "Signed Off";
 
   } catch (error) {
     console.error("Update Case Error:", error);
-    errorToast(error.response?.data?.message || "Server error");
+    errorToast(error.response?.data?.message || "Incomplete patient information. Please verify and submit again");
   }
 };
 
@@ -561,24 +567,39 @@ let finalStatus = testsChanged ? "In Progress" : "Signed Off";
           />
         </div>
 
-        <div>
-          <label className="block text-sm mb-1">Sex*</label>
-          <div className="flex gap-4">
-            {["Male", "Female", "Other"].map((s) => (
-              <label key={s}>
-                <input
-                  type="radio"
-                  name="sex"
-                  value={s}
-                  checked={formData.sex === s}
-                  onChange={handleChange}
-                  className="mr-1"
-                />
-                {s}
-              </label>
-            ))}
-          </div>
-        </div>
+       <div>
+  <label className="block text-sm mb-1">
+    Sex*
+  </label>
+
+  <div className="flex gap-4">
+    {["Male", "Female", "Other"].map((s) => (
+      <label
+        key={s}
+        className={`flex items-center gap-1 ${
+          errors.sex ? "text-red-500" : ""
+        }`}
+      >
+        <input
+          type="radio"
+          name="sex"
+          value={s}
+          checked={formData.sex === s}
+          onChange={handleChange}
+          className={`mr-1 accent-red-500`}
+        />
+        {s}
+      </label>
+    ))}
+  </div>
+
+  {errors.sex && (
+    <p className="text-red-500 text-xs mt-1">
+      {errors.sex}
+    </p>
+  )}
+</div>
+
       </div>
 
       {/* Age */}
@@ -722,8 +743,8 @@ let finalStatus = testsChanged ? "In Progress" : "Signed Off";
             >
               <option value="">-</option>
               <option value="Main">Main</option>
-              <option value="Main">Home Visit</option>
-              <option value="Main">Center Visit</option>
+              <option value="Home Visit">Home Visit</option>
+              <option value="Center Visit">Center Visit</option>
             </select>
           </div>
 
